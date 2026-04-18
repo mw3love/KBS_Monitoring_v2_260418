@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
 > 마지막 업데이트: 2026-04-18
-> 현재 단계: Phase 0-A-fix2 완료 (설계 공백 확정)
+> 현재 단계: Phase 0-B 완료 (패키지 골격 생성)
 
 ---
 
@@ -24,18 +24,18 @@
 
 ---
 
-## Phase 0-B — 패키지 골격
-- [ ] 디렉토리 구조 + 각 `__init__.py` 생성 (`data/`, `logs/snapshots/` 포함, `.gitkeep`으로 빈 폴더 유지)
-- [ ] `ipc/messages.py`: **`docs_ipc_spec.md §2`의 모든** 메시지 dataclass 정의 (누락 검증 스크립트 포함)
-- [ ] `ipc/shared_frame.py`: `docs_ipc_spec.md §1.1` 레이아웃 구현 (Lamport seq, width/height/flags 헤더)
-- [ ] `ipc/shared_state.py`: `docs_ipc_spec.md §1.2` 레이아웃 구현 (magic/version 검증 + Lock)
-- [ ] `core/roi_manager.py`: v1에서 복사
-- [ ] `utils/config_manager.py`: v1 복사 + v2 신규 키 추가(`config_version`, `embedded.audio_input_device`, 시스템 알림 키)
-- [ ] `utils/logger.py`: v1 복사 + 프로세스별 파일명 suffix 지원 (`_detection`/`_ui`/`_watchdog`)
-- [ ] `config/default_config.json`: v1 복사 + v2 키 추가 + `"config_version": 2`
-- [ ] resources/ 폴더 + 빈 파일 구조
-- [ ] **IPC 스펙 정합성 테스트**: `tests/test_ipc_contract.py` — `docs_ipc_spec.md` 표와 `ipc/messages.py`의 dataclass·필드명 1:1 일치 자동 검증
-- [ ] 첫 커밋: `phase0-b: 패키지 골격 생성`
+## Phase 0-B — 패키지 골격 ✅
+- [x] 디렉토리 구조 + 각 `__init__.py` 생성 (`data/`, `logs/snapshots/` 포함, `.gitkeep`으로 빈 폴더 유지)
+- [x] `ipc/messages.py`: **`docs_ipc_spec.md §2`의 모든** 메시지 dataclass 정의 (누락 검증 스크립트 포함)
+- [x] `ipc/shared_frame.py`: `docs_ipc_spec.md §1.1` 레이아웃 구현 (Lamport seq, width/height/flags 헤더)
+- [x] `ipc/shared_state.py`: `docs_ipc_spec.md §1.2` 레이아웃 구현 (magic/version 검증 + Lock)
+- [x] `core/roi_manager.py`: v1에서 복사
+- [x] `utils/config_manager.py`: v1 복사 + v2 신규 키 추가(`config_version`, `embedded.audio_input_device`, 시스템 알림 키)
+- [x] `utils/logger.py`: v1 복사 + 프로세스별 파일명 suffix 지원 (`_detection`/`_ui`/`_watchdog`)
+- [x] `config/default_config.json`: v1 복사 + v2 키 추가 + `"config_version": 2`
+- [x] resources/ 폴더 + 빈 파일 구조 (dark_theme.qss, light_theme.qss 골격)
+- [x] **IPC 스펙 정합성 테스트**: `tests/test_ipc_contract.py` — 7/7 PASS
+- [x] 커밋: `phase0-b: 패키지 골격 생성`
 
 **완료 기준**: `python -c "from ipc.shared_frame import SharedFrameBuffer; from ipc.messages import *"` 오류 없음. IPC 정합성 테스트 통과.
 

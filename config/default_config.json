@@ -1,0 +1,114 @@
+{
+  "config_version": 2,
+  "port": 0,
+  "detection": {
+    "black_threshold": 10,
+    "black_dark_ratio": 95.0,
+    "black_duration": 20,
+    "black_alarm_duration": 60,
+    "black_motion_suppress_ratio": 0.2,
+    "still_threshold": 8,
+    "still_changed_ratio": 2.0,
+    "still_duration": 60,
+    "still_alarm_duration": 60,
+    "audio_hsv_h_min": 40,
+    "audio_hsv_h_max": 95,
+    "audio_hsv_s_min": 80,
+    "audio_hsv_s_max": 255,
+    "audio_hsv_v_min": 60,
+    "audio_hsv_v_max": 255,
+    "audio_pixel_ratio": 5,
+    "audio_level_duration": 20,
+    "audio_level_alarm_duration": 60,
+    "audio_level_recovery_seconds": 2,
+    "embedded_silence_threshold": -50,
+    "embedded_silence_duration": 20,
+    "embedded_alarm_duration": 60,
+    "audio_tone_std_threshold": 3.0,
+    "audio_tone_duration": 60.0,
+    "audio_tone_min_level": 5.0
+  },
+  "alarm": {
+    "sound_enabled": true,
+    "volume": 80,
+    "sound_file": "resources/sounds/alarm.wav"
+  },
+  "rois": {
+    "video": [],
+    "audio": []
+  },
+  "performance": {
+    "detection_interval": 200,
+    "scale_factor": 1.0,
+    "black_detection_enabled": true,
+    "still_detection_enabled": true,
+    "audio_detection_enabled": true,
+    "embedded_detection_enabled": true
+  },
+  "telegram": {
+    "enabled": false,
+    "bot_token": "",
+    "chat_id": "",
+    "send_image": true,
+    "cooldown": 60,
+    "notify_black": true,
+    "notify_still": true,
+    "notify_audio_level": true,
+    "notify_embedded": true,
+    "notify_signoff": true,
+    "notify_system": true
+  },
+  "recording": {
+    "enabled": true,
+    "save_dir": "recordings",
+    "pre_seconds": 5,
+    "post_seconds": 15,
+    "max_keep_days": 7,
+    "output_width": 960,
+    "output_height": 540,
+    "output_fps": 10
+  },
+  "embedded": {
+    "audio_input_device": ""
+  },
+  "ui_state": {
+    "detection_enabled": true,
+    "roi_visible": true,
+    "fullscreen": false
+  },
+  "signoff": {
+    "auto_preparation": true,
+    "prep_alarm_sound": "",
+    "enter_alarm_sound": "",
+    "release_alarm_sound": "",
+    "group1": {
+      "name": "1TV",
+      "enter_roi": {"video_label": ""},
+      "suppressed_labels": [],
+      "start_time": "03:00",
+      "end_time": "05:00",
+      "end_next_day": false,
+      "prep_minutes": 150,
+      "exit_prep_minutes": 30,
+      "exit_trigger_sec": 5,
+      "weekdays": [0, 1]
+    },
+    "group2": {
+      "name": "2TV",
+      "enter_roi": {"video_label": ""},
+      "suppressed_labels": [],
+      "start_time": "02:00",
+      "end_time": "05:00",
+      "end_next_day": false,
+      "prep_minutes": 90,
+      "exit_prep_minutes": 30,
+      "exit_trigger_sec": 5,
+      "weekdays": [0, 1, 2, 3, 4, 5, 6]
+    }
+  },
+  "system": {
+    "scheduled_restart_enabled": false,
+    "scheduled_restart_time": "",
+    "scheduled_restart_time_2": ""
+  }
+}
