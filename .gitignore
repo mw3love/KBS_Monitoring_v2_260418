@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# 가상환경
+venv/
+.venv/
+env/
+
+# 런타임 생성 폴더
+logs/
+recordings/
+
+# 설정 (운영 설정은 버전관리 제외, default_config.json만 포함)
+config/kbs_config.json
+
+# 기타
+*.log
+.DS_Store
+desktop.ini
+Thumbs.db
