@@ -15,16 +15,16 @@
 ---
 
 ## Phase 0-B — 패키지 골격
-- [ ] 디렉토리 구조 + 각 `__init__.py` 생성
+- [ ] 디렉토리 구조 + 각 `__init__.py` 생성 (`data/` 폴더 포함, `.gitkeep`으로 빈 폴더 유지)
 - [ ] `ipc/messages.py`: Queue 메시지 dataclass 정의
 - [ ] `ipc/shared_frame.py`: SharedMemory 프레임 버퍼 래퍼
-- [ ] `ipc/shared_state.py`: SharedMemory 상태 버퍼 래퍼
+- [ ] `ipc/shared_state.py`: SharedMemory 상태 버퍼 래퍼 (level_l, level_r 포함)
 - [ ] `core/roi_manager.py`: v1에서 복사
 - [ ] `utils/config_manager.py`: v1 복사 + v2 신규 키 추가
-- [ ] `utils/logger.py`: v1 복사
+- [ ] `utils/logger.py`: v1 복사 + 프로세스별 파일명 suffix 지원 (`_detection`/`_ui`/`_watchdog`)
 - [ ] `config/default_config.json`: v1 복사 + v2 키 추가
 - [ ] resources/ 폴더 + 빈 파일 구조
-- [ ] 첫 커밋: "chore: Phase 0 프로젝트 골격"
+- [ ] 첫 커밋: `phase0-b: 패키지 골격 생성`
 
 **완료 기준**: `python -c "from ipc.shared_frame import SharedFrameBuffer"` 오류 없음
 
@@ -46,24 +46,28 @@
 
 ## Phase 2 — UI 프로세스 + IPC 연결
 - [ ] `ipc/shared_frame.py` 완성 + 멀티프로세스 테스트
-- [ ] `ipc/shared_state.py` 완성
+- [ ] `ipc/shared_state.py` 완성 (L/R 레벨미터 필드 포함)
+- [ ] `resources/styles/dark_theme.qss`: `design/styles.css` 색상 토큰 기반 재작성 (Claude 오렌지 `#D97757` primary accent)
+- [ ] `resources/styles/light_theme.qss`: `design/styles.css` 라이트 변형 적용
 - [ ] `ui/ui_bridge.py`: UIBridge QThread
-- [ ] `ui/video_widget.py`: v1 이식 (frame_updated Signal 연결)
+- [ ] `ui/alarm.py`: AlarmSystem v1 이식 (QTimer 깜빡임, threading.Thread 사운드, UI 프로세스 전용, Ack 상태 관리)
+- [ ] `ui/video_widget.py`: v1 이식 (frame_updated Signal 연결) — `design/panels.jsx` 레이아웃 참조
 - [ ] `ui/log_widget.py`: v1 이식
-- [ ] `ui/top_bar.py`: v1 이식
-- [ ] `ui/main_window.py`: 뼈대 (UIBridge 연결, 3분할 레이아웃)
-- [ ] `main.py`: Launcher 기본 구조
+- [ ] `ui/top_bar.py`: v1 이식 (정파 버튼 카운트다운, L/R 레벨미터 세그먼트) — `design/topbar.jsx` 레이아웃 참조
+- [ ] `ui/main_window.py`: 뼈대 (UIBridge 연결, 3분할 레이아웃) — `design/app.jsx` 참조
+- [ ] `main.py`: Launcher 기본 구조 + `faulthandler.enable(logs/fault.log)` + SharedMemory 잔존 정리 루틴
 
-**완료 기준**: 캡처 카드 연결 시 VideoWidget 영상 표시. 두 프로세스 분리된 PID 확인.
+**완료 기준**: 캡처 카드 연결 시 VideoWidget 영상 표시. 두 프로세스 분리된 PID 확인. 다크 테마가 design/styles.css 톤을 반영.
 
 ---
 
 ## Phase 3 — 알림 + 정파 + ROI 편집
 - [ ] AlarmSystem 연결 (UIBridge → trigger/resolve)
-- [ ] 알림확인 버튼 → cmd_queue
+- [ ] 알림확인 버튼 → AlarmSystem 내부 ack 상태만 갱신 (cmd_queue 전송 불필요)
 - [ ] 정파 버튼 → cmd_queue
+- [ ] 볼륨/Mute 버튼 → cmd_queue (`SetVolume` / `SetMute`, pycaw 제어는 Detection에서)
 - [ ] `ui/roi_editor.py`: v1 이식, 편집 완료 → cmd_queue RoiUpdate
-- [ ] `ui/settings_dialog.py`: v1 이식, 저장 → cmd_queue ConfigUpdate
+- [ ] `ui/settings_dialog.py`: v1 이식 (7탭), 저장 → cmd_queue ConfigUpdate (자동 성능 감지 버튼 포함) — `design/settings.jsx` 참조
 - [ ] `ui/dual_slider.py`: v1 이식
 
 **완료 기준**: 블랙/스틸/오디오/임베디드 감지 및 알림 정상. 정파 전환 정상. ROI 편집 후 즉시 반영.

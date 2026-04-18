@@ -5,6 +5,15 @@
 - v1(KBS Peacock v1.6.x)의 "장기 운영 시 감지 루프 freeze" 문제를 근본 해결하기 위해 재작성
 - **핵심 변경**: multiprocessing 기반 아키텍처 (UI/감지 프로세스 분리)
 
+## UI 디자인 레퍼런스
+- 목업 디자인 파일 위치: `design/` 폴더 (Claude Design 2026-04-18 제작)
+- **색상 시스템**: `design/styles.css` — 모든 색상 토큰, 컴포넌트 스타일 정의
+- **UI 구조**: `design/topbar.jsx`, `design/panels.jsx`, `design/app.jsx`
+- **설정 다이얼로그**: `design/settings.jsx` (7탭 전체)
+- **디자인 대화**: `design/chats/chat1.md` — 디자인 의도/결정 사유
+- **적용 스타일**: V2 오렌지 적극 — Claude 오렌지(`#D97757`)를 primary accent로
+- UI 코드 작성 시 반드시 `design/styles.css`의 색상 토큰을 참조할 것
+
 ## 작업 진행 규칙
 
 ### 소통 규칙
@@ -18,6 +27,12 @@
 - PROGRESS.md 업데이트는 해당 Phase 커밋에 함께 포함
 - 커밋은 Phase 단위로 (중간에 임의 커밋 금지)
 - 커밋 메시지 형식: `phase0-b: 패키지 골격 생성` 형식
+
+### CLAUDE.md 분리 규칙
+- CLAUDE.md가 200줄을 초과하면 관련 폴더에 하위 CLAUDE.md를 별도 생성
+  (예: `ui/CLAUDE.md`, `detection/CLAUDE.md`)
+- 루트 CLAUDE.md는 전체 아키텍처·공통 규칙만 유지
+- 하위 CLAUDE.md는 Claude Code가 해당 폴더 작업 시 자동으로 로드됨 (별도 참조 불필요)
 
 ### v1 코드 이식 규칙
 - v1 코드 이식 시, `QThread` / `QTimer` / `Signal` / `QObject` 잔재 여부를 체크 후 보고할 것
@@ -70,7 +85,8 @@ main.py (Launcher)
   └─ QApplication + MainWindow 실행 (현재 프로세스 = UI)
 
 UI Process (PySide6 이벤트 루프)
-  └─ UIBridge (QThread): result_queue 폴링 → Qt Signal 변환
+  ├─ UIBridge (QThread): result_queue 폴링 → Qt Signal 변환
+  └─ AlarmSystem: 시각/청각 알림 관리 (QTimer 500ms 깜빡임, threading.Thread 사운드 재생)
 
 Detection Process (PySide6 임포트 없음)
   ├─ VideoCaptureWorker   (threading.Thread)
@@ -91,11 +107,13 @@ Watchdog Process
 | 이름 | 용도 | 방향 |
 |------|------|------|
 | `kbs_frame_v2` | 프레임 픽셀 (~6MB) | Detection → UI |
-| `kbs_state_v2` | detection_enabled, mute, volume | UI → Detection |
+| `kbs_state_v2` | detection_enabled, mute, volume, level_l, level_r | 양방향 |
 
 - **Detection 프로세스**: `shared_frame.write_frame(ndarray)`
 - **UI 프로세스**: `shared_frame.read_frame()` → 반드시 `.copy()` 후 반환
 - seq_no 기반 변경 감지 (Lock 없음, 1프레임 지연 허용)
+- **L/R 레벨미터(`level_l`, `level_r` float)**: Detection → UI 방향. UI는 약 33ms 주기로 읽어 상단바 세그먼트 표시 (고빈도 값은 result_queue 대신 SharedMemory로 전달)
+- **잔존 정리**: `main.py` 시작 시 기존 이름으로 `SharedMemory(name=..., create=False)` 시도 → 성공하면 `unlink()` 후 재생성. 정상 종료 시 try-finally로 반드시 `close()` + `unlink()`
 
 ### Queue
 | Queue | 방향 | maxsize | 내용 |
@@ -109,7 +127,10 @@ Watchdog Process
 ## 파일 구조
 ```
 kbs_monitoring_v2/
-├── main.py                          # Launcher
+├── main.py                          # Launcher (faulthandler 활성화 포함)
+├── data/                            # 런타임 상태 파일 (gitignore)
+│   ├── heartbeat.dat                # 바이너리 8바이트: time.time() double
+│   └── last_exit.json               # {"exit_time","exit_code","reason","pid"}
 ├── processes/
 │   ├── detection_process.py         # Detection 프로세스 진입점 + 메인 루프
 │   └── watchdog_process.py          # Watchdog 프로세스
@@ -128,11 +149,12 @@ kbs_monitoring_v2/
 ├── ui/
 │   ├── main_window.py               # MainWindow (3분할, IPC 연결)
 │   ├── ui_bridge.py                 # result_queue → Qt Signal (QThread)
+│   ├── alarm.py                     # AlarmSystem (시각/청각 알림, UI 프로세스 전용)
 │   ├── top_bar.py                   # 상단 바
 │   ├── video_widget.py              # 프레임 표시 + ROI 오버레이
 │   ├── log_widget.py                # 시스템 로그
-│   ├── settings_dialog.py           # 6탭 설정 (비모달)
-│   ├── roi_editor.py                # 반화면 ROI 편집기
+│   ├── settings_dialog.py           # 7탭 설정 (비모달)
+│   ├── roi_editor.py                # ROI 편집 캔버스 (설정창+영상 동시 표시)
 │   └── dual_slider.py               # HSV 듀얼 슬라이더
 ├── core/
 │   └── roi_manager.py               # ROI dataclass + ROIManager
@@ -198,7 +220,8 @@ if __name__ == '__main__':
 | v1 | v2 | 주요 변경 |
 |----|----|----|
 | `core/detector.py` | `detection/detector.py` | Signal 제거, dict 반환 |
-| `core/signoff_manager.py` | `detection/signoff_manager.py` | QTimer → time.sleep |
+| `core/detection_state.py` | `detection/detection_state.py` | Signal 제거 |
+| `core/signoff_manager.py` | `detection/signoff_manager.py` | QTimer → time.sleep(1) (1초 주기 상태 점검) |
 | `core/auto_recorder.py` | `detection/auto_recorder.py` | 거의 없음 |
 | `core/telegram_notifier.py` | `detection/telegram_worker.py` | QObject 제거 |
 | `core/roi_manager.py` | `core/roi_manager.py` | 없음 |
@@ -249,3 +272,32 @@ if __name__ == '__main__':
 ### faulthandler 필수 적용
 - `main.py` 시작 시 반드시 `faulthandler.enable(file=open("logs/fault.log", "a"))` 적용
 - Python try-except는 C++ 레벨 segfault 감지 불가 → faulthandler만 감지 가능
+
+---
+
+## 프로세스 책임 분담
+
+### 오디오 서브시스템 (Detection 프로세스 단독)
+- `sounddevice` 스트림 오픈/읽기
+- `pycaw` 시스템 볼륨/Mute 제어
+- UI는 `cmd_queue`로 `SetVolume(value)`, `SetMute(bool)` 명령만 전송
+- 근거: 오디오 스트림과 시스템 볼륨을 서로 다른 프로세스에서 제어 시 충돌 위험
+
+### 알림 상태(Acknowledge)
+- **UI 프로세스에만 존재** (`ui/alarm.py`의 `AlarmSystem`이 보관)
+- Detection은 trigger/resolve 이벤트만 계속 발행 (ack 상태 모름)
+- UI는 동일 라벨 재trigger 시 사운드/깜빡임 억제, resolve 수신 시 ack 해제
+- 근거: Detection은 "감지 중", UI는 "사용자 알림 중" — 관심사 분리
+
+### 로그 파일 분리 (Windows 동시 쓰기 충돌 방지)
+- Detection: `logs/YYYYMMDD_detection.txt`
+- UI: `logs/YYYYMMDD_ui.txt`
+- Watchdog: `logs/YYYYMMDD_watchdog.txt`
+- UI 로그 위젯(`log_widget`)은 Detection 로그를 `result_queue` 메시지로도 받아 화면에 통합 표시 (파일 따로, 화면 통합)
+- 각 프로세스의 `utils/logger.py` 인스턴스는 자기 파일에만 기록
+
+### 메모리 버퍼 상한
+- `auto_recorder` 순환버퍼: 채널당 `pre_seconds × fps × 프레임크기` 계산값 상한, 초과분 drop 시 로그 기록
+- `log_widget`: 500개 (초과 시 오래된 항목 제거)
+- `result_queue`: maxsize=200 (Full 시 1개 drop 후 재시도)
+- Phase 5 검증 시: 24h 실행 후 psutil RSS 측정
