@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
 > 마지막 업데이트: 2026-04-18
-> 현재 단계: Phase 0-B 완료 (패키지 골격 생성)
+> 현재 단계: Phase 1 완료 (Detection 프로세스 독립 실행)
 
 ---
 
@@ -41,18 +41,18 @@
 
 ---
 
-## Phase 1 — Detection 프로세스 독립 실행
-- [ ] `detection/detection_state.py`: v1 이식
-- [ ] `detection/video_capture.py`: threading.Thread (QThread 제거)
-- [ ] `detection/audio_monitor.py`: threading.Thread (QThread 제거) + 장치 이름 기반 선택
-- [ ] `detection/detector.py`: v1 이식, Signal 제거, dict 반환
-- [ ] `detection/signoff_manager.py`: QTimer → time.sleep(1)
-- [ ] `detection/auto_recorder.py`: v1 이식
-- [ ] `detection/telegram_worker.py`: v1 이식, QObject 제거
-- [ ] `processes/detection_process.py`: 메인 루프 + heartbeat.dat + **기동 시 config 자체 로드 + DetectionReady 발행**
-- [ ] **단위테스트** `tests/test_detector.py`: 블랙/스틸/HSV 감지 경계값 (v1 동작 동등성)
-- [ ] **단위테스트** `tests/test_signoff_manager.py`: IDLE↔PREPARATION↔SIGNOFF 전환, 히스테리시스, 타이머 리셋
-- [ ] **단위테스트** `tests/test_detection_state.py`: still_reset_frames 카운터, audio_level_recovery_seconds
+## Phase 1 — Detection 프로세스 독립 실행 ✅
+- [x] `detection/detection_state.py`: v1 이식
+- [x] `detection/video_capture.py`: threading.Thread (QThread 제거)
+- [x] `detection/audio_monitor.py`: threading.Thread (QThread 제거) + 장치 이름 기반 선택
+- [x] `detection/detector.py`: v1 이식, Signal 제거, dict 반환
+- [x] `detection/signoff_manager.py`: QTimer → time.sleep(1)
+- [x] `detection/auto_recorder.py`: v1 이식
+- [x] `detection/telegram_worker.py`: v1 이식, QObject 제거
+- [x] `processes/detection_process.py`: 메인 루프 + heartbeat.dat + 기동 시 config 자체 로드 + DetectionReady 발행
+- [x] **단위테스트** `tests/test_detector.py`: 13/13 PASS
+- [x] **단위테스트** `tests/test_signoff_manager.py`: 11/11 PASS
+- [x] **단위테스트** `tests/test_detection_state.py`: 9/9 PASS
 
 **완료 기준**: `python -m processes.detection_process --test` 실행 시 30초 주기 DIAG 콘솔 출력. 캡처 포트 없이도 루프 생존. 단위테스트 전부 pass.
 
