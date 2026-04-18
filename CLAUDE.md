@@ -6,11 +6,23 @@
 - **핵심 변경**: multiprocessing 기반 아키텍처 (UI/감지 프로세스 분리)
 
 ## 작업 진행 규칙
+
+### 소통 규칙
+- 사용자 명령이 불명확하거나 해석이 여러 가지일 경우, 명확하게 이해될 때까지 무한정 질문할 것 (추측으로 진행 금지)
+- 작업 완료 후 결과가 초기 계획(PROGRESS.md, CLAUDE.md, docs_기능_레퍼런스.md)과 달라진 부분이 있으면, 관련 문서를 업데이트할지 반드시 사용자에게 확인할 것
+- 파일 수정 전, 영향받는 다른 파일 목록을 먼저 알려줄 것
+
+### 진행 관리 규칙
 - 각 작업 항목 완료 시 즉시 `PROGRESS.md`의 해당 `[ ]` → `[x]` 로 업데이트
 - Phase 전체 완료 시 상단 "현재 단계" 텍스트도 업데이트
 - PROGRESS.md 업데이트는 해당 Phase 커밋에 함께 포함
-- 사용자 명령이 불명확하거나 해석이 여러 가지일 경우, 명확하게 이해될 때까지 무한정 질문할 것 (추측으로 진행 금지)
-- 작업 완료 후 결과가 초기 계획(PROGRESS.md, CLAUDE.md, docs_기능_레퍼런스.md)과 달라진 부분이 있으면, 관련 문서를 업데이트할지 반드시 사용자에게 확인할 것
+- 커밋은 Phase 단위로 (중간에 임의 커밋 금지)
+- 커밋 메시지 형식: `phase0-b: 패키지 골격 생성` 형식
+
+### v1 코드 이식 규칙
+- v1 코드 이식 시, `QThread` / `QTimer` / `Signal` / `QObject` 잔재 여부를 체크 후 보고할 것
+- Detection 프로세스에 이식하는 코드는 PySide6 임포트가 없는지 반드시 확인
+- 이식 후 변경사항 목록을 사용자에게 보고할 것
 
 ## 개발 규칙
 - 모든 응답은 한국어
@@ -197,3 +209,43 @@ if __name__ == '__main__':
 
 ### 새로 작성하는 파일 (v2 신규)
 - `main.py`, `processes/*`, `ipc/*`, `ui/ui_bridge.py`, `ui/main_window.py`
+
+---
+
+## v1 반복 버그에서 도출한 추가 원칙
+
+### 예외 처리 원칙
+- 모든 DIAG 섹션은 반드시 독립된 try-except로 격리 (하나 실패해도 나머지 계속)
+- `traceback.format_exc()` 호출 자체도 inner-try로 보호 (호출 실패 시 에러 정보 소실 방지)
+- `threading.Thread.start()` 실패 시 OSError를 반드시 로그에 기록
+
+### PySide6 QWidget 생성 규칙 (v1 ui/CLAUDE.md 이식)
+- `QScrollArea` 사용 시: `QWidget()` 생성 직후 **즉시** `setWidget()` 호출 (GC 삭제 방지)
+- 레이아웃 변수명은 역할별로 명확하게 (`inner`, `layout` 같은 범용 이름 재사용 금지)
+  - 잘못된 예: `layout = QVBoxLayout()` → 이후 `layout = QHBoxLayout()` 덮어쓰기 → 이전 위젯 GC 삭제
+  - 올바른 예: `scroll_layout = QVBoxLayout()`, `button_row = QHBoxLayout()`
+
+### 상태 전환 타이머 초기화 원칙
+- SignoffManager 상태 전환 시 반드시 해당 방향의 타이머 초기화 함수 호출
+  - IDLE 진입 시: `_reset_enter_timers()` (미호출 시 다음 날 PREPARATION 즉시 SIGNOFF 전환 버그)
+  - SIGNOFF 진입 시: `_reset_exit_timers()` (미호출 시 이전 주기 stale 타이머 잔류)
+
+### 설정 동기화 원칙
+- 파라미터 추가·변경 시 반드시 3파일 동시 업데이트:
+  1. `config/default_config.json` — 새 설치 기본값
+  2. `utils/config_manager.py` `DEFAULT_CONFIG` — 런타임 fallback
+  3. `config/kbs_config.json` — 현재 운영 설정 (값 확인)
+- 설정 갱신 후 즉시 진단 로그 기록 (silent 실패 방지)
+
+### 예약 재시작 중복 방지 원칙
+- 중복 실행 방지는 시각(HH:MM)이 아닌 **날짜+시각(YYYY-MM-DD HH:MM)** 조합으로 관리
+  - 시각만으로 방지 시 매일 같은 시각에 재시작 불가
+
+### 정파 억제 규칙
+- 억제는 그룹별로만 적용: `is_signoff_label(label, group_id)` 사용
+- 임베디드 오디오는 그룹 귀속이 없으므로 정파 억제 적용 불가 (`is_any_signoff()` 금지)
+- PREPARATION 상태: 스틸만 억제, 블랙은 계속 알림
+
+### faulthandler 필수 적용
+- `main.py` 시작 시 반드시 `faulthandler.enable(file=open("logs/fault.log", "a"))` 적용
+- Python try-except는 C++ 레벨 segfault 감지 불가 → faulthandler만 감지 가능
