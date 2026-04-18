@@ -317,10 +317,34 @@ class MainWindow(QMainWindow):
             self.showFullScreen()
             self._top_bar.set_fullscreen_button_state(True)
 
-    # ── 설정 (Phase 3에서 완성) ───────────────────────────────────
+    # ── 설정 ──────────────────────────────────────────────────────────
 
     def _open_settings(self):
-        self._log_widget.add_log("[시스템] 설정 다이얼로그 (Phase 3에서 구현)")
+        if hasattr(self, "_settings_dlg") and self._settings_dlg.isVisible():
+            self._settings_dlg.raise_()
+            self._settings_dlg.activateWindow()
+            return
+        from ui.settings_dialog import SettingsDialog
+        frozen_frame = self._video_widget.get_current_frame()
+        self._settings_dlg = SettingsDialog(
+            cfg=self._cfg,
+            cmd_queue=self._cmd_queue,
+            alarm=self._alarm,
+            frozen_frame=frozen_frame,
+            parent=self,
+        )
+        self._settings_dlg.config_saved.connect(self._on_config_saved)
+        self._settings_dlg.show()
+
+    def _on_config_saved(self, new_cfg: dict):
+        self._cfg = new_cfg
+        alarm_cfg = new_cfg.get("alarm", {})
+        self._alarm.set_sound_enabled(alarm_cfg.get("sound_enabled", True))
+        self._alarm.set_volume(alarm_cfg.get("volume", 80) / 100.0)
+        sound_file = alarm_cfg.get("sound_file", "")
+        if sound_file:
+            self._alarm.set_sound_file("default", sound_file)
+        self._log_widget.add_log("[시스템] 설정 저장 완료")
 
     # ── cmd_queue 발행 헬퍼 ───────────────────────────────────────
 

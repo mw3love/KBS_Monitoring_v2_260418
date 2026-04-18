@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
 > 마지막 업데이트: 2026-04-18
-> 현재 단계: Phase 2 완료 (UI 프로세스 + IPC 연결)
+> 현재 단계: Phase 3 완료 (알림 + 정파 + ROI 편집)
 
 ---
 
@@ -77,14 +77,14 @@
 
 ---
 
-## Phase 3 — 알림 + 정파 + ROI 편집
-- [ ] AlarmSystem 연결 (UIBridge → trigger/resolve)
-- [ ] 알림확인 버튼 → AlarmSystem 내부 ack 상태만 갱신 (cmd_queue 전송 불필요)
-- [ ] 정파 버튼 → cmd_queue
-- [ ] 볼륨/Mute 버튼 → cmd_queue (`SetVolume` / `SetMute`, pycaw 제어는 Detection에서)
-- [ ] `ui/roi_editor.py`: v1 이식, 편집 완료 → cmd_queue RoiUpdate
-- [ ] `ui/settings_dialog.py`: v1 이식 (7탭), 저장 → cmd_queue ConfigUpdate (자동 성능 감지 버튼 포함) — `design/settings.jsx` 참조
-- [ ] `ui/dual_slider.py`: v1 이식
+## Phase 3 — 알림 + 정파 + ROI 편집 ✅
+- [x] AlarmSystem 연결 (UIBridge → trigger/resolve)
+- [x] 알림확인 버튼 → AlarmSystem 내부 ack 상태만 갱신 (cmd_queue 전송 불필요)
+- [x] 정파 버튼 → cmd_queue
+- [x] 볼륨/Mute 버튼 → cmd_queue (`SetVolume` / `SetMute`, pycaw 제어는 Detection에서)
+- [x] `ui/roi_editor.py`: v1 이식, 편집 완료 → cmd_queue RoiUpdate
+- [x] `ui/settings_dialog.py`: 신규 작성 (7탭), 저장 → cmd_queue ApplyConfig/UpdateROIs — `design/settings.jsx` 참조
+- [x] `ui/dual_slider.py`: v1 이식
 
 **완료 기준**: 블랙/스틸/오디오/임베디드 감지 및 알림 정상. 정파 전환 정상. ROI 편집 후 즉시 반영.
 

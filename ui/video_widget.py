@@ -175,6 +175,12 @@ class VideoWidget(QWidget):
         super().resizeEvent(event)
         self._render()
 
+    def get_current_frame(self):
+        """현재 프레임 복사본 반환 (ROI 편집 등에 사용). 없으면 None."""
+        if self._current_frame is not None:
+            return self._current_frame.copy()
+        return None
+
     def get_frame_size(self) -> tuple:
         if self._current_frame is not None:
             h, w = self._current_frame.shape[:2]
