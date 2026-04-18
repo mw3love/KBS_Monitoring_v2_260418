@@ -1,2 +1,267 @@
-/* KBS Monitoring v2 — 라이트 테마
-   색상 토큰은 design/styles.css 기준. Phase 2에서 완성. */
+/* ================================================================
+   KBS Monitoring v2 — 라이트 테마 QSS
+   주간 모드용. 어두운 배경 대신 밝은 배경, accent는 동일 orange.
+   ================================================================ */
+
+QWidget {
+    background-color: #f5f5f5;
+    color: #1a1a1a;
+    font-family: "Pretendard", "Malgun Gothic", "Segoe UI", sans-serif;
+    font-size: 12px;
+}
+
+QMainWindow {
+    background-color: #eeeeee;
+}
+
+QWidget#topBar {
+    background-color: #ffffff;
+    border-bottom: 1px solid #dddddd;
+}
+
+QFrame#topBarSeparator {
+    color: #cccccc;
+    background-color: #cccccc;
+    max-width: 1px;
+}
+
+QPushButton {
+    background-color: #e8e8e8;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 4px 10px;
+}
+
+QPushButton:hover {
+    background-color: #dddddd;
+    border-color: #D97757;
+}
+
+QPushButton:pressed {
+    background-color: #D97757;
+    color: #ffffff;
+}
+
+QPushButton:checked {
+    background-color: #D97757;
+    color: #ffffff;
+    border-color: #B85E3F;
+}
+
+QPushButton:disabled {
+    background-color: #f0f0f0;
+    color: #aaaaaa;
+    border-color: #dddddd;
+}
+
+QPushButton#btnDetection:checked {
+    background-color: #D97757;
+    color: #ffffff;
+}
+
+QPushButton#btnSignoff[signoff_state="IDLE"] {
+    background-color: #e8e8e8;
+    color: #888888;
+}
+
+QPushButton#btnSignoff[signoff_state="PREPARATION"] {
+    background-color: #fff3cd;
+    color: #856404;
+    border-color: #ffc107;
+}
+
+QPushButton#btnSignoff[signoff_state="SIGNOFF"] {
+    background-color: #f8d7da;
+    color: #842029;
+    border-color: #e03131;
+}
+
+QSlider::groove:horizontal {
+    background-color: #dddddd;
+    height: 4px;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background-color: #D97757;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    margin: -5px 0;
+}
+
+QSlider::sub-page:horizontal {
+    background-color: #D97757;
+    border-radius: 2px;
+}
+
+QSpinBox::up-button,
+QSpinBox::down-button {
+    width: 0;
+    height: 0;
+    border: none;
+}
+
+QSpinBox {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+QWidget#videoArea {
+    background-color: #222222;
+}
+
+QLabel#videoLabel {
+    background-color: #111111;
+}
+
+QWidget#logArea {
+    background-color: #ffffff;
+}
+
+QWidget#logHeaderArea {
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #dddddd;
+}
+
+QLabel#logHeader {
+    color: #444444;
+    font-weight: bold;
+    font-size: 11px;
+}
+
+QListWidget#logList {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    border: none;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 11px;
+    alternate-background-color: #f8f8f8;
+}
+
+QListWidget#logList::item {
+    padding: 2px 6px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+QSplitter#mainSplitter::handle {
+    background-color: #cccccc;
+    width: 3px;
+}
+
+QSplitter#mainSplitter::handle:hover {
+    background-color: #D97757;
+}
+
+QScrollBar:vertical {
+    background-color: #f0f0f0;
+    width: 8px;
+    border: none;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #cccccc;
+    border-radius: 4px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #D97757;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QTabWidget::pane {
+    background-color: #ffffff;
+    border: 1px solid #dddddd;
+}
+
+QTabBar::tab {
+    background-color: #f0f0f0;
+    color: #666666;
+    border: 1px solid #dddddd;
+    padding: 6px 14px;
+    border-bottom: none;
+}
+
+QTabBar::tab:selected {
+    background-color: #ffffff;
+    color: #D97757;
+}
+
+QComboBox {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 3px 8px;
+}
+
+QComboBox:hover {
+    border-color: #D97757;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    selection-background-color: #D97757;
+    selection-color: #ffffff;
+}
+
+QCheckBox {
+    spacing: 6px;
+    color: #1a1a1a;
+}
+
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #cccccc;
+    border-radius: 3px;
+    background-color: #ffffff;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #D97757;
+    border-color: #B85E3F;
+}
+
+QLineEdit, QTextEdit, QPlainTextEdit {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
+    border-color: #D97757;
+}
+
+QGroupBox {
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+    margin-top: 8px;
+    padding-top: 4px;
+}
+
+QGroupBox::title {
+    color: #D97757;
+    subcontrol-origin: margin;
+    left: 8px;
+    padding: 0 4px;
+}
+
+QLabel#lblTime {
+    color: #B85E3F;
+    font-size: 14px;
+    font-weight: bold;
+}

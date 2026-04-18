@@ -1,2 +1,350 @@
-/* KBS Monitoring v2 — 다크 테마
-   색상 토큰은 design/styles.css 기준. Phase 2에서 완성. */
+/* ================================================================
+   KBS Monitoring v2 — 다크 테마 QSS
+   색상 토큰: design/styles.css 기준
+   primary accent: #D97757 (Claude orange)
+   ================================================================ */
+
+/* ── 기본 위젯 ─────────────────────────────────────────────────── */
+QWidget {
+    background-color: #17181b;
+    color: #ececec;
+    font-family: "Pretendard", "Malgun Gothic", "Segoe UI", sans-serif;
+    font-size: 12px;
+}
+
+QMainWindow {
+    background-color: #0f0f10;
+}
+
+/* ── 상단 바 ────────────────────────────────────────────────────── */
+QWidget#topBar {
+    background-color: #1e1f23;
+    border-bottom: 1px solid #2a2b30;
+}
+
+QFrame#topBarSeparator {
+    color: #2a2b30;
+    background-color: #2a2b30;
+    max-width: 1px;
+}
+
+/* ── 버튼 ───────────────────────────────────────────────────────── */
+QPushButton {
+    background-color: #26272c;
+    color: #ececec;
+    border: 1px solid #3a3b42;
+    border-radius: 4px;
+    padding: 4px 10px;
+}
+
+QPushButton:hover {
+    background-color: #2d2e33;
+    border-color: #D97757;
+}
+
+QPushButton:pressed {
+    background-color: #D97757;
+    color: #0f0f10;
+}
+
+QPushButton:checked {
+    background-color: #D97757;
+    color: #0f0f10;
+    border-color: #B85E3F;
+}
+
+QPushButton:disabled {
+    background-color: #1e1f23;
+    color: #55565c;
+    border-color: #2a2b30;
+}
+
+/* 감지 ON/OFF 버튼 */
+QPushButton#btnDetection {
+    font-weight: bold;
+}
+
+QPushButton#btnDetection:checked {
+    background-color: #D97757;
+    color: #0f0f10;
+}
+
+QPushButton#btnDetection:!checked {
+    background-color: #26272c;
+    color: #7d7e84;
+}
+
+/* 알림확인 버튼 — 알람 중에는 main_window에서 직접 스타일 주입 */
+QPushButton#btnAlarmAck {
+    font-weight: bold;
+}
+
+/* 정파 버튼 — signoff_state property 기반 */
+QPushButton#btnSignoff {
+    font-weight: bold;
+    min-width: 100px;
+}
+
+QPushButton#btnSignoff[signoff_state="IDLE"] {
+    background-color: #26272c;
+    color: #7d7e84;
+    border-color: #3a3b42;
+}
+
+QPushButton#btnSignoff[signoff_state="PREPARATION"] {
+    background-color: #3a2a00;
+    color: #e8a730;
+    border-color: #e8a730;
+}
+
+QPushButton#btnSignoff[signoff_state="SIGNOFF"] {
+    background-color: #5a1515;
+    color: #ff6060;
+    border-color: #e03131;
+}
+
+/* ── 슬라이더 ───────────────────────────────────────────────────── */
+QSlider::groove:horizontal {
+    background-color: #26272c;
+    height: 4px;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background-color: #D97757;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    margin: -5px 0;
+}
+
+QSlider::sub-page:horizontal {
+    background-color: #D97757;
+    border-radius: 2px;
+}
+
+/* QSpinBox 위아래 버튼 숨기기 (CLAUDE.md 규칙) */
+QSpinBox::up-button,
+QSpinBox::down-button {
+    width: 0;
+    height: 0;
+    border: none;
+}
+
+QSpinBox {
+    background-color: #26272c;
+    color: #ececec;
+    border: 1px solid #3a3b42;
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+/* ── 비디오 영역 ─────────────────────────────────────────────────── */
+QWidget#videoArea {
+    background-color: #0f0f10;
+}
+
+QLabel#videoLabel {
+    background-color: #000000;
+}
+
+/* ── 로그 영역 ──────────────────────────────────────────────────── */
+QWidget#logArea {
+    background-color: #1e1f23;
+}
+
+QWidget#logHeaderArea {
+    background-color: #1e1f23;
+    border-bottom: 1px solid #2a2b30;
+}
+
+QLabel#logHeader {
+    color: #b8b9bd;
+    font-weight: bold;
+    font-size: 11px;
+}
+
+QListWidget#logList {
+    background-color: #17181b;
+    color: #ececec;
+    border: none;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 11px;
+    alternate-background-color: #1a1b1f;
+}
+
+QListWidget#logList::item {
+    padding: 2px 6px;
+    border-bottom: 1px solid #1e1f23;
+}
+
+QListWidget#logList::item:hover {
+    background-color: #2d2e33;
+}
+
+QPushButton#btnLogClear,
+QPushButton#btnLogFolder {
+    background-color: #26272c;
+    color: #b8b9bd;
+    border: 1px solid #3a3b42;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 11px;
+}
+
+QPushButton#btnLogClear:hover,
+QPushButton#btnLogFolder:hover {
+    border-color: #D97757;
+    color: #ececec;
+}
+
+/* ── 스플리터 ────────────────────────────────────────────────────── */
+QSplitter#mainSplitter::handle {
+    background-color: #2a2b30;
+    width: 3px;
+}
+
+QSplitter#mainSplitter::handle:hover {
+    background-color: #D97757;
+}
+
+/* ── 스크롤바 ────────────────────────────────────────────────────── */
+QScrollBar:vertical {
+    background-color: #1e1f23;
+    width: 8px;
+    border: none;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #3a3b42;
+    border-radius: 4px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #D97757;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+/* ── 정파 시간 레이블 ────────────────────────────────────────────── */
+QLabel#lblSignoffTime {
+    color: #7d7e84;
+    font-size: 10px;
+}
+
+/* ── 감지현황 ────────────────────────────────────────────────────── */
+QLabel#lblSummaryItem {
+    color: #ececec;
+    font-weight: bold;
+}
+
+/* ── 탭 위젯 (설정 다이얼로그용) ────────────────────────────────── */
+QTabWidget::pane {
+    background-color: #1e1f23;
+    border: 1px solid #2a2b30;
+}
+
+QTabBar::tab {
+    background-color: #17181b;
+    color: #7d7e84;
+    border: 1px solid #2a2b30;
+    padding: 6px 14px;
+    border-bottom: none;
+}
+
+QTabBar::tab:selected {
+    background-color: #1e1f23;
+    color: #D97757;
+    border-bottom-color: #1e1f23;
+}
+
+QTabBar::tab:hover {
+    color: #ececec;
+}
+
+/* ── 콤보박스 ────────────────────────────────────────────────────── */
+QComboBox {
+    background-color: #26272c;
+    color: #ececec;
+    border: 1px solid #3a3b42;
+    border-radius: 4px;
+    padding: 3px 8px;
+}
+
+QComboBox:hover {
+    border-color: #D97757;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #26272c;
+    color: #ececec;
+    border: 1px solid #3a3b42;
+    selection-background-color: #D97757;
+    selection-color: #0f0f10;
+}
+
+/* ── 체크박스 ────────────────────────────────────────────────────── */
+QCheckBox {
+    spacing: 6px;
+    color: #ececec;
+}
+
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #3a3b42;
+    border-radius: 3px;
+    background-color: #26272c;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #D97757;
+    border-color: #B85E3F;
+}
+
+/* ── 텍스트 편집기 ───────────────────────────────────────────────── */
+QLineEdit,
+QTextEdit,
+QPlainTextEdit {
+    background-color: #26272c;
+    color: #ececec;
+    border: 1px solid #3a3b42;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus {
+    border-color: #D97757;
+}
+
+/* ── 그룹박스 ────────────────────────────────────────────────────── */
+QGroupBox {
+    border: 1px solid #2a2b30;
+    border-radius: 4px;
+    margin-top: 8px;
+    padding-top: 4px;
+}
+
+QGroupBox::title {
+    color: #D97757;
+    subcontrol-origin: margin;
+    left: 8px;
+    padding: 0 4px;
+}
+
+/* ── 레이블 ─────────────────────────────────────────────────────── */
+QLabel {
+    color: #ececec;
+}
+
+QLabel#lblTime {
+    color: #D97757;
+    font-size: 14px;
+    font-weight: bold;
+}

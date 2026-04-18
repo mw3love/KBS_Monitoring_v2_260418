@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
 > 마지막 업데이트: 2026-04-18
-> 현재 단계: Phase 1 완료 (Detection 프로세스 독립 실행)
+> 현재 단계: Phase 2 완료 (UI 프로세스 + IPC 연결)
 
 ---
 
@@ -58,19 +58,20 @@
 
 ---
 
-## Phase 2 — UI 프로세스 + IPC 연결
-- [ ] `ipc/shared_frame.py` 완성 + 멀티프로세스 테스트 (tearing 재현 시도 → seq_no로 방지 확인)
-- [ ] `ipc/shared_state.py` 완성 (L/R 레벨미터 필드 포함)
-- [ ] `resources/styles/dark_theme.qss`: `design/styles.css` 색상 토큰 기반 재작성 (Claude 오렌지 `#D97757` primary accent)
-- [ ] `resources/styles/light_theme.qss`: `design/styles.css` 라이트 변형 적용
-- [ ] `ui/ui_bridge.py`: UIBridge QThread (result_queue 폴링 → Qt Signal) + DetectionReady 수신 시 런타임 상태 재주입 트리거
-- [ ] `ui/alarm.py`: AlarmSystem v1 이식 (QTimer 깜빡임, threading.Thread 사운드, UI 프로세스 전용, Ack 상태 관리)
-- [ ] `ui/video_widget.py`: v1 이식 + SharedFramePoller(QTimer 33ms) 연결 — `design/panels.jsx` 레이아웃 참조
-- [ ] `ui/log_widget.py`: v1 이식
-- [ ] `ui/top_bar.py`: v1 이식 (정파 버튼 카운트다운, L/R 레벨미터 세그먼트는 SharedMemory 직접 읽기) — `design/topbar.jsx` 레이아웃 참조
-- [ ] `ui/main_window.py`: 뼈대 (UIBridge 연결, 3분할 레이아웃) — `design/app.jsx` 참조
-- [ ] `main.py`: Launcher 기본 구조 + `faulthandler.enable(logs/fault.log)` + SharedMemory 잔존 정리 + shutdown_event 생성 + Watchdog spawn
-- [ ] cmd_queue 볼륨 슬라이더 debounce(100ms) 적용 (폭주 방지)
+## Phase 2 — UI 프로세스 + IPC 연결 ✅
+- [x] `ipc/shared_frame.py` 완성 (Phase 0-B에서 구현)
+- [x] `ipc/shared_state.py` 완성 (Phase 0-B에서 구현)
+- [x] `resources/styles/dark_theme.qss`: design/styles.css 기반, #D97757 primary accent
+- [x] `resources/styles/light_theme.qss`: 라이트 변형
+- [x] `ui/ui_bridge.py`: UIBridge QThread (result_queue 50ms 폴링 → 11종 Signal)
+- [x] `ui/alarm.py`: AlarmSystem v1 이식 (QTimer 깜빡임, threading 사운드, Ack 상태)
+- [x] `ui/video_widget.py`: v1 이식 + SharedFramePoller(QTimer 33ms, seq_no 변경 감지)
+- [x] `ui/log_widget.py`: v1 이식
+- [x] `ui/top_bar.py`: v1 이식 + 볼륨 debounce 100ms + L/R 레벨미터 SharedMemory 폴링
+- [x] `ui/main_window.py`: 뼈대 (UIBridge+SharedFramePoller, 3분할, 재주입, 테마)
+- [x] `main.py`: Launcher + faulthandler + SharedMemory 잔존 정리 + Watchdog spawn
+- [x] `processes/watchdog_process.py`: heartbeat 감시 + Detection 재spawn + UI 생존 확인
+- [x] cmd_queue 볼륨 슬라이더 debounce(100ms) 적용
 
 **완료 기준**: 캡처 카드 연결 시 VideoWidget 영상 표시. main(UI)과 Detection, Watchdog 3개 PID 확인. 다크 테마가 design/styles.css 톤을 반영. L/R 레벨미터가 SharedMemory 경로로 갱신.
 
