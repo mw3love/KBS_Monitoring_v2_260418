@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
 > 마지막 업데이트: 2026-04-18
-> 현재 단계: Phase 0-A 완료
+> 현재 단계: Phase 0-A-fix2 완료 (설계 공백 확정)
 
 ---
 
@@ -14,50 +14,65 @@
 
 ---
 
+## Phase 0-A-fix2 — 설계 공백 확정 (IPC/생명주기/모순 해소)
+- [x] `docs_ipc_spec.md` 신규 작성 (메시지/SharedMemory/생명주기 단일 진실 원천)
+- [x] `CLAUDE.md` 보강: Launcher=UI 확정, Watchdog이 Detection spawn 주체, 재spawn 복원 하이브리드, 종료/크래시 시퀀스, 오디오 장치 선택 규칙, 텔레그램 주체 분리
+- [x] `docs_기능_레퍼런스.md` 모순 해소: 포트 0~31 / detection_interval 이산값 / pre_seconds 1~30 / 임베디드 오디오 장치 UI / DIAG-IPC / UI 생존 감시 / 시스템 알림 prefix
+- [x] 커밋: `phase0-a-fix2: 설계 공백 확정 (IPC 스펙 + 아키텍처 결정 반영)`
+
+**완료 기준**: 위 세 문서 간 모순 0, Phase 0-B 구현 시 "이 내용은 어디에 있어야 하나?" 질문 없이 진행 가능.
+
+---
+
 ## Phase 0-B — 패키지 골격
-- [ ] 디렉토리 구조 + 각 `__init__.py` 생성 (`data/` 폴더 포함, `.gitkeep`으로 빈 폴더 유지)
-- [ ] `ipc/messages.py`: Queue 메시지 dataclass 정의
-- [ ] `ipc/shared_frame.py`: SharedMemory 프레임 버퍼 래퍼
-- [ ] `ipc/shared_state.py`: SharedMemory 상태 버퍼 래퍼 (level_l, level_r 포함)
+- [ ] 디렉토리 구조 + 각 `__init__.py` 생성 (`data/`, `logs/snapshots/` 포함, `.gitkeep`으로 빈 폴더 유지)
+- [ ] `ipc/messages.py`: **`docs_ipc_spec.md §2`의 모든** 메시지 dataclass 정의 (누락 검증 스크립트 포함)
+- [ ] `ipc/shared_frame.py`: `docs_ipc_spec.md §1.1` 레이아웃 구현 (Lamport seq, width/height/flags 헤더)
+- [ ] `ipc/shared_state.py`: `docs_ipc_spec.md §1.2` 레이아웃 구현 (magic/version 검증 + Lock)
 - [ ] `core/roi_manager.py`: v1에서 복사
-- [ ] `utils/config_manager.py`: v1 복사 + v2 신규 키 추가
+- [ ] `utils/config_manager.py`: v1 복사 + v2 신규 키 추가(`config_version`, `embedded.audio_input_device`, 시스템 알림 키)
 - [ ] `utils/logger.py`: v1 복사 + 프로세스별 파일명 suffix 지원 (`_detection`/`_ui`/`_watchdog`)
-- [ ] `config/default_config.json`: v1 복사 + v2 키 추가
+- [ ] `config/default_config.json`: v1 복사 + v2 키 추가 + `"config_version": 2`
 - [ ] resources/ 폴더 + 빈 파일 구조
+- [ ] **IPC 스펙 정합성 테스트**: `tests/test_ipc_contract.py` — `docs_ipc_spec.md` 표와 `ipc/messages.py`의 dataclass·필드명 1:1 일치 자동 검증
 - [ ] 첫 커밋: `phase0-b: 패키지 골격 생성`
 
-**완료 기준**: `python -c "from ipc.shared_frame import SharedFrameBuffer"` 오류 없음
+**완료 기준**: `python -c "from ipc.shared_frame import SharedFrameBuffer; from ipc.messages import *"` 오류 없음. IPC 정합성 테스트 통과.
 
 ---
 
 ## Phase 1 — Detection 프로세스 독립 실행
 - [ ] `detection/detection_state.py`: v1 이식
 - [ ] `detection/video_capture.py`: threading.Thread (QThread 제거)
-- [ ] `detection/audio_monitor.py`: threading.Thread (QThread 제거)
+- [ ] `detection/audio_monitor.py`: threading.Thread (QThread 제거) + 장치 이름 기반 선택
 - [ ] `detection/detector.py`: v1 이식, Signal 제거, dict 반환
 - [ ] `detection/signoff_manager.py`: QTimer → time.sleep(1)
 - [ ] `detection/auto_recorder.py`: v1 이식
 - [ ] `detection/telegram_worker.py`: v1 이식, QObject 제거
-- [ ] `processes/detection_process.py`: 메인 루프 + heartbeat.dat
+- [ ] `processes/detection_process.py`: 메인 루프 + heartbeat.dat + **기동 시 config 자체 로드 + DetectionReady 발행**
+- [ ] **단위테스트** `tests/test_detector.py`: 블랙/스틸/HSV 감지 경계값 (v1 동작 동등성)
+- [ ] **단위테스트** `tests/test_signoff_manager.py`: IDLE↔PREPARATION↔SIGNOFF 전환, 히스테리시스, 타이머 리셋
+- [ ] **단위테스트** `tests/test_detection_state.py`: still_reset_frames 카운터, audio_level_recovery_seconds
 
-**완료 기준**: `python processes/detection_process.py --test` 실행 시 30초 주기 DIAG 콘솔 출력. 캡처 포트 없이도 루프 생존.
+**완료 기준**: `python -m processes.detection_process --test` 실행 시 30초 주기 DIAG 콘솔 출력. 캡처 포트 없이도 루프 생존. 단위테스트 전부 pass.
 
 ---
 
 ## Phase 2 — UI 프로세스 + IPC 연결
-- [ ] `ipc/shared_frame.py` 완성 + 멀티프로세스 테스트
+- [ ] `ipc/shared_frame.py` 완성 + 멀티프로세스 테스트 (tearing 재현 시도 → seq_no로 방지 확인)
 - [ ] `ipc/shared_state.py` 완성 (L/R 레벨미터 필드 포함)
 - [ ] `resources/styles/dark_theme.qss`: `design/styles.css` 색상 토큰 기반 재작성 (Claude 오렌지 `#D97757` primary accent)
 - [ ] `resources/styles/light_theme.qss`: `design/styles.css` 라이트 변형 적용
-- [ ] `ui/ui_bridge.py`: UIBridge QThread
+- [ ] `ui/ui_bridge.py`: UIBridge QThread (result_queue 폴링 → Qt Signal) + DetectionReady 수신 시 런타임 상태 재주입 트리거
 - [ ] `ui/alarm.py`: AlarmSystem v1 이식 (QTimer 깜빡임, threading.Thread 사운드, UI 프로세스 전용, Ack 상태 관리)
-- [ ] `ui/video_widget.py`: v1 이식 (frame_updated Signal 연결) — `design/panels.jsx` 레이아웃 참조
+- [ ] `ui/video_widget.py`: v1 이식 + SharedFramePoller(QTimer 33ms) 연결 — `design/panels.jsx` 레이아웃 참조
 - [ ] `ui/log_widget.py`: v1 이식
-- [ ] `ui/top_bar.py`: v1 이식 (정파 버튼 카운트다운, L/R 레벨미터 세그먼트) — `design/topbar.jsx` 레이아웃 참조
+- [ ] `ui/top_bar.py`: v1 이식 (정파 버튼 카운트다운, L/R 레벨미터 세그먼트는 SharedMemory 직접 읽기) — `design/topbar.jsx` 레이아웃 참조
 - [ ] `ui/main_window.py`: 뼈대 (UIBridge 연결, 3분할 레이아웃) — `design/app.jsx` 참조
-- [ ] `main.py`: Launcher 기본 구조 + `faulthandler.enable(logs/fault.log)` + SharedMemory 잔존 정리 루틴
+- [ ] `main.py`: Launcher 기본 구조 + `faulthandler.enable(logs/fault.log)` + SharedMemory 잔존 정리 + shutdown_event 생성 + Watchdog spawn
+- [ ] cmd_queue 볼륨 슬라이더 debounce(100ms) 적용 (폭주 방지)
 
-**완료 기준**: 캡처 카드 연결 시 VideoWidget 영상 표시. 두 프로세스 분리된 PID 확인. 다크 테마가 design/styles.css 톤을 반영.
+**완료 기준**: 캡처 카드 연결 시 VideoWidget 영상 표시. main(UI)과 Detection, Watchdog 3개 PID 확인. 다크 테마가 design/styles.css 톤을 반영. L/R 레벨미터가 SharedMemory 경로로 갱신.
 
 ---
 
@@ -75,18 +90,24 @@
 ---
 
 ## Phase 4 — Watchdog + Launcher 완성
-- [ ] `processes/watchdog_process.py`: heartbeat 감시 + kill/재spawn
-- [ ] `main.py`: last_exit.json 비정상 종료 감지 + 텔레그램 알림
-- [ ] 예약 재시작: MainWindow → Launcher 이관
+- [ ] `processes/watchdog_process.py`: heartbeat 감시 + Detection kill/재spawn + UI parent PID 감시 + shutdown_event 존중
+- [ ] Watchdog 직접 텔레그램 발송 경로 (`[SYSTEM]` prefix)
+- [ ] 재spawn 후 UI 측 런타임 상태 재주입 경로 통합 테스트 (`DetectionReady` → `ApplyConfig`/`UpdateROIs`/`SetDetectionEnabled` 재송신 확인)
+- [ ] `main.py`: last_exit.json 기록 + 비정상 종료 감지 텔레그램 + 종료 시 SharedMemory close+unlink try-finally
+- [ ] 예약 재시작: MainWindow → Launcher 이관 (날짜+시각 조합으로 중복 방지)
 
-**완료 기준**: Detection 강제 kill 시 10초 내 재spawn. 텔레그램 알림 수신.
+**완료 기준**: Detection 강제 kill 시 10초 내 재spawn + UI 상태 자동 복원(조작 불필요). `[SYSTEM]` 텔레그램 알림 수신. UI 강제 kill 시 Watchdog이 Detection 정리 후 자신 종료.
 
 ---
 
 ## Phase 5 — 통합 검증
-- [ ] DIAG 로그 6개 섹션 완전 이식
+- [ ] DIAG 로그 6개 섹션 완전 이식 (SYSTEM-HB, DIAG-V, DIAG-ALARM, DIAG-SIGNOFF, DIAG-AUDIO, DIAG-TELEGRAM)
+- [ ] **DIAG-IPC 섹션** 추가 (queue drop/크기, frame drop, loop jitter)
 - [ ] DIAG 섹션 독립 try-except 보호
-- [ ] 채널당 메모리 버퍼 상한 검증
-- [ ] 24시간 연속 실행 테스트
+- [ ] 채널당 메모리 버퍼 상한 검증 (auto_recorder)
+- [ ] **회귀 시나리오 테스트**: 고정 테스트 영상 파일로 블랙/스틸/정파 전환 자동 검증
+- [ ] **Chaos 테스트**: Detection 랜덤 kill(10분 주기) × 2시간 → 재spawn+복원 성공률 100%
+- [ ] **24시간 연속 실행 테스트** (psutil RSS 안정성 + 프레임 drop 누적 관찰)
+- [ ] 로그 분리 확인 (detection/ui/watchdog 각 파일)
 
-**완료 기준**: 24시간 무중단. 메모리 안정. DIAG 전 섹션 정상.
+**완료 기준**: 24시간 무중단. 메모리 RSS 증가 < 5%. DIAG 전 섹션 정상. Chaos 테스트 재spawn 복원률 100%.

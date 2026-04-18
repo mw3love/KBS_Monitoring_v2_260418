@@ -77,31 +77,42 @@ requests       (텔레그램 HTTP 발송)
 ## 아키텍처 — 프로세스 구조
 
 ```
-main.py (Launcher)
-  ├─ SharedMemory 생성 (frame_shm, state_shm)
-  ├─ result_queue, cmd_queue 생성
-  ├─ Detection Process spawn
-  ├─ Watchdog Process spawn
-  └─ QApplication + MainWindow 실행 (현재 프로세스 = UI)
+main.py (= UI 프로세스, Launcher 겸임)
+  ├─ SharedMemory 생성 (frame_shm, state_shm) + 잔존 정리
+  ├─ result_queue, cmd_queue, shutdown_event 생성
+  ├─ Watchdog Process spawn (Detection params + 핸들 전달)
+  └─ QApplication + MainWindow 실행 (이 프로세스가 UI)
 
 UI Process (PySide6 이벤트 루프)
   ├─ UIBridge (QThread): result_queue 폴링 → Qt Signal 변환
-  └─ AlarmSystem: 시각/청각 알림 관리 (QTimer 500ms 깜빡임, threading.Thread 사운드 재생)
+  ├─ SharedFramePoller (QTimer ~33ms): seq_no 변경 시 프레임 화면 갱신
+  ├─ AlarmSystem: 시각/청각 알림 관리 + ack 상태 관리 (UI 프로세스 전용)
+  └─ DetectionReady 수신 → 런타임 상태(detection_enabled/mute/volume/signoff_state/ROIs) 재주입
 
-Detection Process (PySide6 임포트 없음)
+Watchdog Process  (Detection의 spawn 주체)
+  ├─ Detection Process spawn / 감시 / 재spawn 전담
+  ├─ heartbeat.dat 감시 → 10초 무응답 시 Detection kill 후 재spawn
+  ├─ 텔레그램 알림 직접 발송 (UI가 죽어도 알림 보장)
+  ├─ main(UI) 생존 확인 (30초 주기 psutil.pid_exists) → 죽으면 Detection 정리 + 자신 종료
+  └─ shutdown_event set 시 "의도된 종료" 플래그 ON → false-positive respawn 방지
+
+Detection Process (PySide6 임포트 금지)
+  ├─ 기동 시 config/kbs_config.json 자체 로드 (fast start)
+  ├─ DetectionReady 이벤트 발행 (최초 + 재spawn 직후 각 1회)
   ├─ VideoCaptureWorker   (threading.Thread)
-  ├─ AudioMonitorWorker   (threading.Thread)
+  ├─ AudioMonitorWorker   (threading.Thread, sounddevice 단독 소유)
   ├─ DetectionEngine      (블랙/스틸/HSV/임베디드)
-  ├─ SignoffManager       (threading.Thread + time.sleep)
+  ├─ SignoffManager       (threading.Thread + time.sleep(1))
   ├─ AutoRecorder         (순환버퍼 + ffmpeg)
-  ├─ TelegramWorker       (daemon 스레드)
+  ├─ TelegramWorker       (daemon 스레드, 일반 감지 알림)
   └─ HeartbeatWriter      (5초 주기 heartbeat.dat 갱신)
-
-Watchdog Process
-  └─ heartbeat.dat 감시 → 10초 무응답 시 Detection 재spawn + 텔레그램 알림
 ```
 
+- **소유권 원칙**: main은 SharedMemory/Queue/UI 소유. Watchdog은 Detection 소유. 재spawn 시에도 Queue·SharedMemory 핸들은 main이 만든 그대로 재사용.
+
 ## 프로세스 간 통신 규칙
+
+> **세부 스펙은 `docs_ipc_spec.md`에 고정됨** (메시지 dataclass 전체 목록, SharedMemory 바이트 레이아웃, 생명주기 시퀀스). 아래는 원칙 요약. 메시지·필드 추가/변경 시 반드시 `docs_ipc_spec.md`를 먼저 갱신.
 
 ### SharedMemory
 | 이름 | 용도 | 방향 |
@@ -301,3 +312,39 @@ if __name__ == '__main__':
 - `log_widget`: 500개 (초과 시 오래된 항목 제거)
 - `result_queue`: maxsize=200 (Full 시 1개 drop 후 재시도)
 - Phase 5 검증 시: 24h 실행 후 psutil RSS 측정
+
+### 오디오 입력 장치 선택
+- 시스템에 복수의 오디오 장치가 있을 수 있어 **설정 탭 "알림설정"에 "임베디드 오디오 입력 장치" 드롭다운 추가**
+- 값: sounddevice 장치 이름 문자열(저장) + 기동 시 이름 기반 검색 (인덱스는 재부팅 시 바뀜)
+- 미선택/장치 없음 시: 기본 입력 장치 fallback + DIAG-AUDIO에 실제 사용 중 장치명 출력
+- config key: `"embedded"."audio_input_device"` (default: `""` = 시스템 기본)
+
+---
+
+## 재spawn · 종료 · 크래시 시퀀스 (요약)
+
+> 상세 단계는 `docs_ipc_spec.md §3`. 여기서는 원칙만.
+
+### Detection 재spawn 시 상태 복원 (하이브리드)
+- Detection은 기동 시 **`config/kbs_config.json` 자체 로드** (Fast start, UI 대기 불필요)
+- Detection은 준비 완료 시 **`DetectionReady` 이벤트 발행**
+- UI는 `DetectionReady` 수신 시 **UI 보유 런타임 상태만 재주입**:
+  - `ApplyConfig(reason='restore')`, `SetDetectionEnabled`, `SetVolume`, `SetMute`, `SetSignoffState` × 2, `UpdateROIs`
+- 알람 ack 상태는 UI 전용 → 재주입 없음. Detection의 새 `AlarmTrigger`가 UI ack 필터를 자연 통과/차단.
+
+### 정상 종료 순서
+1. UI `closeEvent` → `shutdown_event.set()` + `Shutdown` 메시지
+2. Watchdog "의도된 종료" 플래그 ON (재spawn 억제)
+3. Detection 작업자 join(3s) → 종료
+4. Watchdog Detection join(5s) → 실패 시 terminate → Watchdog 종료
+5. main: `last_exit.json` 기록 → SharedMemory `close()`+`unlink()` → `QApplication.quit()`
+
+### 비정상 종료 대응
+- **Detection 크래시**: Watchdog이 재spawn + 텔레그램 알림 ("중단 감지" → "복구 완료")
+- **UI(main) 크래시**: Watchdog이 30초 주기로 `psutil.pid_exists(parent)` 감시 → 사라지면 Detection 정리 + 자신 종료 + 텔레그램 "전체 비정상 종료" 알림
+- **Watchdog 자체 크래시**: main은 Watchdog join 실패 시 Detection 정리 + 로그 + 텔레그램 (main 프로세스에서 직접 HTTP 발송)
+
+### 텔레그램 발송 주체 분리
+- 감지 이벤트 알림: Detection의 `TelegramWorker` 전담
+- 프로세스 생존/재spawn/크래시 알림: Watchdog 또는 main에서 직접 HTTP 발송 (Detection이 죽었을 때도 송신 가능)
+- 중복 방지: 메시지 prefix(`[DETECT]` / `[SYSTEM]`) 구분 + Watchdog·main은 Detection의 쿨다운과 무관
