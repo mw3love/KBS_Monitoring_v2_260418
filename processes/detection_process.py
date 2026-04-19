@@ -262,13 +262,15 @@ def run(result_queue, cmd_queue, shutdown_event,
 
     # ── 4. 워커 스레드 시작 ───────────────────────────────────────────────────
     port = cfg.get("port", 0)
-    device_name = cfg.get("embedded", {}).get("audio_input_device", "")
 
     video_worker = VideoCaptureWorker(
         shared_frame=shared_frame,
         result_queue=result_queue,
         port=port,
     )
+    video_file = cfg.get("video_file", "").strip()
+    if video_file:
+        video_worker.set_video_file(video_file)
 
     # 오디오 청크 → recorder
     def _on_audio_chunk(samples, ts):
@@ -291,7 +293,6 @@ def run(result_queue, cmd_queue, shutdown_event,
     audio_worker = AudioMonitorWorker(
         shared_state=shared_state,
         result_queue=result_queue,
-        device_name=device_name,
     )
     audio_worker.on_silence_detected = _on_silence
     audio_worker.on_audio_chunk = _on_audio_chunk
@@ -370,7 +371,7 @@ def run(result_queue, cmd_queue, shutdown_event,
             _process_commands(
                 cmd_queue, cfg, cfg_mgr,
                 detector, recorder, telegram, signoff_mgr,
-                roi_mgr, shared_state, audio_worker,
+                roi_mgr, shared_state, audio_worker, video_worker,
                 result_queue, _ipc_counters, _cmd_dropped,
                 set_system_volume, set_system_mute,
                 lambda enabled: shared_state.set_detection_enabled(enabled) if shared_state else None,
@@ -484,7 +485,7 @@ def run(result_queue, cmd_queue, shutdown_event,
 def _process_commands(
     cmd_queue, cfg, cfg_mgr,
     detector, recorder, telegram, signoff_mgr,
-    roi_mgr, shared_state, audio_worker,
+    roi_mgr, shared_state, audio_worker, video_worker,
     result_queue, ipc_counters, cmd_dropped,
     set_volume_fn, set_mute_fn, set_det_enabled_fn,
 ):
@@ -502,10 +503,19 @@ def _process_commands(
 
         try:
             if isinstance(msg, ApplyConfig):
+                old_video_file = cfg.get("video_file", "")
+                old_port = cfg.get("port", 0)
                 cfg.update(msg.config)
                 _apply_config_to_detector(detector, cfg)
                 _apply_config_to_recorder(recorder, cfg)
                 _apply_config_to_telegram(telegram, cfg)
+                new_video_file = cfg.get("video_file", "").strip()
+                new_port = cfg.get("port", 0)
+                if new_video_file != old_video_file or new_port != old_port:
+                    if new_video_file:
+                        video_worker.set_video_file(new_video_file)
+                    else:
+                        video_worker.set_port(new_port)
                 if msg.reason in ("user_save",):
                     cfg_mgr.save(cfg)
                 _put(result_queue,

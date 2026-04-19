@@ -39,7 +39,8 @@ class AlarmSystem(QObject):
     def __init__(self, sounds_dir: str = "resources/sounds", parent=None):
         super().__init__(parent)
         self._sounds_dir = sounds_dir
-        self._sound_files: dict = {}
+        default_wav = os.path.join(sounds_dir, "alarm.wav")
+        self._sound_files: dict = {"default": default_wav} if os.path.exists(default_wav) else {}
         self._sound_enabled = True
         self._volume = 0.8
         self._blink_timer = QTimer(self)

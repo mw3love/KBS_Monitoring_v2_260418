@@ -1,6 +1,7 @@
 """
 설정 다이얼로그 (7탭, 비모달)
-저장 시 ConfigManager에 JSON 기록 + cmd_queue로 ApplyConfig / UpdateROIs 발행.
+변경 즉시 ConfigManager에 JSON 기록 + cmd_queue로 ApplyConfig / UpdateROIs 발행.
+체크박스·콤보박스는 변경 즉시, QLineEdit는 editingFinished 시점에 반영.
 """
 import copy
 import os
@@ -60,19 +61,17 @@ def _section(title: str) -> tuple["QFrame", "QVBoxLayout"]:
     box = QFrame()
     box.setObjectName("settingsSection")
     outer_vl = QVBoxLayout(box)
-    outer_vl.setContentsMargins(10, 4, 10, 6)
+    outer_vl.setContentsMargins(14, 10, 14, 12)
     outer_vl.setSpacing(0)
 
     lbl = QLabel(title)
     lbl.setObjectName("settingsSectionLabel")
     lbl.setContentsMargins(0, 0, 0, 0)
-    lbl.setFixedHeight(16)
     outer_vl.addWidget(lbl)
 
-    # 제목과 첫 행은 바로 붙이고 (spacing=0), 항목끼리는 여유(spacing=6)
     content_vl = QVBoxLayout()
-    content_vl.setContentsMargins(0, 0, 0, 0)
-    content_vl.setSpacing(6)
+    content_vl.setContentsMargins(0, 8, 0, 0)
+    content_vl.setSpacing(8)
     outer_vl.addLayout(content_vl)
 
     return box, content_vl
@@ -82,8 +81,9 @@ def _row(label_text: str, widget: QWidget, hint: str = "") -> QHBoxLayout:
     """label(고정폭 220) + widget + hint 한 행"""
     h = QHBoxLayout()
     h.setContentsMargins(0, 0, 0, 0)
-    h.setSpacing(8)
+    h.setSpacing(10)
     lbl = QLabel(label_text)
+    lbl.setObjectName("settingsRowLabel")
     lbl.setFixedWidth(220)
     h.addWidget(lbl)
     h.addWidget(widget)
@@ -97,8 +97,8 @@ def _row(label_text: str, widget: QWidget, hint: str = "") -> QHBoxLayout:
 
 
 def _file_row(label_text: str, edit: QLineEdit,
-              browse_cb, reset_cb=None, test_cb=None) -> QHBoxLayout:
-    """파일 경로 편집 + 찾아보기 [초기화] [테스트] 버튼 행"""
+              browse_cb, test_cb=None) -> QHBoxLayout:
+    """파일 경로 편집 + 찾아보기 [테스트] 버튼 행"""
     h = QHBoxLayout()
     h.setContentsMargins(0, 0, 0, 0)
     h.setSpacing(6)
@@ -109,10 +109,6 @@ def _file_row(label_text: str, edit: QLineEdit,
     btn_browse = QPushButton("찾아보기")
     btn_browse.clicked.connect(browse_cb)
     h.addWidget(btn_browse)
-    if reset_cb:
-        btn_reset = QPushButton("초기화")
-        btn_reset.clicked.connect(reset_cb)
-        h.addWidget(btn_reset)
     if test_cb:
         btn_test = QPushButton("테스트")
         btn_test.clicked.connect(test_cb)
@@ -204,6 +200,7 @@ class SettingsDialog(QDialog):
     show()로 열어 비모달로 사용. 저장 시 config_saved 시그널 발행.
     """
     config_saved = Signal(dict)
+    _applying = False  # 재진입 방지 플래그 (클래스 수준)
 
     _TAB_LABELS = [
         "영상설정",
@@ -290,27 +287,27 @@ class SettingsDialog(QDialog):
         self._stack.addWidget(self._build_tab_save())
         main_vl.addWidget(self._stack, 1)
 
-        # 하단 버튼
-        bottom_hl = QHBoxLayout()
-        bottom_hl.setContentsMargins(12, 4, 12, 4)
-        bottom_hl.addStretch()
-        btn_save = QPushButton("저장")
-        btn_save.setObjectName("btnPrimary")
-        btn_save.setFixedSize(100, 32)
-        btn_save.clicked.connect(self._on_save)
-        btn_close = QPushButton("닫기")
-        btn_close.setFixedSize(80, 32)
-        btn_close.clicked.connect(self.close)
-        bottom_hl.addWidget(btn_save)
-        bottom_hl.addWidget(btn_close)
-        main_vl.addLayout(bottom_hl)
 
         self._switch_tab(0)
 
     def _switch_tab(self, idx: int):
+        # 탭 전환 시 활성화된 편집 오버레이 자동 종료
+        current = self._stack.currentIndex()
+        if current == 1 and idx != 1:
+            self._stop_edit_if_active("video")
+        elif current == 2 and idx != 2:
+            self._stop_edit_if_active("audio")
+
         for i, btn in enumerate(self._tab_btns):
             btn.setChecked(i == idx)
         self._stack.setCurrentIndex(idx)
+
+    def _stop_edit_if_active(self, roi_type: str):
+        """편집 오버레이가 활성 상태이면 종료하고 버튼 상태를 초기화한다."""
+        from ui.main_window import MainWindow
+        mw = self.parent()
+        if isinstance(mw, MainWindow) and getattr(mw, "_roi_overlay", None) is not None:
+            mw._stop_roi_overlay(done_callback=lambda: self._on_roi_editing_done(roi_type))
 
     # ─────────────────────────────────────────────────────────────────
     # 탭 1: 영상설정
@@ -319,13 +316,16 @@ class SettingsDialog(QDialog):
     def _build_tab_video(self) -> QScrollArea:
         inner = QWidget()
         vl = QVBoxLayout(inner)
-        vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(10)
+        vl.setContentsMargins(16, 16, 16, 16)
+        vl.setSpacing(12)
 
         # ── 캡처 포트 ──────────────────────────────────────────
         box1, sl1 = _section("캡처 포트")
-        self._port_edit = _int_edit(self._cfg.get("port", 0), 0, 9)
-        sl1.addLayout(_row("포트 번호 (0~9)", self._port_edit,
+        self._port_combo = QComboBox()
+        for i in range(10):
+            self._port_combo.addItem(str(i), i)
+        self._port_combo.setCurrentIndex(self._cfg.get("port", 0))
+        sl1.addLayout(_row("포트 번호 (0~9)", self._port_combo,
                            "OpenCV VideoCapture 인덱스"))
         vl.addWidget(box1)
 
@@ -344,7 +344,7 @@ class SettingsDialog(QDialog):
         btn_vf_browse = QPushButton("찾아보기")
         btn_vf_browse.clicked.connect(self._browse_video_file)
         btn_vf_reset = QPushButton("초기화")
-        btn_vf_reset.clicked.connect(self._video_file_edit.clear)
+        btn_vf_reset.clicked.connect(lambda: (self._video_file_edit.clear(), self._apply_now()))
         file_hl.addWidget(btn_vf_browse)
         file_hl.addWidget(btn_vf_reset)
         sl2.addLayout(file_hl)
@@ -404,6 +404,17 @@ class SettingsDialog(QDialog):
         sl4.addLayout(_row("출력 FPS", self._fps_combo))
         vl.addWidget(box4)
 
+        # 즉시 반영 연결 — 영상설정
+        self._port_combo.currentIndexChanged.connect(self._apply_now)
+        self._video_file_edit.editingFinished.connect(self._apply_now)
+        self._rec_enabled_cb.stateChanged.connect(self._apply_now)
+        self._rec_dir_edit.editingFinished.connect(self._apply_now)
+        self._rec_pre_edit.editingFinished.connect(self._apply_now)
+        self._rec_post_edit.editingFinished.connect(self._apply_now)
+        self._rec_keep_edit.editingFinished.connect(self._apply_now)
+        self._res_combo.currentIndexChanged.connect(self._apply_now)
+        self._fps_combo.currentIndexChanged.connect(self._apply_now)
+
         vl.addStretch()
         btn_reset_v = QPushButton("영상설정 전체 초기화")
         btn_reset_v.setObjectName("btnDanger")
@@ -420,14 +431,40 @@ class SettingsDialog(QDialog):
         """roi_type: 'video' | 'audio'"""
         outer = QWidget()
         vl = QVBoxLayout(outer)
-        vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(8)
+        vl.setContentsMargins(16, 16, 16, 16)
+        vl.setSpacing(12)
 
         kind_name = "비디오" if roi_type == "video" else "오디오 레벨미터"
-        btn_edit = QPushButton(f"▶ {kind_name} 감지영역 편집 (전체화면)")
+        btn_edit = QPushButton(f"▶ {kind_name} 감지영역 편집")
         btn_edit.setObjectName("btnPrimary")
-        btn_edit.clicked.connect(lambda: self._open_roi_editor(roi_type))
+        btn_edit.setCheckable(True)
+        btn_edit.clicked.connect(lambda checked: self._toggle_roi_editor(roi_type, checked, btn_edit))
         vl.addWidget(btn_edit)
+
+        # 편집 버튼 참조 보관 (외부에서 상태 초기화용)
+        if roi_type == "video":
+            self._btn_edit_video = btn_edit
+        else:
+            self._btn_edit_audio = btn_edit
+
+        # 단축키 안내
+        shortcut_lbl = QLabel(
+            "<b>편집 중 단축키</b><br>"
+            "<table cellspacing='4'>"
+            "<tr><td>↑↓←→</td><td>이동 10px</td></tr>"
+            "<tr><td>Shift+↑↓←→</td><td>이동 1px</td></tr>"
+            "<tr><td>Ctrl+↑↓←→</td><td>크기 10px</td></tr>"
+            "<tr><td>Ctrl+Shift+↑↓←→</td><td>크기 1px</td></tr>"
+            "<tr><td>Ctrl+D</td><td>선택 영역 복사</td></tr>"
+            "<tr><td>Delete</td><td>선택 영역 삭제</td></tr>"
+            "<tr><td>Ctrl+드래그(빈 곳)</td><td>범위 다중 선택</td></tr>"
+            "<tr><td>Ctrl+클릭</td><td>선택 추가/제거</td></tr>"
+            "<tr><td>Ctrl+드래그(선택 후)</td><td>복사하며 이동</td></tr>"
+            "</table>"
+        )
+        shortcut_lbl.setObjectName("roiShortcutLabel")
+        shortcut_lbl.setTextFormat(Qt.RichText)
+        vl.addWidget(shortcut_lbl)
 
         # ROI 테이블
         table = QTableWidget()
@@ -467,6 +504,11 @@ class SettingsDialog(QDialog):
             self._audio_roi_table = table
         self._refresh_roi_table(roi_type)
 
+        # 테이블 셀 편집 완료 시 즉시 반영
+        table.itemChanged.connect(
+            lambda: self._on_roi_table_changed(roi_type, table)
+        )
+
         return outer
 
     def _refresh_roi_table(self, roi_type: str):
@@ -485,16 +527,53 @@ class SettingsDialog(QDialog):
                 table.setItem(i, col, item)
         table.blockSignals(False)
 
-    def _open_roi_editor(self, roi_type: str):
-        dlg = FullScreenROIEditor(self._roi_mgr, roi_type,
-                                   self._frozen_frame, parent=self)
-        dlg.editing_done.connect(lambda: self._on_roi_editing_done(roi_type))
-        dlg.exec()
+    def _toggle_roi_editor(self, roi_type: str, checked: bool, btn: QPushButton):
+        """편집 버튼 토글: ON→오버레이 열기, OFF→오버레이 닫기."""
+        from ui.main_window import MainWindow
+        mw = self.parent()
+        if not isinstance(mw, MainWindow):
+            btn.setChecked(False)
+            table = self._video_roi_table if roi_type == "video" else self._audio_roi_table
+            self._sync_table_to_rois(roi_type, table)
+            dlg = FullScreenROIEditor(self._roi_mgr, roi_type,
+                                       self._frozen_frame, parent=self)
+            dlg.editing_done.connect(lambda: self._on_roi_editing_done(roi_type))
+            dlg.exec()
+            return
+
+        if checked:
+            # 편집 시작 전 테이블의 매체명·좌표를 ROIManager에 먼저 반영
+            table = self._video_roi_table if roi_type == "video" else self._audio_roi_table
+            self._sync_table_to_rois(roi_type, table)
+            btn.setText("■ 편집 종료 (클릭하여 완료)")
+            mw.start_roi_overlay(
+                roi_type,
+                self._roi_mgr,
+                rois_changed_cb=lambda: self._refresh_roi_table(roi_type),
+                done_callback=lambda: self._on_roi_editing_done(roi_type),
+            )
+        else:
+            mw._stop_roi_overlay(done_callback=lambda: self._on_roi_editing_done(roi_type))
 
     def _on_roi_editing_done(self, roi_type: str):
+        """오버레이 종료 후 버튼 상태·텍스트 초기화 및 테이블·VideoWidget 갱신."""
+        kind_name = "비디오" if roi_type == "video" else "오디오 레벨미터"
+        btn = self._btn_edit_video if roi_type == "video" else self._btn_edit_audio
+        btn.setChecked(False)
+        btn.setText(f"▶ {kind_name} 감지영역 편집")
         self._refresh_roi_table(roi_type)
+        self._apply_now()
+
+    def _on_roi_table_changed(self, roi_type: str, table: QTableWidget):
+        """테이블 셀 직접 편집 완료 시 ROIManager·오버레이·VideoWidget 즉시 갱신."""
+        if SettingsDialog._applying:
+            return
+        self._sync_table_to_rois(roi_type, table)
+        self._sync_overlay_canvas(roi_type)
+        self._apply_now()
 
     def _roi_table_add(self, roi_type: str, table: QTableWidget):
+        self._sync_table_to_rois(roi_type, table)
         rois = (self._roi_mgr.video_rois if roi_type == "video"
                 else self._roi_mgr.audio_rois)
         prefix = "V" if roi_type == "video" else "A"
@@ -513,9 +592,12 @@ class SettingsDialog(QDialog):
             self._roi_mgr.replace_video_rois(rois)
         else:
             self._roi_mgr.replace_audio_rois(rois)
+        self._sync_overlay_canvas(roi_type)
         self._refresh_roi_table(roi_type)
+        self._apply_now()
 
     def _roi_table_del(self, roi_type: str, table: QTableWidget):
+        self._sync_table_to_rois(roi_type, table)
         rows = sorted(set(i.row() for i in table.selectedItems()), reverse=True)
         if not rows:
             return
@@ -531,9 +613,33 @@ class SettingsDialog(QDialog):
             self._roi_mgr.replace_video_rois(rois)
         else:
             self._roi_mgr.replace_audio_rois(rois)
+        self._sync_overlay_canvas(roi_type)
         self._refresh_roi_table(roi_type)
+        self._apply_now()
+
+    @staticmethod
+    def _table_cell_text(table: QTableWidget, row: int, col: int) -> str:
+        item = table.item(row, col)
+        return item.text() if item else ""
+
+    def _sync_table_to_rois(self, roi_type: str, table: QTableWidget):
+        """테이블에서 편집된 매체명·좌표값을 ROI 매니저에 반영."""
+        rois = (self._roi_mgr.video_rois if roi_type == "video"
+                else self._roi_mgr.audio_rois)
+        for row in range(min(table.rowCount(), len(rois))):
+            roi = rois[row]
+            roi.media_name = self._table_cell_text(table, row, 1)
+            try: roi.x = int(self._table_cell_text(table, row, 2))
+            except ValueError: pass
+            try: roi.y = int(self._table_cell_text(table, row, 3))
+            except ValueError: pass
+            try: roi.w = max(1, int(self._table_cell_text(table, row, 4)))
+            except ValueError: pass
+            try: roi.h = max(1, int(self._table_cell_text(table, row, 5)))
+            except ValueError: pass
 
     def _roi_table_move(self, roi_type: str, table: QTableWidget, direction: int):
+        self._sync_table_to_rois(roi_type, table)
         rows = sorted(set(i.row() for i in table.selectedItems()))
         if not rows:
             return
@@ -551,21 +657,34 @@ class SettingsDialog(QDialog):
             self._roi_mgr.replace_video_rois(rois)
         else:
             self._roi_mgr.replace_audio_rois(rois)
+        self._sync_overlay_canvas(roi_type)
         self._refresh_roi_table(roi_type)
         table.selectRow(new_idx)
+        self._apply_now()
 
     def _roi_table_clear(self, roi_type: str, table: QTableWidget):
-        if QMessageBox.question(
-            self, "확인", f"{'비디오' if roi_type == 'video' else '오디오'} "
-                          f"감지영역을 모두 삭제하시겠습니까?",
-            QMessageBox.Yes | QMessageBox.No
-        ) != QMessageBox.Yes:
-            return
         if roi_type == "video":
             self._roi_mgr.replace_video_rois([])
         else:
             self._roi_mgr.replace_audio_rois([])
+        self._sync_overlay_canvas(roi_type)
         self._refresh_roi_table(roi_type)
+        self._apply_now()
+
+    def _sync_overlay_canvas(self, roi_type: str):
+        """편집 오버레이가 활성화된 상태에서 테이블 버튼으로 ROI를 변경했을 때
+        캔버스의 내부 복사본을 ROIManager와 동기화한다."""
+        from ui.main_window import MainWindow
+        mw = self.parent()
+        if not isinstance(mw, MainWindow):
+            return
+        overlay = getattr(mw, "_roi_overlay", None)
+        if overlay is None:
+            return
+        if getattr(mw, "_roi_overlay_type", "") != roi_type:
+            return
+        overlay._canvas.load_rois()
+        overlay._canvas.update()
 
     # ─────────────────────────────────────────────────────────────────
     # 탭 4: 감도설정
@@ -574,22 +693,22 @@ class SettingsDialog(QDialog):
     def _build_tab_sensitivity(self) -> QScrollArea:
         inner = QWidget()
         vl = QVBoxLayout(inner)
-        vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(10)
+        vl.setContentsMargins(16, 16, 16, 16)
+        vl.setSpacing(12)
         det = self._cfg.get("detection", {})
         perf = self._cfg.get("performance", {})
 
         # ── 블랙 감지 ────────────────────────────────────
         box1, sl1 = _section("블랙 감지")
-        self._black_thresh = _int_edit(det.get("black_threshold", 10), 0, 255)
-        self._black_ratio = _float_edit(det.get("black_dark_ratio", 95.0))
+        self._black_thresh = _int_edit(det.get("black_threshold", 5), 0, 255)
+        self._black_ratio = _float_edit(det.get("black_dark_ratio", 98.0))
         self._black_suppress = _float_edit(det.get("black_motion_suppress_ratio", 0.2))
         self._black_dur = _int_edit(det.get("black_duration", 20), 1, 300)
         self._black_alarm_dur = _int_edit(det.get("black_alarm_duration", 60), 1, 300)
         sl1.addLayout(_row("밝기 임계값", self._black_thresh,
-                           "0~255 / 이 값 이하면 어두운 픽셀로 판단"))
+                           "0~255 / 이 값 이하면 어두운 픽셀로 판단 (기본값: 5)"))
         sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
-                           "50~100% / 이 비율 이상이면 블랙 판정"))
+                           "50~100% / 이 비율 이상이면 블랙 판정 (기본값: 98%)"))
         sl1.addLayout(_row("모션 억제 비율", self._black_suppress,
                            "0~5.0 / 움직임 비율이 이 이상이면 블랙 억제"))
         sl1.addLayout(_row("알람 발생까지 지속 시간(초)", self._black_dur,
@@ -600,15 +719,15 @@ class SettingsDialog(QDialog):
 
         # ── 스틸 감지 ────────────────────────────────────
         box2, sl2 = _section("스틸 감지")
-        self._still_thresh = _int_edit(det.get("still_threshold", 8), 0, 255)
-        self._still_changed = _float_edit(det.get("still_changed_ratio", 2.0))
+        self._still_thresh = _int_edit(det.get("still_threshold", 4), 0, 255)
+        self._still_changed = _float_edit(det.get("still_changed_ratio", 10.0))
         self._still_reset = _int_edit(det.get("still_reset_frames", 3), 1, 10)
         self._still_dur = _int_edit(det.get("still_duration", 60), 1, 300)
         self._still_alarm_dur = _int_edit(det.get("still_alarm_duration", 60), 1, 300)
         sl2.addLayout(_row("픽셀 차이 임계값", self._still_thresh,
-                           "0~255 / 프레임 차이 기준"))
+                           "0~255 / 프레임 차이 기준 (기본값: 4)"))
         sl2.addLayout(_row("블록 변화 비율(%)", self._still_changed,
-                           "0~100% / 이 비율 미만이면 스틸로 판정"))
+                           "0~100% / 이 비율 미만이면 스틸로 판정 (기본값: 10%)"))
         sl2.addLayout(_row("히스테리시스 프레임 수", self._still_reset,
                            "1~10 / 연속 정상 프레임 수 (글리치 방지)"))
         sl2.addLayout(_row("알람 발생까지 지속 시간(초)", self._still_dur,
@@ -707,7 +826,30 @@ class SettingsDialog(QDialog):
         sl5.addLayout(perf_btn_hl)
         vl.addWidget(box5)
 
+        # 즉시 반영 연결 — 감도설정
+        for edit in (self._black_thresh, self._black_ratio, self._black_suppress,
+                     self._black_dur, self._black_alarm_dur,
+                     self._still_thresh, self._still_changed, self._still_reset,
+                     self._still_dur, self._still_alarm_dur,
+                     self._audio_pixel_ratio, self._audio_level_dur,
+                     self._audio_level_alarm_dur, self._audio_recovery,
+                     self._emb_thresh, self._emb_dur, self._emb_alarm_dur):
+            edit.editingFinished.connect(self._apply_now)
+        self._hsv_h.range_changed.connect(self._apply_now)
+        self._hsv_s.range_changed.connect(self._apply_now)
+        self._hsv_v.range_changed.connect(self._apply_now)
+        self._detect_interval_combo.currentIndexChanged.connect(self._apply_now)
+        self._scale_combo.currentIndexChanged.connect(self._apply_now)
+        for cb in (self._black_enabled_cb, self._still_enabled_cb,
+                   self._audio_enabled_cb, self._emb_enabled_cb):
+            cb.stateChanged.connect(self._apply_now)
+
         vl.addStretch()
+        btn_reset_sens = QPushButton("감도설정 전체 초기화")
+        btn_reset_sens.setObjectName("btnDanger")
+        btn_reset_sens.clicked.connect(self._reset_sensitivity_settings)
+        vl.addWidget(btn_reset_sens)
+
         return _make_scroll(inner)
 
     # ─────────────────────────────────────────────────────────────────
@@ -717,8 +859,8 @@ class SettingsDialog(QDialog):
     def _build_tab_signoff(self) -> QScrollArea:
         inner = QWidget()
         vl = QVBoxLayout(inner)
-        vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(10)
+        vl.setContentsMargins(16, 16, 16, 16)
+        vl.setSpacing(12)
         so = self._cfg.get("signoff", {})
 
         self._auto_prep_cb = QCheckBox("자동 정파 활성화")
@@ -754,6 +896,20 @@ class SettingsDialog(QDialog):
         ))
         vl.addWidget(box_sound)
 
+        # 즉시 반영 연결 — 정파설정
+        self._auto_prep_cb.stateChanged.connect(self._apply_now)
+        for edit in (self._so_prep_sound, self._so_enter_sound, self._so_release_sound):
+            edit.editingFinished.connect(self._apply_now)
+        for w in self._so_grp:
+            w["name"].editingFinished.connect(self._apply_now)
+            for key in ("start_h", "start_m", "end_h", "end_m", "exit_trigger_sec"):
+                w[key].editingFinished.connect(self._apply_now)
+            w["end_next_day"].stateChanged.connect(self._apply_now)
+            w["prep_minutes"].currentIndexChanged.connect(self._apply_now)
+            w["exit_prep_minutes"].currentIndexChanged.connect(self._apply_now)
+            for cb in w["weekdays"]:
+                cb.stateChanged.connect(self._apply_now)
+
         vl.addStretch()
         btn_reset_so = QPushButton("정파설정 전체 초기화")
         btn_reset_so.setObjectName("btnDanger")
@@ -775,25 +931,26 @@ class SettingsDialog(QDialog):
         widgets["name"] = name_edit
 
         # 정파 시작/종료 시각
-        time_hl = QHBoxLayout()
-        time_hl.setContentsMargins(0, 0, 0, 0)
-        time_hl.addWidget(QLabel("정파모드 시작 HH:MM:"))
         start_h = _int_edit(int(grp.get("start_time", "03:00").split(":")[0]), 0, 23, 50)
         start_m = _int_edit(int(grp.get("start_time", "03:00").split(":")[1]), 0, 59, 50)
+        end_h = _int_edit(int(grp.get("end_time", "05:00").split(":")[0]), 0, 23, 50)
+        end_m = _int_edit(int(grp.get("end_time", "05:00").split(":")[1]), 0, 59, 50)
+        end_next_cb = QCheckBox("익일")
+        end_next_cb.setChecked(grp.get("end_next_day", False))
+        time_widget = QWidget()
+        time_hl = QHBoxLayout(time_widget)
+        time_hl.setContentsMargins(0, 0, 0, 0)
+        time_hl.setSpacing(4)
         time_hl.addWidget(start_h)
         time_hl.addWidget(QLabel(":"))
         time_hl.addWidget(start_m)
         time_hl.addWidget(QLabel("  종료:"))
-        end_h = _int_edit(int(grp.get("end_time", "05:00").split(":")[0]), 0, 23, 50)
-        end_m = _int_edit(int(grp.get("end_time", "05:00").split(":")[1]), 0, 59, 50)
         time_hl.addWidget(end_h)
         time_hl.addWidget(QLabel(":"))
         time_hl.addWidget(end_m)
-        end_next_cb = QCheckBox("익일")
-        end_next_cb.setChecked(grp.get("end_next_day", False))
         time_hl.addWidget(end_next_cb)
         time_hl.addStretch()
-        sl.addLayout(time_hl)
+        sl.addLayout(_row("정파모드 시작 HH:MM:", time_widget))
         widgets.update({"start_h": start_h, "start_m": start_m,
                         "end_h": end_h, "end_m": end_m, "end_next_day": end_next_cb})
 
@@ -882,6 +1039,7 @@ class SettingsDialog(QDialog):
             widgets["_suppressed"] = result["suppressed_labels"]
             enter_label = result["enter_roi"].get("video_label", "") or "없음"
             widgets["enter_label_lbl"].setText(enter_label)
+            self._apply_now()
 
     # ─────────────────────────────────────────────────────────────────
     # 탭 6: 알림설정
@@ -890,8 +1048,8 @@ class SettingsDialog(QDialog):
     def _build_tab_alert(self) -> QScrollArea:
         inner = QWidget()
         vl = QVBoxLayout(inner)
-        vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(10)
+        vl.setContentsMargins(16, 16, 16, 16)
+        vl.setSpacing(12)
         alm = self._cfg.get("alarm", {})
         tg = self._cfg.get("telegram", {})
         sys_cfg = self._cfg.get("system", {})
@@ -904,33 +1062,9 @@ class SettingsDialog(QDialog):
             "알림음 파일:",
             self._alarm_sound_edit,
             lambda: self._browse_sound(self._alarm_sound_edit),
-            reset_cb=lambda: self._alarm_sound_edit.setText(
-                "resources/sounds/alarm.wav"),
             test_cb=lambda: self._test_sound(self._alarm_sound_edit.text()),
         ))
         vl.addWidget(box1)
-
-        # 임베디드 오디오 입력 장치
-        box2, sl2 = _section("임베디드 오디오 입력 장치")
-        self._audio_dev_combo = QComboBox()
-        self._audio_dev_combo.addItem("시스템 기본 입력", "")
-        if _SD_OK:
-            try:
-                devs = sd.query_devices()
-                for dev in devs:
-                    if dev.get("max_input_channels", 0) > 0:
-                        name = dev["name"]
-                        self._audio_dev_combo.addItem(name, name)
-            except Exception:
-                pass
-        cur_dev = emb.get("audio_input_device", "")
-        for i in range(self._audio_dev_combo.count()):
-            if self._audio_dev_combo.itemData(i) == cur_dev:
-                self._audio_dev_combo.setCurrentIndex(i)
-                break
-        sl2.addLayout(_row("입력 장치", self._audio_dev_combo,
-                           "이름 기반 저장 — 재부팅 후에도 유지"))
-        vl.addWidget(box2)
 
         # 텔레그램
         box3, sl3 = _section("텔레그램 봇 설정")
@@ -938,12 +1072,26 @@ class SettingsDialog(QDialog):
         self._tg_enabled_cb.setChecked(tg.get("enabled", False))
         sl3.addWidget(self._tg_enabled_cb)
 
-        self._tg_token_edit = QLineEdit(tg.get("bot_token", ""))
-        self._tg_token_edit.setPlaceholderText("BotFather에서 발급받은 토큰")
-        self._tg_chat_edit = QLineEdit(tg.get("chat_id", ""))
-        self._tg_chat_edit.setPlaceholderText("수신할 채팅/그룹/채널 ID")
-        sl3.addLayout(_row("Bot Token", self._tg_token_edit))
-        sl3.addLayout(_row("Chat ID", self._tg_chat_edit))
+        for field_label, attr, placeholder, is_password in [
+            ("Bot Token", "_tg_token_edit",
+             "BotFather에서 발급받은 토큰 (예: 123456789:AAFxxx...)", True),
+            ("Chat ID", "_tg_chat_edit",
+             "수신할 채팅/그룹/채널 ID (예: -1001234567890)", False),
+        ]:
+            field_lbl = QLabel(field_label)
+            field_lbl.setObjectName("settingsRowLabel")
+            edit = QLineEdit(tg.get(
+                "bot_token" if attr == "_tg_token_edit" else "chat_id", ""))
+            edit.setPlaceholderText(placeholder)
+            if is_password:
+                edit.setEchoMode(QLineEdit.EchoMode.Password)
+            setattr(self, attr, edit)
+            field_vl = QVBoxLayout()
+            field_vl.setContentsMargins(0, 0, 0, 0)
+            field_vl.setSpacing(3)
+            field_vl.addWidget(field_lbl)
+            field_vl.addWidget(edit)
+            sl3.addLayout(field_vl)
 
         tg_test_hl = QHBoxLayout()
         tg_test_hl.setContentsMargins(0, 0, 0, 0)
@@ -979,30 +1127,54 @@ class SettingsDialog(QDialog):
 
         # 자동 재시작
         box5, sl5 = _section("자동 재시작")
-        self._restart1_cb = QCheckBox("재시작 시각 1 활성화")
-        self._restart1_cb.setChecked(bool(sys_cfg.get("scheduled_restart_time", "")))
-        self._restart1_edit = QLineEdit(sys_cfg.get("scheduled_restart_time", ""))
-        self._restart1_edit.setPlaceholderText("HH:MM")
-        self._restart1_edit.setFixedWidth(80)
-        restart1_hl = QHBoxLayout()
-        restart1_hl.setContentsMargins(0, 0, 0, 0)
-        restart1_hl.addWidget(self._restart1_cb)
-        restart1_hl.addWidget(self._restart1_edit)
-        restart1_hl.addStretch()
-        sl5.addLayout(restart1_hl)
 
-        self._restart2_cb = QCheckBox("재시작 시각 2 활성화")
-        self._restart2_cb.setChecked(bool(sys_cfg.get("scheduled_restart_time_2", "")))
-        self._restart2_edit = QLineEdit(sys_cfg.get("scheduled_restart_time_2", ""))
-        self._restart2_edit.setPlaceholderText("HH:MM")
-        self._restart2_edit.setFixedWidth(80)
-        restart2_hl = QHBoxLayout()
-        restart2_hl.setContentsMargins(0, 0, 0, 0)
-        restart2_hl.addWidget(self._restart2_cb)
-        restart2_hl.addWidget(self._restart2_edit)
-        restart2_hl.addStretch()
-        sl5.addLayout(restart2_hl)
+        self._restart_enabled_cb = QCheckBox("예약 재시작 활성화")
+        self._restart_enabled_cb.setChecked(sys_cfg.get("scheduled_restart_enabled", False))
+        sl5.addWidget(self._restart_enabled_cb)
+
+        self._restart_base_edit = QLineEdit(sys_cfg.get("scheduled_restart_base_time", "03:00"))
+        self._restart_base_edit.setPlaceholderText("HH:MM")
+        self._restart_base_edit.setFixedWidth(80)
+        sl5.addLayout(_row("기준 시각", self._restart_base_edit,
+                           "재시작 주기의 기준이 되는 시각 (예: 03:00)"))
+
+        _INTERVAL_OPTIONS = [
+            ("매일 (24시간)", 24),
+            ("2일 (48시간)", 48),
+            ("3일 (72시간)", 72),
+            ("1주 (168시간)", 168),
+            ("2주 (336시간)", 336),
+            ("1달 (720시간)", 720),
+        ]
+        self._restart_interval_combo = QComboBox()
+        for label, _ in _INTERVAL_OPTIONS:
+            self._restart_interval_combo.addItem(label)
+        cur_h = sys_cfg.get("scheduled_restart_interval_hours", 24)
+        cur_idx = next((i for i, (_, h) in enumerate(_INTERVAL_OPTIONS) if h == cur_h), 0)
+        self._restart_interval_combo.setCurrentIndex(cur_idx)
+        self._restart_interval_values = [h for _, h in _INTERVAL_OPTIONS]
+        sl5.addLayout(_row("재시작 주기", self._restart_interval_combo, ""))
+
+        self._restart_exclude_edit = QLineEdit(sys_cfg.get("scheduled_restart_exclude", ""))
+        self._restart_exclude_edit.setPlaceholderText("예: 10:00-11:30, 21:00-21:30")
+        sl5.addLayout(_row("제외 시간대", self._restart_exclude_edit,
+                           "재시작하지 않을 시간대. 쉼표로 여러 개 입력 가능"))
+
         vl.addWidget(box5)
+
+        # 즉시 반영 연결 — 알림설정
+        self._alarm_sound_edit.editingFinished.connect(self._apply_now)
+        self._tg_enabled_cb.stateChanged.connect(self._apply_now)
+        self._tg_token_edit.editingFinished.connect(self._apply_now)
+        self._tg_chat_edit.editingFinished.connect(self._apply_now)
+        for cb in (self._tg_image_cb, self._tg_black_cb, self._tg_still_cb,
+                   self._tg_audio_cb, self._tg_emb_cb, self._tg_system_cb):
+            cb.stateChanged.connect(self._apply_now)
+        self._tg_cooldown_edit.editingFinished.connect(self._apply_now)
+        self._restart_enabled_cb.stateChanged.connect(self._apply_now)
+        self._restart_base_edit.editingFinished.connect(self._apply_now)
+        self._restart_interval_combo.currentIndexChanged.connect(self._apply_now)
+        self._restart_exclude_edit.editingFinished.connect(self._apply_now)
 
         vl.addStretch()
         return _make_scroll(inner)
@@ -1014,49 +1186,67 @@ class SettingsDialog(QDialog):
     def _build_tab_save(self) -> QWidget:
         inner = QWidget()
         vl = QVBoxLayout(inner)
-        vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(10)
+        vl.setContentsMargins(16, 16, 16, 16)
+        vl.setSpacing(12)
 
-        # 저장
-        box1, sl1 = _section("설정 파일 저장")
-        btn_export = QPushButton("현재 설정 저장...")
-        btn_export.setObjectName("btnOutlineOrange")
-        btn_export.setMinimumHeight(48)
-        btn_export.clicked.connect(self._export_config)
-        sl1.addWidget(btn_export)
-        vl.addWidget(box1)
+        for icon, title, desc, btn_text, obj_name, slot in [
+            ("💾", "현재 설정 저장",
+             "현재 설정을 JSON 파일로 내보냅니다.",
+             "저장...", "btnOutlineOrange", self._export_config),
+            ("📂", "설정 파일 불러오기",
+             "저장된 JSON 파일을 불러와 적용합니다.",
+             "불러오기...", "btnOutlineOrange", self._import_config),
+            ("⚠", "기본값으로 초기화",
+             "모든 설정을 초기 기본값으로 되돌립니다.",
+             "초기화", "btnOutlineDanger", self._reset_all_settings),
+        ]:
+            card = QFrame()
+            card.setObjectName("saveActionCard")
+            card_h = QHBoxLayout(card)
+            card_h.setContentsMargins(16, 14, 16, 14)
+            card_h.setSpacing(14)
 
-        # 불러오기
-        box2, sl2 = _section("설정 파일 불러오기")
-        btn_import = QPushButton("설정 파일 불러오기...")
-        btn_import.setObjectName("btnOutlineOrange")
-        btn_import.setMinimumHeight(48)
-        btn_import.clicked.connect(self._import_config)
-        sl2.addWidget(btn_import)
-        vl.addWidget(box2)
+            lbl_icon = QLabel(icon)
+            lbl_icon.setObjectName("saveCardIcon")
+            lbl_icon.setFixedWidth(32)
+            lbl_icon.setAlignment(Qt.AlignCenter)
+            card_h.addWidget(lbl_icon)
 
-        # 초기화
-        box3, sl3 = _section("기본값으로 초기화")
-        btn_reset_all = QPushButton("기본값으로 초기화")
-        btn_reset_all.setObjectName("btnOutlineDanger")
-        btn_reset_all.setMinimumHeight(48)
-        btn_reset_all.clicked.connect(self._reset_all_settings)
-        sl3.addWidget(btn_reset_all)
-        vl.addWidget(box3)
+            text_vl = QVBoxLayout()
+            text_vl.setSpacing(2)
+            lbl_title = QLabel(title)
+            lbl_title.setObjectName("saveCardTitle")
+            lbl_desc = QLabel(desc)
+            lbl_desc.setObjectName("saveCardDesc")
+            text_vl.addWidget(lbl_title)
+            text_vl.addWidget(lbl_desc)
+            card_h.addLayout(text_vl, 1)
 
-        # About
-        box4, sl4 = _section("About")
-        from utils.config_manager import DEFAULT_CONFIG
-        about_lbl = QLabel(
-            "버전:     KBS Monitoring v2.0.0\n"
-            "날짜:     2026-04-18\n"
-            "제작:     KBS 기술본부"
-        )
-        about_lbl.setObjectName("settingsAbout")
-        sl4.addWidget(about_lbl)
-        vl.addWidget(box4)
+            btn = QPushButton(btn_text)
+            btn.setObjectName(obj_name)
+            btn.setFixedHeight(34)
+            btn.clicked.connect(slot)
+            card_h.addWidget(btn)
+
+            vl.addWidget(card)
+
+        # About 카드
+        about_card = QFrame()
+        about_card.setObjectName("aboutCard")
+        about_vl = QVBoxLayout(about_card)
+        about_vl.setContentsMargins(16, 14, 16, 14)
+        about_vl.setSpacing(4)
+
+        lbl_ver = QLabel("KBS Monitoring v2.0.0")
+        lbl_ver.setObjectName("aboutCardVersion")
+        about_vl.addWidget(lbl_ver)
+
+        lbl_meta = QLabel("날짜: 2026-04-18    제작: KBS 기술본부")
+        lbl_meta.setObjectName("aboutCardMeta")
+        about_vl.addWidget(lbl_meta)
 
         vl.addStretch()
+        vl.addWidget(about_card)
         return _make_scroll(inner)
 
     # ─────────────────────────────────────────────────────────────────
@@ -1068,10 +1258,7 @@ class SettingsDialog(QDialog):
         cfg = self._cfg
 
         # 영상설정
-        try:
-            cfg["port"] = int(self._port_edit.text() or 0)
-        except ValueError:
-            cfg["port"] = 0
+        cfg["port"] = self._port_combo.currentData()
         cfg["video_file"] = self._video_file_edit.text().strip()
 
         rec = cfg.setdefault("recording", {})
@@ -1157,9 +1344,6 @@ class SettingsDialog(QDialog):
         alm = cfg.setdefault("alarm", {})
         alm["sound_file"] = self._alarm_sound_edit.text().strip()
 
-        emb = cfg.setdefault("embedded", {})
-        emb["audio_input_device"] = self._audio_dev_combo.currentData() or ""
-
         tg = cfg.setdefault("telegram", {})
         tg["enabled"] = self._tg_enabled_cb.isChecked()
         tg["bot_token"] = self._tg_token_edit.text().strip()
@@ -1173,19 +1357,24 @@ class SettingsDialog(QDialog):
         tg["cooldown"] = int(self._tg_cooldown_edit.text() or 60)
 
         sys_cfg = cfg.setdefault("system", {})
-        sys_cfg["scheduled_restart_time"] = (
-            self._restart1_edit.text().strip()
-            if self._restart1_cb.isChecked() else "")
-        sys_cfg["scheduled_restart_time_2"] = (
-            self._restart2_edit.text().strip()
-            if self._restart2_cb.isChecked() else "")
+        sys_cfg["scheduled_restart_enabled"] = self._restart_enabled_cb.isChecked()
+        sys_cfg["scheduled_restart_base_time"] = self._restart_base_edit.text().strip() or "03:00"
+        sys_cfg["scheduled_restart_interval_hours"] = self._restart_interval_values[
+            self._restart_interval_combo.currentIndex()]
+        sys_cfg["scheduled_restart_exclude"] = self._restart_exclude_edit.text().strip()
 
-    def _on_save(self):
-        self._collect_config()
-        self._cfg_mgr.save(self._cfg)
-        self._send_cmd_apply()
-        self.config_saved.emit(copy.deepcopy(self._cfg))
-        QMessageBox.information(self, "저장 완료", "설정이 저장되었습니다.")
+    def _apply_now(self):
+        """위젯 값 수집 → 저장 → Detection 전파. 재진입 방지."""
+        if SettingsDialog._applying:
+            return
+        SettingsDialog._applying = True
+        try:
+            self._collect_config()
+            self._cfg_mgr.save(self._cfg)
+            self._send_cmd_apply()
+            self.config_saved.emit(copy.deepcopy(self._cfg))
+        finally:
+            SettingsDialog._applying = False
 
     def _send_cmd_apply(self):
         if self._cmd_queue is None:
@@ -1225,6 +1414,7 @@ class SettingsDialog(QDialog):
             "동영상 파일 (*.mp4 *.avi *.mkv *.mov);;모든 파일 (*)")
         if path:
             self._video_file_edit.setText(path)
+            self._apply_now()
 
     def _browse_rec_dir(self):
         path = QFileDialog.getExistingDirectory(self, "녹화 저장 폴더 선택",
@@ -1301,13 +1491,8 @@ class SettingsDialog(QDialog):
             f"CPU: {cpu:.1f}%  RAM: {ram:.1f}%\n\n{msg}")
 
     def _reset_video_settings(self):
-        if QMessageBox.question(
-            self, "확인", "영상설정을 기본값으로 초기화하시겠습니까?",
-            QMessageBox.Yes | QMessageBox.No
-        ) != QMessageBox.Yes:
-            return
         d = DEFAULT_CONFIG
-        self._port_edit.setText(str(d.get("port", 0)))
+        self._port_combo.setCurrentIndex(d.get("port", 0))
         self._video_file_edit.clear()
         rec = d.get("recording", {})
         self._rec_enabled_cb.setChecked(rec.get("enabled", True))
@@ -1315,18 +1500,56 @@ class SettingsDialog(QDialog):
         self._rec_pre_edit.setText(str(rec.get("pre_seconds", 5)))
         self._rec_post_edit.setText(str(rec.get("post_seconds", 15)))
         self._rec_keep_edit.setText(str(rec.get("max_keep_days", 7)))
+        self._apply_now()
+
+    def _reset_sensitivity_settings(self):
+        d = DEFAULT_CONFIG.get("detection", {})
+        p = DEFAULT_CONFIG.get("performance", {})
+        self._black_thresh.setText(str(d.get("black_threshold", 5)))
+        self._black_ratio.setText(str(d.get("black_dark_ratio", 98.0)))
+        self._black_suppress.setText(str(d.get("black_motion_suppress_ratio", 0.2)))
+        self._black_dur.setText(str(d.get("black_duration", 20)))
+        self._black_alarm_dur.setText(str(d.get("black_alarm_duration", 60)))
+
+        self._still_thresh.setText(str(d.get("still_threshold", 4)))
+        self._still_changed.setText(str(d.get("still_changed_ratio", 10.0)))
+        self._still_reset.setText(str(d.get("still_reset_frames", 3)))
+        self._still_dur.setText(str(d.get("still_duration", 60)))
+        self._still_alarm_dur.setText(str(d.get("still_alarm_duration", 60)))
+
+        self._hsv_h.set_range(d.get("audio_hsv_h_min", 40), d.get("audio_hsv_h_max", 95))
+        self._hsv_s.set_range(d.get("audio_hsv_s_min", 80), d.get("audio_hsv_s_max", 255))
+        self._hsv_v.set_range(d.get("audio_hsv_v_min", 60), d.get("audio_hsv_v_max", 255))
+        self._audio_pixel_ratio.setText(str(d.get("audio_pixel_ratio", 5.0)))
+        self._audio_level_dur.setText(str(d.get("audio_level_duration", 20)))
+        self._audio_level_alarm_dur.setText(str(d.get("audio_level_alarm_duration", 60)))
+        self._audio_recovery.setText(str(d.get("audio_level_recovery_seconds", 2.0)))
+
+        self._emb_thresh.setText(str(d.get("embedded_silence_threshold", -50)))
+        self._emb_dur.setText(str(d.get("embedded_silence_duration", 20)))
+        self._emb_alarm_dur.setText(str(d.get("embedded_alarm_duration", 60)))
+
+        for i in range(self._detect_interval_combo.count()):
+            if self._detect_interval_combo.itemData(i) == p.get("detection_interval", 200):
+                self._detect_interval_combo.setCurrentIndex(i)
+                break
+        for i in range(self._scale_combo.count()):
+            if abs(self._scale_combo.itemData(i) - p.get("scale_factor", 1.0)) < 0.01:
+                self._scale_combo.setCurrentIndex(i)
+                break
+        self._black_enabled_cb.setChecked(p.get("black_detection_enabled", True))
+        self._still_enabled_cb.setChecked(p.get("still_detection_enabled", True))
+        self._audio_enabled_cb.setChecked(p.get("audio_detection_enabled", True))
+        self._emb_enabled_cb.setChecked(p.get("embedded_detection_enabled", True))
+        self._apply_now()
 
     def _reset_signoff_settings(self):
-        if QMessageBox.question(
-            self, "확인", "정파설정을 기본값으로 초기화하시겠습니까?",
-            QMessageBox.Yes | QMessageBox.No
-        ) != QMessageBox.Yes:
-            return
         d = DEFAULT_CONFIG.get("signoff", {})
         self._auto_prep_cb.setChecked(d.get("auto_preparation", True))
-        self._so_prep_sound.clear()
-        self._so_enter_sound.clear()
-        self._so_release_sound.clear()
+        self._so_prep_sound.setText(d.get("prep_alarm_sound", ""))
+        self._so_enter_sound.setText(d.get("enter_alarm_sound", ""))
+        self._so_release_sound.setText(d.get("release_alarm_sound", ""))
+        self._apply_now()
 
     def _export_config(self):
         self._collect_config()
@@ -1356,23 +1579,15 @@ class SettingsDialog(QDialog):
             self._cfg_mgr.save(new_cfg)
             self._cfg = new_cfg
             self._load_rois_from_cfg()
-            self._on_save()
+            self._apply_now()
             QMessageBox.information(self, "완료",
                                     "설정을 불러왔습니다. 적용하려면 프로그램을 재시작하세요.")
         except Exception as e:
             QMessageBox.critical(self, "오류", f"불러오기 실패:\n{e}")
 
     def _reset_all_settings(self):
-        if QMessageBox.question(
-            self, "확인",
-            "모든 설정을 기본값으로 초기화하시겠습니까?\n현재 설정이 모두 사라집니다.",
-            QMessageBox.Yes | QMessageBox.No
-        ) != QMessageBox.Yes:
-            return
         self._cfg = copy.deepcopy(DEFAULT_CONFIG)
         self._cfg_mgr.save(self._cfg)
         self._send_cmd_apply()
         self.config_saved.emit(copy.deepcopy(self._cfg))
-        QMessageBox.information(self, "완료",
-                                "기본값으로 초기화했습니다. 재시작 후 완전 적용됩니다.")
         self.close()

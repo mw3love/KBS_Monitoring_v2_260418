@@ -11,13 +11,13 @@ DEFAULT_CONFIG = {
     "config_version": 2,
     "port": 0,
     "detection": {
-        "black_threshold": 10,
-        "black_dark_ratio": 95.0,
+        "black_threshold": 5,
+        "black_dark_ratio": 98.0,
         "black_duration": 20,
         "black_alarm_duration": 60,
         "black_motion_suppress_ratio": 0.2,
-        "still_threshold": 8,
-        "still_changed_ratio": 2.0,
+        "still_threshold": 4,
+        "still_changed_ratio": 10.0,
         "still_duration": 60,
         "still_alarm_duration": 60,
         "audio_hsv_h_min": 40,
@@ -77,9 +77,6 @@ DEFAULT_CONFIG = {
         "output_height": 540,
         "output_fps": 10,
     },
-    "embedded": {
-        "audio_input_device": "",       # v2 신규: sounddevice 장치 이름 (""=시스템 기본)
-    },
     "ui_state": {
         "detection_enabled": True,
         "roi_visible": True,
@@ -87,9 +84,9 @@ DEFAULT_CONFIG = {
     },
     "signoff": {
         "auto_preparation": True,
-        "prep_alarm_sound": "",
-        "enter_alarm_sound": "",
-        "release_alarm_sound": "",
+        "prep_alarm_sound": "resources/sounds/sign_off.wav",
+        "enter_alarm_sound": "resources/sounds/sign_off.wav",
+        "release_alarm_sound": "resources/sounds/sign_off.wav",
         "group1": {
             "name": "1TV",
             "enter_roi": {"video_label": ""},
@@ -117,8 +114,9 @@ DEFAULT_CONFIG = {
     },
     "system": {                         # v2 신규: 예약 재시작
         "scheduled_restart_enabled": False,
-        "scheduled_restart_time": "",   # "HH:MM" 또는 "" (비활성)
-        "scheduled_restart_time_2": "", # "HH:MM" 또는 "" (비활성)
+        "scheduled_restart_base_time": "03:00",     # 기준 시각 HH:MM
+        "scheduled_restart_interval_hours": 24,     # 주기 (시간 단위)
+        "scheduled_restart_exclude": "",            # 제외 시간대 "HH:MM-HH:MM,..."
     },
 }
 

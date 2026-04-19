@@ -313,12 +313,6 @@ if __name__ == '__main__':
 - `result_queue`: maxsize=200 (Full 시 1개 drop 후 재시도)
 - Phase 5 검증 시: 24h 실행 후 psutil RSS 측정
 
-### 오디오 입력 장치 선택
-- 시스템에 복수의 오디오 장치가 있을 수 있어 **설정 탭 "알림설정"에 "임베디드 오디오 입력 장치" 드롭다운 추가**
-- 값: sounddevice 장치 이름 문자열(저장) + 기동 시 이름 기반 검색 (인덱스는 재부팅 시 바뀜)
-- 미선택/장치 없음 시: 기본 입력 장치 fallback + DIAG-AUDIO에 실제 사용 중 장치명 출력
-- config key: `"embedded"."audio_input_device"` (default: `""` = 시스템 기본)
-
 ---
 
 ## 재spawn · 종료 · 크래시 시퀀스 (요약)

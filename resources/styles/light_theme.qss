@@ -124,33 +124,46 @@ QWidget#logArea {
 }
 
 QWidget#logHeaderArea {
-    background-color: #f0f0f0;
+    background-color: #f8f8f8;
     border-bottom: 1px solid #dddddd;
 }
 
 QLabel#logHeader {
-    color: #444444;
+    color: #D97757;
     font-weight: bold;
-    font-size: 11px;
+    font-size: 12px;
+    letter-spacing: 1px;
 }
 
-QListWidget#logList {
+QTextEdit#logList {
     background-color: #ffffff;
     color: #1a1a1a;
     border: none;
     font-family: "JetBrains Mono", "Consolas", monospace;
     font-size: 11px;
-    alternate-background-color: #f8f8f8;
+    padding: 2px 4px;
 }
 
-QListWidget#logList::item {
-    padding: 2px 6px;
-    border-bottom: 1px solid #f0f0f0;
+QPushButton#btnLogClear,
+QPushButton#btnLogFolder {
+    background-color: transparent;
+    color: #888888;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
+QPushButton#btnLogClear:hover,
+QPushButton#btnLogFolder:hover {
+    border-color: #D97757;
+    color: #D97757;
+    background-color: rgba(217, 119, 87, 0.08);
 }
 
 QSplitter#mainSplitter::handle {
-    background-color: #cccccc;
-    width: 3px;
+    background-color: #dddddd;
+    width: 4px;
 }
 
 QSplitter#mainSplitter::handle:hover {
@@ -264,4 +277,292 @@ QLabel#lblTime {
     color: #B85E3F;
     font-size: 14px;
     font-weight: bold;
+}
+
+/* ================================================================
+   설정 다이얼로그 — 라이트 테마
+   ================================================================ */
+
+/* ── 탭 바 ──────────────────────────────────────────────────────── */
+QWidget#settingsTabBar {
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #cccccc;
+}
+
+QPushButton#settingsTabBtn {
+    background-color: transparent;
+    color: #666666;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0px;
+    padding: 6px 12px;
+    font-size: 11px;
+}
+
+QPushButton#settingsTabBtn:hover {
+    color: #D97757;
+    background-color: #e8e8e8;
+    border-bottom: 2px solid transparent;
+}
+
+QPushButton#settingsTabBtn:checked {
+    color: #D97757;
+    background-color: #ffffff;
+    border-bottom: 2px solid #D97757;
+}
+
+/* ── 섹션 박스 ──────────────────────────────────────────────────── */
+QFrame#settingsSection {
+    background-color: #ffffff;
+    border: 1px solid #dddddd;
+    border-radius: 8px;
+}
+
+QFrame#settingsSection QWidget {
+    background-color: transparent;
+}
+
+QFrame#settingsSection QLineEdit,
+QFrame#settingsSection QComboBox,
+QFrame#settingsSection QSpinBox {
+    background-color: #f8f8f8;
+    color: #1a1a1a;
+    min-height: 24px;
+    max-height: 26px;
+    padding: 2px 8px;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+}
+
+QFrame#settingsSection QLineEdit:focus,
+QFrame#settingsSection QComboBox:focus {
+    border-color: #D97757;
+}
+
+QFrame#settingsSection QPushButton {
+    min-height: 24px;
+    max-height: 28px;
+    padding: 3px 12px;
+    border-radius: 4px;
+}
+
+QFrame#settingsSection QCheckBox {
+    color: #1a1a1a;
+    font-size: 12px;
+    spacing: 6px;
+}
+
+QFrame#settingsSection QCheckBox::indicator {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 3px;
+    width: 14px;
+    height: 14px;
+}
+
+QFrame#settingsSection QCheckBox::indicator:checked {
+    background-color: #D97757;
+    border-color: #B85E3F;
+}
+
+/* ── 섹션 타이틀 / 행 라벨 / 설명 ─────────────────────────────── */
+QLabel#settingsSectionLabel {
+    color: #D97757;
+    font-weight: bold;
+    font-size: 13px;
+    padding: 0px;
+    margin: 0px;
+}
+
+QLabel#settingsRowLabel {
+    color: #1a1a1a;
+    font-size: 12px;
+}
+
+QLabel#settingsDesc {
+    color: #888888;
+    font-size: 11px;
+}
+
+QFrame#settingsSep {
+    color: #dddddd;
+    background-color: #dddddd;
+    max-height: 1px;
+    border: none;
+    margin: 4px 0;
+}
+
+/* ── 공통 액션 버튼 ─────────────────────────────────────────────── */
+QPushButton#btnPrimary {
+    background-color: #D97757;
+    color: #ffffff;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+QPushButton#btnPrimary:hover {
+    background-color: #E8906A;
+}
+
+QPushButton#btnPrimary:pressed {
+    background-color: #B85E3F;
+}
+
+QPushButton#btnDanger {
+    background-color: transparent;
+    color: #cc3333;
+    border: 1px solid #cc3333;
+    border-radius: 5px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+QPushButton#btnDanger:hover {
+    background-color: #cc3333;
+    color: #ffffff;
+}
+
+QPushButton#btnDanger:pressed {
+    background-color: #992222;
+    border-color: #992222;
+    color: #ffffff;
+}
+
+/* ── ROI 테이블 ─────────────────────────────────────────────────── */
+QTableWidget#roiTable {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #D97757;
+    border-radius: 3px;
+    gridline-color: #dddddd;
+}
+
+QTableWidget#roiTable QHeaderView::section {
+    background-color: #fff0ea;
+    color: #D97757;
+    font-weight: bold;
+    font-size: 11px;
+    border: none;
+    border-bottom: 1px solid #D97757;
+    border-right: 1px solid #dddddd;
+    padding: 3px 4px;
+}
+
+QTableWidget#roiTable::item {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 2px 4px;
+}
+
+QTableWidget#roiTable::item:selected {
+    background-color: #fde8db;
+    color: #B85E3F;
+}
+
+/* ── 저장/불러오기 탭 카드 ─────────────────────────────────────── */
+QFrame#saveActionCard {
+    background-color: #ffffff;
+    border: 1px solid #dddddd;
+    border-radius: 8px;
+}
+
+QFrame#saveActionCard:hover {
+    border-color: #D97757;
+}
+
+QLabel#saveCardIcon {
+    font-size: 22px;
+    color: #D97757;
+    background-color: transparent;
+}
+
+QLabel#saveCardTitle {
+    font-size: 13px;
+    font-weight: bold;
+    color: #1a1a1a;
+    background-color: transparent;
+}
+
+QLabel#saveCardDesc {
+    font-size: 11px;
+    color: #888888;
+    background-color: transparent;
+}
+
+QPushButton#btnOutlineOrange {
+    background-color: transparent;
+    color: #D97757;
+    border: 1px solid #D97757;
+    border-radius: 5px;
+    padding: 6px 18px;
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 90px;
+}
+
+QPushButton#btnOutlineOrange:hover {
+    background-color: #D97757;
+    color: #ffffff;
+}
+
+QPushButton#btnOutlineOrange:pressed {
+    background-color: #B85E3F;
+    border-color: #B85E3F;
+    color: #ffffff;
+}
+
+QPushButton#btnOutlineDanger {
+    background-color: transparent;
+    color: #cc3333;
+    border: 1px solid #cc3333;
+    border-radius: 5px;
+    padding: 6px 18px;
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 90px;
+}
+
+QPushButton#btnOutlineDanger:hover {
+    background-color: #cc3333;
+    color: #ffffff;
+}
+
+QPushButton#btnOutlineDanger:pressed {
+    background-color: #992222;
+    border-color: #992222;
+    color: #ffffff;
+}
+
+/* ── About 카드 ─────────────────────────────────────────────────── */
+QFrame#aboutCard {
+    background-color: #fafafa;
+    border: 1px solid #dddddd;
+    border-radius: 8px;
+}
+
+QLabel#aboutCardVersion {
+    font-size: 18px;
+    font-weight: bold;
+    color: #D97757;
+    background-color: transparent;
+}
+
+QLabel#aboutCardMeta {
+    font-size: 11px;
+    color: #888888;
+    background-color: transparent;
+}
+
+
+/* ── ROI 단축키 안내 ────────────────────────────────────────────── */
+QLabel#roiShortcutLabel {
+    font-size: 11px;
+    color: #555555;
+    background-color: #f5f5f5;
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+    padding: 6px 8px;
 }

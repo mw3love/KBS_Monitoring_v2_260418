@@ -2,7 +2,6 @@
 임베디드 오디오 모니터링 워커
 v1 core/audio_monitor.py에서 QThread/Signal 제거.
 L/R 레벨은 SharedStateBuffer에 직접 기록.
-장치 이름 기반 선택 지원 (config["embedded"]["audio_input_device"]).
 pycaw 볼륨/Mute 제어: Detection 프로세스 전담.
 PySide6 임포트 없음.
 """
@@ -29,20 +28,6 @@ except ImportError:
     PYCAW_AVAILABLE = False
 
 
-def _find_device_index(device_name: str) -> "int | None":
-    """장치 이름으로 sounddevice 인덱스 검색. 빈 문자열이면 None(기본 장치) 반환."""
-    if not device_name or not SOUNDDEVICE_AVAILABLE:
-        return None
-    try:
-        devices = sd.query_devices()
-        for i, dev in enumerate(devices):
-            if device_name.lower() in dev["name"].lower() and dev["max_input_channels"] > 0:
-                return i
-    except Exception:
-        pass
-    return None
-
-
 class AudioMonitorWorker(threading.Thread):
     """
     오디오 레벨 모니터링 스레드.
@@ -56,12 +41,10 @@ class AudioMonitorWorker(threading.Thread):
     CHANNELS = 2
     SILENCE_THRESHOLD_DB = -50.0
 
-    def __init__(self, shared_state, result_queue,
-                 device_name: str = ""):
+    def __init__(self, shared_state, result_queue):
         super().__init__(daemon=True, name="AudioMonitorWorker")
         self._shared_state = shared_state
         self._result_queue = result_queue
-        self._device_name = device_name
         self._running = False
         self._silence_duration = 0.0
         self._muted = False
@@ -122,14 +105,9 @@ class AudioMonitorWorker(threading.Thread):
                 time.sleep(0.5)
             return
 
-        device_index = _find_device_index(self._device_name)
-        actual_name = self._device_name or "(시스템 기본)"
-        if device_index is None and self._device_name:
-            self._emit(LogEntry(level="info", source="audio",
-                                message=f"오디오 장치 '{self._device_name}' 미발견 — 기본 장치 사용"))
-            actual_name = "(시스템 기본)"
+        device_index = None
         self._emit(LogEntry(level="info", source="audio",
-                            message=f"DIAG-AUDIO: 사용 장치={actual_name}"))
+                            message="DIAG-AUDIO: 사용 장치=(시스템 기본)"))
 
         stream = None
         output_stream = None

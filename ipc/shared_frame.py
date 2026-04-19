@@ -33,7 +33,11 @@ class SharedFrameBuffer:
     def __init__(self, create: bool = False, name: str = SHM_NAME):
         self._name = name
         if create:
-            self._shm = SharedMemory(name=name, create=True, size=TOTAL_SIZE)
+            try:
+                self._shm = SharedMemory(name=name, create=True, size=TOTAL_SIZE)
+            except FileExistsError:
+                # Windows: 직전 unlink 후 핸들 반환 전 재생성 시도 → 기존 것 재사용
+                self._shm = SharedMemory(name=name, create=False)
             self._buf = self._shm.buf
             # 헤더 초기화 (seq_no=0, 나머지 0)
             struct.pack_into(_HEADER_FMT, self._buf, 0, 0, 0.0, 0, 0, _MAX_CH, 0)
@@ -96,6 +100,12 @@ class SharedFrameBuffer:
         seq, ts, w, h, ch, flags = struct.unpack_from(_HEADER_FMT, self._buf, 0)
         return {"seq_no": seq, "timestamp": ts, "width": w, "height": h,
                 "channels": ch, "flags": flags}
+
+    def clear_frame(self) -> None:
+        """프레임을 비워 read_frame()이 None을 반환하게 함 (소스 전환 시 사용)."""
+        old_seq = struct.unpack_from("<Q", self._buf, 0)[0]
+        new_seq = (old_seq & ~1) + 2
+        struct.pack_into(_HEADER_FMT, self._buf, 0, new_seq, 0.0, 0, 0, _MAX_CH, 0)
 
     # ── 공통 ──────────────────────────────────────
 

@@ -88,6 +88,11 @@ class VideoCaptureWorker(threading.Thread):
                     was_connected = False
                     consecutive_failures = 0
                     frame_count = 0
+                    if self._shared_frame is not None:
+                        try:
+                            self._shared_frame.clear_frame()
+                        except Exception:
+                            pass
 
                 if cap is None:
                     if current_file:

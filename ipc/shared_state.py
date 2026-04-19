@@ -44,7 +44,10 @@ class SharedStateBuffer:
         self._name = name
         self._lock = lock  # main 프로세스에서 생성해 전달
         if create:
-            self._shm = SharedMemory(name=name, create=True, size=TOTAL_SIZE)
+            try:
+                self._shm = SharedMemory(name=name, create=True, size=TOTAL_SIZE)
+            except FileExistsError:
+                self._shm = SharedMemory(name=name, create=False)
             self._buf = self._shm.buf
             self._init_header()
         else:

@@ -9,42 +9,10 @@ import subprocess
 import sys
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
-    QListWidget, QListWidgetItem, QLabel, QPushButton, QStyle,
-    QStyledItemDelegate,
+    QTextEdit, QLabel, QPushButton, QStyle,
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QFont
-
-
-class _LogItemDelegate(QStyledItemDelegate):
-    """로그 타입에 따라 배경색+흰 텍스트를 렌더링."""
-    LOG_TYPE_ROLE = Qt.UserRole + 1
-
-    _COLORS = {
-        "error":    ("#cc0000", "#ffffff"),
-        "still":    ("#7B2FBE", "#ffffff"),
-        "audio":    ("#006600", "#ffffff"),
-        "embedded": ("#004488", "#ffffff"),
-    }
-
-    def paint(self, painter, option, index):
-        log_type = index.data(self.LOG_TYPE_ROLE)
-        colors = self._COLORS.get(log_type)
-        if colors:
-            bg_color, fg_color = colors
-            painter.save()
-            painter.fillRect(option.rect, QColor(bg_color))
-            painter.setFont(option.font)
-            painter.setPen(QColor(fg_color))
-            text_rect = option.rect.adjusted(6, 0, -6, 0)
-            painter.drawText(
-                text_rect,
-                Qt.AlignLeft | Qt.AlignVCenter,
-                index.data(Qt.DisplayRole) or "",
-            )
-            painter.restore()
-        else:
-            super().paint(painter, option, index)
+from PySide6.QtGui import QColor, QTextBlockFormat, QTextCharFormat, QTextCursor, QTextOption
 
 
 class LogWidget(QWidget):
@@ -53,11 +21,21 @@ class LogWidget(QWidget):
     MAX_LOG_ITEMS = 500
     LOG_DIR = "logs"
 
+    # log_type → (배경색 or None, 글자색)
+    _COLORS = {
+        "error":    ("#cc0000", "#ffffff"),
+        "still":    ("#7B2FBE", "#ffffff"),
+        "audio":    ("#006600", "#ffffff"),
+        "embedded": ("#004488", "#ffffff"),
+        "info":     (None,      "#cccccc"),
+    }
+
     log_cleared = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._last_date: str = ""
+        self._item_count: int = 0
         self._setup_ui()
 
     def _setup_ui(self):
@@ -96,14 +74,14 @@ class LogWidget(QWidget):
 
         layout.addWidget(header_widget)
 
-        self._list = QListWidget()
-        self._list.setObjectName("logList")
-        self._list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self._list.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self._list.setSelectionMode(QListWidget.NoSelection)
-        self._list.setFocusPolicy(Qt.NoFocus)
-        self._list.setItemDelegate(_LogItemDelegate(self._list))
-        layout.addWidget(self._list)
+        self._text = QTextEdit()
+        self._text.setObjectName("logList")
+        self._text.setReadOnly(True)
+        self._text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
+        self._text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self._text.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._text.setFocusPolicy(Qt.NoFocus)
+        layout.addWidget(self._text)
 
     def add_log(self, message: str, log_type: str = "info"):
         """로그 항목 추가.
@@ -117,26 +95,53 @@ class LogWidget(QWidget):
             self._add_date_separator(date_str)
             self._last_date = date_str
 
-        text = f"{time_str}  {message}"
-        item = QListWidgetItem(text)
-        item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        bg, fg = self._COLORS.get(log_type, self._COLORS["info"])
+        self._insert_line(f"{time_str}  {message}", bg, fg)
+        self._item_count += 1
 
-        if log_type in ("error", "still", "audio", "embedded"):
-            item.setData(_LogItemDelegate.LOG_TYPE_ROLE, log_type)
+        if self._item_count > self.MAX_LOG_ITEMS:
+            self._trim_oldest()
 
-        self._list.addItem(item)
+    def _insert_line(self, text: str, bg_hex, fg_hex, align=Qt.AlignLeft):
+        doc = self._text.document()
+        cursor = QTextCursor(doc)
+        cursor.movePosition(QTextCursor.End)
 
-        while self._list.count() > self.MAX_LOG_ITEMS:
-            self._list.takeItem(0)
+        char_fmt = QTextCharFormat()
+        char_fmt.setForeground(QColor(fg_hex))
+        if bg_hex:
+            char_fmt.setBackground(QColor(bg_hex))
 
-        self._list.scrollToBottom()
+        block_fmt = QTextBlockFormat()
+        if bg_hex:
+            block_fmt.setBackground(QColor(bg_hex))
+        block_fmt.setAlignment(align)
+
+        # 문서가 비어있으면 첫 블록 재사용, 아니면 새 블록 삽입
+        if doc.isEmpty():
+            cursor.setBlockFormat(block_fmt)
+            cursor.setBlockCharFormat(char_fmt)
+            cursor.insertText(text, char_fmt)
+        else:
+            cursor.insertBlock(block_fmt, char_fmt)
+            cursor.insertText(text, char_fmt)
+
+        self._text.setTextCursor(cursor)
+        self._text.ensureCursorVisible()
+
+    def _trim_oldest(self):
+        doc = self._text.document()
+        cursor = QTextCursor(doc)
+        cursor.movePosition(QTextCursor.Start)
+        cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+        # 다음 줄바꿈 문자까지 포함해서 삭제
+        cursor.movePosition(QTextCursor.NextCharacter, QTextCursor.KeepAnchor)
+        cursor.removeSelectedText()
+        self._item_count -= 1
 
     def _add_date_separator(self, date_str: str):
-        item = QListWidgetItem(f"──── {date_str} ────")
-        item.setTextAlignment(Qt.AlignCenter)
-        item.setForeground(QColor("#6060a0"))
-        item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-        self._list.addItem(item)
+        self._insert_line(f"──── {date_str} ────", None, "#6060a0", Qt.AlignCenter)
+        self._item_count += 1
 
     def add_error(self, message: str):
         self.add_log(message, log_type="error")
@@ -145,8 +150,9 @@ class LogWidget(QWidget):
         self.add_log(message, log_type="info")
 
     def clear_logs(self):
-        self._list.clear()
+        self._text.document().clear()
         self._last_date = ""
+        self._item_count = 0
         self.log_cleared.emit()
 
     def _open_log_folder(self):

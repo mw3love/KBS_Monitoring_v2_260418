@@ -948,3 +948,51 @@ class FullScreenROIEditor(QDialog):
         line.setFrameShape(QFrame.HLine)
         line.setObjectName("roiPanelSeparator")
         return line
+
+
+# ─────────────────────────────────────────────────────
+# 인라인 오버레이 ROI 편집 위젯 (v1 반화면 방식)
+# ─────────────────────────────────────────────────────
+
+class ROIOverlayWidget(QWidget):
+    """
+    VideoWidget 위에 child로 올라가는 ROI 편집 오버레이.
+    캔버스만 전체 영역을 차지한다 (사이드패널 없음).
+    편집 완료는 설정창 버튼 토글 또는 Esc 키로 처리.
+    """
+
+    editing_finished = Signal()
+
+    def __init__(self, roi_mgr: ROIManager, roi_type: str,
+                 frozen_frame, parent=None):
+        super().__init__(parent)
+        self._roi_mgr = roi_mgr
+        self._roi_type = roi_type
+        self._rois_changed_cb = None
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self._canvas = ROIEditorCanvas(self._roi_mgr, self._roi_type, parent=self)
+        self._canvas.set_frame(frozen_frame)
+        self._canvas.load_rois()
+        self._canvas.rois_changed.connect(self._on_canvas_changed)
+        layout.addWidget(self._canvas)
+
+    def set_rois_changed_callback(self, cb):
+        """ROI 변경 시마다 호출할 콜백 등록 (설정창 테이블 갱신용)."""
+        self._rois_changed_cb = cb
+
+    def _on_canvas_changed(self):
+        """ROI 변경 즉시 ROIManager에 반영 + 설정창 테이블 갱신."""
+        self._canvas.apply_rois()
+        if self._rois_changed_cb:
+            self._rois_changed_cb()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self._canvas.apply_rois()
+            self.editing_finished.emit()
+        else:
+            super().keyPressEvent(event)

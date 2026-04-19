@@ -69,15 +69,21 @@ def main():
     from ipc.shared_state import SharedStateBuffer, SHM_NAME as STATE_SHM
 
     # ── SharedMemory 잔존 정리 ────────────────────────────────────
+    import time as _time
+    from multiprocessing.shared_memory import SharedMemory as _SHM
     for name in (FRAME_SHM, STATE_SHM):
-        try:
-            from multiprocessing.shared_memory import SharedMemory
-            existing = SharedMemory(name=name, create=False)
-            existing.close()
-            existing.unlink()
-            print(f"[main] 잔존 SHM '{name}' 정리 완료", flush=True)
-        except Exception:
-            pass
+        for _ in range(3):
+            try:
+                existing = _SHM(name=name, create=False)
+                existing.close()
+                existing.unlink()
+                print(f"[main] 잔존 SHM '{name}' 정리 완료", flush=True)
+                _time.sleep(0.05)  # Windows: unlink 후 핸들 반환 대기
+                break
+            except FileNotFoundError:
+                break  # 없으면 정상
+            except Exception:
+                _time.sleep(0.1)
 
     # ── SharedMemory 생성 ─────────────────────────────────────────
     state_lock = multiprocessing.Lock()
@@ -124,7 +130,53 @@ def main():
     window.show()
 
     # ── 예약 재시작 타이머 (Launcher 단독 관리) ────────────────────
-    _last_restart_key: list = [""]  # 날짜+시각 조합 (리스트로 nonlocal 우회)
+    _last_restart_ts: list = [0.0]  # 마지막 재시작 실행 타임스탬프
+
+    def _parse_exclude_ranges(exclude_str: str):
+        """'HH:MM-HH:MM, HH:MM-HH:MM' 파싱 → [(start_min, end_min), ...] (자정 넘김 지원)"""
+        ranges = []
+        for part in exclude_str.split(","):
+            part = part.strip()
+            if "-" not in part:
+                continue
+            try:
+                s, e = part.split("-", 1)
+                sh, sm = map(int, s.strip().split(":"))
+                eh, em = map(int, e.strip().split(":"))
+                ranges.append((sh * 60 + sm, eh * 60 + em))
+            except Exception:
+                pass
+        return ranges
+
+    def _in_exclude(now_min: int, ranges) -> bool:
+        for s, e in ranges:
+            if s <= e:
+                if s <= now_min < e:
+                    return True
+            else:  # 자정 넘김 (예: 23:30-00:30)
+                if now_min >= s or now_min < e:
+                    return True
+        return False
+
+    def _next_restart_time(base_hm: str, interval_h: int) -> datetime.datetime:
+        """기준시각 + N×주기 중 현재 이후 가장 가까운 시각 반환"""
+        try:
+            bh, bm = map(int, base_hm.split(":"))
+        except Exception:
+            return datetime.datetime.max
+        now = datetime.datetime.now()
+        base_today = now.replace(hour=bh, minute=bm, second=0, microsecond=0)
+        # 오늘 기준시각부터 주기 단위로 앞/뒤 탐색
+        delta = datetime.timedelta(hours=interval_h)
+        # 가장 최근 지난 기준 시각 계산
+        diff_sec = (now - base_today).total_seconds()
+        if diff_sec < 0:
+            diff_sec += 86400  # 아직 오늘 기준시각 전이면 어제로 간주
+            base_today -= datetime.timedelta(days=1)
+        cycles_passed = int(diff_sec / delta.total_seconds())
+        last_trigger = base_today + delta * cycles_passed
+        next_trigger = last_trigger + delta
+        return next_trigger
 
     def _check_scheduled_restart():
         try:
@@ -134,22 +186,35 @@ def main():
             sys_cfg = cfg.get("system", {})
             if not sys_cfg.get("scheduled_restart_enabled", False):
                 return
+
+            base_hm = sys_cfg.get("scheduled_restart_base_time", "03:00").strip()
+            interval_h = int(sys_cfg.get("scheduled_restart_interval_hours", 24))
+            exclude_str = sys_cfg.get("scheduled_restart_exclude", "")
+
+            next_dt = _next_restart_time(base_hm, interval_h)
             now = datetime.datetime.now()
-            now_hm = now.strftime("%H:%M")
-            date_str = now.strftime("%Y-%m-%d")
-            for key_name in ("scheduled_restart_time", "scheduled_restart_time_2"):
-                target_hm = sys_cfg.get(key_name, "").strip()
-                if not target_hm:
-                    continue
-                restart_key = f"{date_str} {target_hm}"
-                if now_hm == target_hm and _last_restart_key[0] != restart_key:
-                    _last_restart_key[0] = restart_key
-                    print(f"[main] 예약 재시작 실행: {restart_key}", flush=True)
-                    _send_system_telegram_main(
-                        f"KBS Monitoring v2 예약 재시작 실행 ({restart_key})"
-                    )
-                    window.close()
-                    return
+
+            # 아직 예정 시각 도달 전
+            if now < next_dt:
+                return
+
+            # 이미 이 주기에서 실행했으면 스킵 (30초 윈도우 내 중복 방지)
+            if _last_restart_ts[0] >= next_dt.timestamp():
+                return
+
+            # 제외 시간대 확인
+            now_min = now.hour * 60 + now.minute
+            exclude_ranges = _parse_exclude_ranges(exclude_str)
+            if _in_exclude(now_min, exclude_ranges):
+                return  # 제외 시간대 종료 후 다음 30초 틱에서 재시도
+
+            _last_restart_ts[0] = now.timestamp()
+            label = now.strftime("%Y-%m-%d %H:%M")
+            print(f"[main] 예약 재시작 실행: {label}", flush=True)
+            _send_system_telegram_main(
+                f"KBS Monitoring v2 예약 재시작 실행 ({label})"
+            )
+            window.close()
         except Exception:
             pass
 

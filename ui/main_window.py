@@ -10,9 +10,10 @@ import logging
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication,
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QEvent
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 
+from core.roi_manager import ROI
 from ui.top_bar import TopBar
 from ui.video_widget import VideoWidget, SharedFramePoller
 from ui.log_widget import LogWidget
@@ -61,6 +62,10 @@ class MainWindow(QMainWindow):
 
         # Detection 준비 여부
         self._detection_ready = False
+
+        # ROI 인라인 오버레이 상태
+        self._roi_overlay = None
+        self._roi_overlay_type: str = ""
 
         self._setup_ui()
         self._connect_signals()
@@ -160,11 +165,15 @@ class MainWindow(QMainWindow):
         self._top_bar.set_mute_state(
             self._cfg.get("alarm", {}).get("sound_enabled", True))
         self._top_bar.set_detection_state(self._detection_enabled)
-        self._top_bar.set_roi_visible_state(ui_state.get("roi_visible", True))
+        roi_visible = ui_state.get("roi_visible", True)
+        self._top_bar.set_roi_visible_state(roi_visible)
+        self._video_widget.set_show_rois(roi_visible)
 
         signoff_cfg = self._cfg.get("signoff", {})
         auto_prep = signoff_cfg.get("auto_preparation", True)
         self._top_bar.set_signoff_buttons_enabled(auto_prep)
+
+        self._apply_rois_to_video_widget(self._cfg)
 
         if ui_state.get("fullscreen", False):
             QTimer.singleShot(200, self._toggle_fullscreen)
@@ -347,14 +356,25 @@ class MainWindow(QMainWindow):
         self._settings_dlg.config_saved.connect(self._on_config_saved)
         self._settings_dlg.show()
 
+    def _apply_rois_to_video_widget(self, cfg: dict):
+        rois_cfg = cfg.get("rois", {})
+        video_rois = [ROI(**{**r, "roi_type": "video"}) for r in rois_cfg.get("video", [])]
+        audio_rois = [ROI(**{**r, "roi_type": "audio"}) for r in rois_cfg.get("audio", [])]
+        self._video_widget.set_rois(video_rois, audio_rois)
+
     def _on_config_saved(self, new_cfg: dict):
+        old_video_file = self._cfg.get("video_file", "")
         self._cfg = new_cfg
         alarm_cfg = new_cfg.get("alarm", {})
         self._alarm.set_sound_enabled(alarm_cfg.get("sound_enabled", True))
         self._alarm.set_volume(alarm_cfg.get("volume", 80) / 100.0)
-        sound_file = alarm_cfg.get("sound_file", "")
-        if sound_file:
-            self._alarm.set_sound_file("default", sound_file)
+        sound_file = alarm_cfg.get("sound_file", "") or "resources/sounds/alarm.wav"
+        self._alarm.set_sound_file("default", sound_file)
+        self._apply_rois_to_video_widget(new_cfg)
+        # 테스트 영상 파일이 지워지면 VideoWidget도 즉시 검은 화면으로
+        new_video_file = new_cfg.get("video_file", "")
+        if old_video_file and not new_video_file:
+            self._video_widget.clear_signal()
         self._log_widget.add_log("[시스템] 설정 저장 완료")
 
     # ── cmd_queue 발행 헬퍼 ───────────────────────────────────────
@@ -380,6 +400,62 @@ class MainWindow(QMainWindow):
             "embedded":    "embedded",
         }.get(detection_type, "info")
 
+    # ── ROI 인라인 오버레이 ────────────────────────────────────────
+
+    def start_roi_overlay(self, roi_type: str, roi_mgr,
+                          rois_changed_cb=None, done_callback=None):
+        """ROI 인라인 편집 시작. 이미 편집 중이면 오버레이를 앞으로 올리고 반환."""
+        if self._roi_overlay is not None:
+            self._roi_overlay.raise_()
+            self._roi_overlay.setFocus()
+            return
+
+        from ui.roi_editor import ROIOverlayWidget
+        frozen = self._video_widget.get_current_frame()
+        self._frame_poller.stop()
+
+        self._roi_overlay = ROIOverlayWidget(
+            roi_mgr=roi_mgr,
+            roi_type=roi_type,
+            frozen_frame=frozen,
+            parent=self._video_widget,
+        )
+        self._roi_overlay_type = roi_type
+
+        if rois_changed_cb:
+            self._roi_overlay.set_rois_changed_callback(rois_changed_cb)
+
+        self._roi_overlay.editing_finished.connect(
+            lambda: self._stop_roi_overlay(done_callback)
+        )
+        self._roi_overlay.move(0, 0)
+        self._roi_overlay.resize(self._video_widget.size())
+        self._roi_overlay.show()
+        self._roi_overlay.raise_()
+        self._roi_overlay.setFocus()
+        self._video_widget.installEventFilter(self)
+
+    def _stop_roi_overlay(self, done_callback=None):
+        """ROI 오버레이 종료, 라이브 프레임 복원."""
+        if self._roi_overlay is None:
+            return
+        self._video_widget.removeEventFilter(self)
+        self._roi_overlay.hide()
+        self._roi_overlay.deleteLater()
+        self._roi_overlay = None
+        self._roi_overlay_type = ""
+        self._frame_poller.start()
+        if done_callback:
+            done_callback()
+
+    def eventFilter(self, obj, event):
+        """video_widget 리사이즈 시 오버레이 크기 동기화."""
+        if (obj is self._video_widget
+                and event.type() == QEvent.Resize
+                and self._roi_overlay is not None):
+            self._roi_overlay.resize(self._video_widget.size())
+        return super().eventFilter(obj, event)
+
     # ── 종료 ──────────────────────────────────────────────────────
 
     def closeEvent(self, event: QCloseEvent):
@@ -389,6 +465,7 @@ class MainWindow(QMainWindow):
         ui_state = self._cfg.get("ui_state", {})
         ui_state["detection_enabled"] = self._detection_enabled
         ui_state["fullscreen"] = self.isFullScreen()
+        ui_state["roi_visible"] = self._video_widget._show_rois
         self._cfg["ui_state"] = ui_state
         self._cfg_mgr.save(self._cfg)
 
@@ -399,6 +476,12 @@ class MainWindow(QMainWindow):
         # shutdown_event set (Watchdog/Detection 종료 트리거)
         if self._shutdown_event is not None:
             self._shutdown_event.set()
+
+        # ROI 오버레이 정리
+        if self._roi_overlay is not None:
+            self._roi_overlay.hide()
+            self._roi_overlay.deleteLater()
+            self._roi_overlay = None
 
         # 타이머/스레드 정지
         self._level_timer.stop()
