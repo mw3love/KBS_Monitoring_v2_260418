@@ -129,6 +129,17 @@ class AutoRecorder:
             old_audio = list(self._audio_buffer)[-new_audio_maxlen:]
             self._audio_buffer = deque(old_audio, maxlen=new_audio_maxlen)
 
+        # 버퍼 메모리 예산 로그 (JPEG 압축 기준 추정치 — 실제는 더 작음)
+        frame_bytes_est = int(self._out_w * self._out_h * 3 * 0.07)  # JPEG ~7%
+        pre_buf_mb = new_maxlen * frame_bytes_est / 1024 / 1024
+        rec_buf_mb = _MAX_RECORD_FRAMES * frame_bytes_est / 1024 / 1024
+        _log.info(
+            "AutoRecorder configure: pre_buf=%d frames(~%.1f MB) "
+            "rec_max=%d frames(~%.1f MB) fps=%d pre=%.1fs post=%.1fs",
+            new_maxlen, pre_buf_mb, _MAX_RECORD_FRAMES, rec_buf_mb,
+            self._out_fps, self._pre_seconds, self._post_seconds,
+        )
+
     # ── 프레임/오디오 수신 ────────────────────────────────────────────────────
 
     def push_frame(self, frame: np.ndarray):
@@ -156,9 +167,13 @@ class AutoRecorder:
                     pass
             else:
                 if len(self._record_queue) >= _MAX_RECORD_FRAMES:
-                    _log.warning("녹화 큐 상한 도달 (%d프레임) — 종료", _MAX_RECORD_FRAMES)
-                    from ipc.messages import RecordingEvent
+                    _log.warning("녹화 큐 상한 도달 (%d프레임) — 녹화 강제 종료", _MAX_RECORD_FRAMES)
+                    from ipc.messages import RecordingEvent, LogEntry
                     self._emit(RecordingEvent(event="drop", label="", reason="max_frames"))
+                    self._emit(LogEntry(
+                        level="error", source="recorder",
+                        message=f"녹화 프레임 버퍼 상한 도달({_MAX_RECORD_FRAMES}프레임) — 녹화 강제 종료",
+                    ))
                 self._recording = False
 
     def push_audio(self, samples: np.ndarray, timestamp: float):

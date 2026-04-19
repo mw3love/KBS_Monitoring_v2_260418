@@ -332,6 +332,9 @@ def run(result_queue, cmd_queue, shutdown_event,
     _diag_interval = 30.0
     _loop_count = 0
     _drop_count_snap = 0
+    # loop jitter 누적 (sleep 후 실제 경과 - 목표 interval 의 절댓값 평균)
+    _jitter_sum_ms = 0.0
+    _jitter_samples = 0
 
     # ── 7. 메인 루프 ──────────────────────────────────────────────────────────
     _running = True
@@ -343,13 +346,19 @@ def run(result_queue, cmd_queue, shutdown_event,
             now_t = time.time()
             if now_t - _diag_last_t >= _diag_interval:
                 _diag_last_t = now_t
+                _avg_jitter_ms = (
+                    _jitter_sum_ms / _jitter_samples if _jitter_samples > 0 else 0.0
+                )
                 _run_diag(
                     result_queue, _ipc_counters, _cmd_dropped,
                     detector, signoff_mgr, audio_worker,
                     telegram, recorder, video_rois, audio_rois,
                     _loop_count, detection_enabled, paused_for_roi,
+                    loop_jitter_ms=_avg_jitter_ms,
                 )
                 _loop_count = 0
+                _jitter_sum_ms = 0.0
+                _jitter_samples = 0
         except Exception as e:
             try:
                 log_error(f"DIAG 오류: {traceback.format_exc()}")
@@ -433,7 +442,11 @@ def run(result_queue, cmd_queue, shutdown_event,
                 pass
 
         elapsed = time.monotonic() - t
-        time.sleep(max(0.0, detection_interval - elapsed))
+        sleep_target = max(0.0, detection_interval - elapsed)
+        time.sleep(sleep_target)
+        actual_elapsed = time.monotonic() - t
+        _jitter_sum_ms += abs(actual_elapsed - detection_interval) * 1000.0
+        _jitter_samples += 1
 
     # ── 8. 정리 ───────────────────────────────────────────────────────────────
     log_info("Detection 프로세스 종료 중...")
@@ -676,6 +689,7 @@ def _run_diag(
     detector, signoff_mgr, audio_worker,
     telegram, recorder, video_rois, audio_rois,
     loop_count, detection_enabled, paused_for_roi,
+    loop_jitter_ms: float = 0.0,
 ):
     from ipc.messages import DiagSnapshot
     import psutil
@@ -693,6 +707,7 @@ def _run_diag(
             "loop_count": loop_count,
             "detection_enabled": detection_enabled,
             "paused_for_roi": paused_for_roi,
+            "loop_jitter_ms": round(loop_jitter_ms, 2),
         })
     except Exception:
         pass
@@ -762,6 +777,16 @@ def _run_diag(
             "cmd_dropped":    cmd_dropped[0],
             "result_qsize":   result_queue.qsize() if hasattr(result_queue, "qsize") else -1,
             "cmd_qsize":      0,
+        })
+    except Exception:
+        pass
+
+    try:
+        emit("DIAG-TELEGRAM", {
+            "enabled":              telegram._enabled,
+            "queue_size":           telegram._queue.qsize(),
+            "consecutive_failures": telegram._consecutive_failures,
+            "worker_alive":         telegram._worker_thread.is_alive(),
         })
     except Exception:
         pass

@@ -102,10 +102,10 @@
 ---
 
 ## Phase 5 — 통합 검증
-- [ ] DIAG 로그 6개 섹션 완전 이식 (SYSTEM-HB, DIAG-V, DIAG-ALARM, DIAG-SIGNOFF, DIAG-AUDIO, DIAG-TELEGRAM)
-- [ ] **DIAG-IPC 섹션** 추가 (queue drop/크기, frame drop, loop jitter)
-- [ ] DIAG 섹션 독립 try-except 보호
-- [ ] 채널당 메모리 버퍼 상한 검증 (auto_recorder)
+- [x] DIAG 로그 6개 섹션 완전 이식 (SYSTEM-HB, DIAG-V, DIAG-ALARM, DIAG-SIGNOFF, DIAG-AUDIO, DIAG-TELEGRAM)
+- [x] **DIAG-IPC 섹션** 추가 (queue drop/크기, frame drop, loop jitter)
+- [x] DIAG 섹션 독립 try-except 보호
+- [x] 채널당 메모리 버퍼 상한 검증 (auto_recorder)
 - [ ] **회귀 시나리오 테스트**: 고정 테스트 영상 파일로 블랙/스틸/정파 전환 자동 검증
 - [ ] **Chaos 테스트**: Detection 랜덤 kill(10분 주기) × 2시간 → 재spawn+복원 성공률 100%
 - [ ] **24시간 연속 실행 테스트** (psutil RSS 안정성 + 프레임 drop 누적 관찰)
