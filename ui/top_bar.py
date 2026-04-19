@@ -498,6 +498,19 @@ class TopBar(QWidget):
             self._lbl_health.setText("")
             self._lbl_health.setStyleSheet("")
 
+    def show_detection_crashed(self, reason: str, stale_sec: float = 0.0):
+        """Detection 비정상 종료 — 재spawn 진행 중임을 표시."""
+        if reason == "heartbeat_stale":
+            text = f"재시작 중\n(HB {stale_sec:.0f}초)"
+        else:
+            text = "재시작 중"
+        self._lbl_health.setText(text)
+        self._lbl_health.setStyleSheet(
+            "color: white; background-color: #D97757; "
+            "border-radius: 4px; padding: 2px 6px;"
+        )
+        self._health_indicator.setVisible(True)
+
     def _make_separator(self) -> QFrame:
         line = QFrame()
         line.setFrameShape(QFrame.VLine)

@@ -128,6 +128,7 @@ class MainWindow(QMainWindow):
         self._bridge.alarm_trigger_received.connect(self._on_alarm_trigger)
         self._bridge.alarm_resolve_received.connect(self._on_alarm_resolve)
         self._bridge.detection_ready_received.connect(self._on_detection_ready)
+        self._bridge.detection_crashed_received.connect(self._on_detection_crashed)
         self._bridge.signoff_state_received.connect(self._on_signoff_state_changed)
         self._bridge.stream_error_received.connect(self._on_stream_error)
         self._bridge.diag_snapshot_received.connect(self._on_diag_snapshot)
@@ -217,6 +218,16 @@ class MainWindow(QMainWindow):
             f"[복구] {msg.label} {msg.detection_type} "
             f"({msg.duration_sec:.0f}초)"
         )
+
+    def _on_detection_crashed(self, msg):
+        reason_kr = "heartbeat 무응답" if msg.reason == "heartbeat_stale" else "프로세스 종료"
+        log_msg = f"[시스템] Detection 비정상 종료 (PID={msg.dead_pid}, 원인={reason_kr})"
+        if msg.stale_sec > 0:
+            log_msg += f", stale={msg.stale_sec:.0f}초"
+        log_msg += " → 재spawn 중"
+        self._logger.error(log_msg)
+        self._log_widget.add_error(log_msg)
+        self._top_bar.show_detection_crashed(msg.reason, msg.stale_sec)
 
     def _on_detection_ready(self, msg):
         self._detection_ready = True

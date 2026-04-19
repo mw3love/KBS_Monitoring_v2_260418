@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
 > 마지막 업데이트: 2026-04-19
-> 현재 단계: Phase 4 완료 (Watchdog + Launcher 완성)
+> 현재 단계: Phase 5 진행 중 (코딩 완료 / 실기 테스트 대기 중)
 
 ---
 
@@ -109,6 +109,6 @@
 - [ ] **회귀 시나리오 테스트**: 고정 테스트 영상 파일로 블랙/스틸/정파 전환 자동 검증
 - [ ] **Chaos 테스트**: Detection 랜덤 kill(10분 주기) × 2시간 → 재spawn+복원 성공률 100%
 - [ ] **24시간 연속 실행 테스트** (psutil RSS 안정성 + 프레임 drop 누적 관찰)
-- [ ] 로그 분리 확인 (detection/ui/watchdog 각 파일)
+- [x] 로그 분리 확인 (detection/ui/watchdog 각 파일)
 
 **완료 기준**: 24시간 무중단. 메모리 RSS 증가 < 5%. DIAG 전 섹션 정상. Chaos 테스트 재spawn 복원률 100%.

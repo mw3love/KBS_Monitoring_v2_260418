@@ -95,6 +95,14 @@ class DetectionReady(BaseMsg):
 
 
 @dataclass
+class DetectionCrashed(BaseMsg):
+    """Detection 비정상 종료 감지 — Watchdog이 재spawn 직전 발행. drop 금지."""
+    dead_pid: int = 0
+    reason: str = ""   # 'process_dead' | 'heartbeat_stale'
+    stale_sec: float = 0.0   # heartbeat stale 시간 (reason='heartbeat_stale'일 때)
+
+
+@dataclass
 class PerfMeasurement(BaseMsg):
     recommended_interval: int = 200
     recommended_scale: float = 1.0
@@ -171,7 +179,7 @@ class Shutdown(BaseMsg):
 RESULT_MESSAGES = (
     DetectionResult, AlarmTrigger, AlarmResolve, LogEntry, DiagSnapshot,
     SignoffStateChange, RecordingEvent, TelegramStatus, StreamError,
-    DetectionReady, PerfMeasurement,
+    DetectionReady, DetectionCrashed, PerfMeasurement,
 )
 
 CMD_MESSAGES = (

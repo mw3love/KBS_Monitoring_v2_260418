@@ -25,6 +25,7 @@ class UIBridge(QThread):
     telegram_status_received   = Signal(object)   # TelegramStatus
     stream_error_received      = Signal(object)   # StreamError
     detection_ready_received   = Signal(object)   # DetectionReady
+    detection_crashed_received = Signal(object)   # DetectionCrashed
     perf_measurement_received  = Signal(object)   # PerfMeasurement
 
     def __init__(self, result_queue, parent=None):
@@ -44,21 +45,22 @@ class UIBridge(QThread):
         from ipc.messages import (
             DetectionResult, AlarmTrigger, AlarmResolve, LogEntry,
             DiagSnapshot, SignoffStateChange, RecordingEvent, TelegramStatus,
-            StreamError, DetectionReady, PerfMeasurement,
+            StreamError, DetectionReady, DetectionCrashed, PerfMeasurement,
         )
 
         _DISPATCH = {
-            DetectionResult:  self.detection_result_received,
-            AlarmTrigger:     self.alarm_trigger_received,
-            AlarmResolve:     self.alarm_resolve_received,
-            LogEntry:         self.log_entry_received,
-            DiagSnapshot:     self.diag_snapshot_received,
+            DetectionResult:   self.detection_result_received,
+            AlarmTrigger:      self.alarm_trigger_received,
+            AlarmResolve:      self.alarm_resolve_received,
+            LogEntry:          self.log_entry_received,
+            DiagSnapshot:      self.diag_snapshot_received,
             SignoffStateChange: self.signoff_state_received,
-            RecordingEvent:   self.recording_event_received,
-            TelegramStatus:   self.telegram_status_received,
-            StreamError:      self.stream_error_received,
-            DetectionReady:   self.detection_ready_received,
-            PerfMeasurement:  self.perf_measurement_received,
+            RecordingEvent:    self.recording_event_received,
+            TelegramStatus:    self.telegram_status_received,
+            StreamError:       self.stream_error_received,
+            DetectionReady:    self.detection_ready_received,
+            DetectionCrashed:  self.detection_crashed_received,
+            PerfMeasurement:   self.perf_measurement_received,
         }
 
         while self._running:

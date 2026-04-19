@@ -314,7 +314,7 @@ QPlainTextEdit {
     color: #ececec;
     border: 1px solid #3a3b42;
     border-radius: 4px;
-    padding: 4px 8px;
+    padding: 2px 6px;
 }
 
 QLineEdit:focus,
@@ -347,4 +347,66 @@ QLabel#lblTime {
     color: #D97757;
     font-size: 14px;
     font-weight: bold;
+}
+
+/* ── 설정 다이얼로그 섹션 박스 ─────────────────────────────────── */
+QFrame#settingsSection {
+    background-color: transparent;
+    border: 1px solid #2a2b30;
+    border-radius: 6px;
+}
+
+QFrame#settingsSection QWidget {
+    background-color: transparent;
+}
+
+QFrame#settingsSection QLineEdit,
+QFrame#settingsSection QComboBox,
+QFrame#settingsSection QSpinBox {
+    background-color: #26272c;
+    min-height: 18px;
+    max-height: 18px;
+    padding: 1px 6px;
+}
+
+QFrame#settingsSection QPushButton {
+    min-height: 18px;
+    max-height: 22px;
+    padding: 2px 10px;
+}
+
+QFrame#settingsSection QCheckBox {
+    color: #ececec;
+    font-size: 12px;
+}
+
+QFrame#settingsSection QCheckBox::indicator {
+    background-color: #26272c;
+}
+
+QFrame#settingsSection QCheckBox::indicator:checked {
+    background-color: #D97757;
+    border-color: #B85E3F;
+}
+
+
+QLabel#settingsSectionLabel {
+    color: #D97757;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 0px;
+    margin: 0px;
+}
+
+QLabel#settingsDesc {
+    color: #7d7e84;
+    font-size: 11px;
+}
+
+QFrame#settingsSep {
+    color: #2a2b30;
+    background-color: #2a2b30;
+    max-height: 1px;
+    border: none;
+    margin: 4px 0;
 }

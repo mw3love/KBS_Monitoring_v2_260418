@@ -53,32 +53,43 @@ def _make_scroll(inner: QWidget) -> QScrollArea:
     return sa
 
 
-def _sep() -> QFrame:
-    f = QFrame()
-    f.setFrameShape(QFrame.HLine)
-    f.setObjectName("settingsSep")
-    return f
+def _section(title: str) -> tuple["QFrame", "QVBoxLayout"]:
+    """테두리 박스 섹션. (box_frame, inner_layout) 반환.
+    호출부: box, sl = _section("제목"); sl.addLayout(...); vl.addWidget(box)
+    """
+    box = QFrame()
+    box.setObjectName("settingsSection")
+    outer_vl = QVBoxLayout(box)
+    outer_vl.setContentsMargins(10, 4, 10, 6)
+    outer_vl.setSpacing(0)
 
+    lbl = QLabel(title)
+    lbl.setObjectName("settingsSectionLabel")
+    lbl.setContentsMargins(0, 0, 0, 0)
+    lbl.setFixedHeight(16)
+    outer_vl.addWidget(lbl)
 
-def _hdr(text: str) -> QLabel:
-    lbl = QLabel(text)
-    lbl.setObjectName("settingsSectionHead")
-    return lbl
+    # 제목과 첫 행은 바로 붙이고 (spacing=0), 항목끼리는 여유(spacing=6)
+    content_vl = QVBoxLayout()
+    content_vl.setContentsMargins(0, 0, 0, 0)
+    content_vl.setSpacing(6)
+    outer_vl.addLayout(content_vl)
+
+    return box, content_vl
 
 
 def _row(label_text: str, widget: QWidget, hint: str = "") -> QHBoxLayout:
     """label(고정폭 220) + widget + hint 한 행"""
     h = QHBoxLayout()
+    h.setContentsMargins(0, 0, 0, 0)
     h.setSpacing(8)
     lbl = QLabel(label_text)
     lbl.setFixedWidth(220)
-    lbl.setWordWrap(True)
     h.addWidget(lbl)
     h.addWidget(widget)
     if hint:
         d = QLabel(hint)
         d.setObjectName("settingsDesc")
-        d.setWordWrap(True)
         h.addWidget(d, 1)
     else:
         h.addStretch(1)
@@ -89,6 +100,7 @@ def _file_row(label_text: str, edit: QLineEdit,
               browse_cb, reset_cb=None, test_cb=None) -> QHBoxLayout:
     """파일 경로 편집 + 찾아보기 [초기화] [테스트] 버튼 행"""
     h = QHBoxLayout()
+    h.setContentsMargins(0, 0, 0, 0)
     h.setSpacing(6)
     lbl = QLabel(label_text)
     lbl.setFixedWidth(130)
@@ -128,7 +140,9 @@ class SignoffROIDialog(QDialog):
         vl.setSpacing(10)
 
         # 진입 트리거 ROI (단일 선택)
-        vl.addWidget(_hdr("● 진입 트리거 (단일 비디오 ROI)"))
+        lbl_enter = QLabel("진입 트리거 (단일 비디오 ROI)")
+        lbl_enter.setObjectName("settingsSectionLabel")
+        vl.addWidget(lbl_enter)
         vl.addWidget(QLabel("선택한 ROI가 스틸 상태 지속 시 SIGNOFF 조기 진입"))
         self._enter_combo = QComboBox()
         self._enter_combo.addItem("없음", "")
@@ -145,7 +159,9 @@ class SignoffROIDialog(QDialog):
         vl.addWidget(_sep())
 
         # 억제 대상 ROI (다중 체크박스)
-        vl.addWidget(_hdr("● 알림 억제 대상 (SIGNOFF 중 억제)"))
+        lbl_suppress = QLabel("알림 억제 대상 (SIGNOFF 중 억제)")
+        lbl_suppress.setObjectName("settingsSectionLabel")
+        vl.addWidget(lbl_suppress)
         suppressed = set(self._group_cfg.get("suppressed_labels", []))
         self._suppress_checks: list[tuple[str, QCheckBox]] = []
         all_rois = self._roi_mgr.video_rois + self._roi_mgr.audio_rois
@@ -304,18 +320,26 @@ class SettingsDialog(QDialog):
         inner = QWidget()
         vl = QVBoxLayout(inner)
         vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(6)
+        vl.setSpacing(10)
 
-        # 입력 소스
-        vl.addWidget(_hdr("● 입력 소스"))
-        self._port_edit = _int_edit(self._cfg.get("port", 0), 0, 31)
-        vl.addLayout(_row("포트 번호 (0~31)", self._port_edit,
-                          "OpenCV VideoCapture 인덱스"))
+        # ── 캡처 포트 ──────────────────────────────────────────
+        box1, sl1 = _section("캡처 포트")
+        self._port_edit = _int_edit(self._cfg.get("port", 0), 0, 9)
+        sl1.addLayout(_row("포트 번호 (0~9)", self._port_edit,
+                           "OpenCV VideoCapture 인덱스"))
+        vl.addWidget(box1)
 
+        # ── 파일 입력 (테스트용) ────────────────────────────────
+        box2, sl2 = _section("파일 입력 (테스트용)")
+        desc = QLabel(
+            "MP4 등 영상 파일을 불러와 포트 대신 소스로 사용합니다.\n"
+            "파일을 선택하면 파일 재생으로 전환되며, 초기화하면 포트로 복귀합니다.")
+        desc.setObjectName("settingsDesc")
+        sl2.addWidget(desc)
         file_hl = QHBoxLayout()
-        file_hl.addWidget(QLabel("비상 입력 (파일):"))
+        file_hl.setContentsMargins(0, 0, 0, 0)
         self._video_file_edit = QLineEdit(self._cfg.get("video_file", ""))
-        self._video_file_edit.setPlaceholderText("포트 사용 — 파일 선택 없음")
+        self._video_file_edit.setPlaceholderText("(파일 선택 안 함 — 포트 사용)")
         file_hl.addWidget(self._video_file_edit, 1)
         btn_vf_browse = QPushButton("찾아보기")
         btn_vf_browse.clicked.connect(self._browse_video_file)
@@ -323,20 +347,18 @@ class SettingsDialog(QDialog):
         btn_vf_reset.clicked.connect(self._video_file_edit.clear)
         file_hl.addWidget(btn_vf_browse)
         file_hl.addWidget(btn_vf_reset)
-        vl.addLayout(file_hl)
-        vl.addWidget(QLabel(
-            "  ※ 파일 선택 시 해당 영상 파일을 포트 대신 소스로 사용합니다."))
+        sl2.addLayout(file_hl)
+        vl.addWidget(box2)
 
-        vl.addWidget(_sep())
-
-        # 자동 녹화
-        vl.addWidget(_hdr("● 자동 녹화 설정"))
+        # ── 자동 녹화 설정 ──────────────────────────────────────
+        box3, sl3 = _section("자동 녹화 설정")
         rec = self._cfg.get("recording", {})
         self._rec_enabled_cb = QCheckBox("알림 발생 시 자동 녹화 활성화")
         self._rec_enabled_cb.setChecked(rec.get("enabled", True))
-        vl.addWidget(self._rec_enabled_cb)
+        sl3.addWidget(self._rec_enabled_cb)
 
         dir_hl = QHBoxLayout()
+        dir_hl.setContentsMargins(0, 0, 0, 0)
         dir_hl.addWidget(QLabel("저장 폴더:"))
         self._rec_dir_edit = QLineEdit(rec.get("save_dir", "recordings"))
         dir_hl.addWidget(self._rec_dir_edit, 1)
@@ -346,19 +368,18 @@ class SettingsDialog(QDialog):
         btn_dir_open.clicked.connect(self._open_rec_dir)
         dir_hl.addWidget(btn_dir_browse)
         dir_hl.addWidget(btn_dir_open)
-        vl.addLayout(dir_hl)
+        sl3.addLayout(dir_hl)
 
         self._rec_pre_edit = _int_edit(rec.get("pre_seconds", 5), 1, 30)
         self._rec_post_edit = _int_edit(rec.get("post_seconds", 15), 1, 60)
         self._rec_keep_edit = _int_edit(rec.get("max_keep_days", 7), 1, 365)
-        vl.addLayout(_row("시작 전 버퍼 (초)", self._rec_pre_edit, "1~30 / 기본값 5"))
-        vl.addLayout(_row("이후 녹화 시간 (초)", self._rec_post_edit, "1~60 / 기본값 15"))
-        vl.addLayout(_row("최대 보관 기간 (일)", self._rec_keep_edit, "1~365"))
+        sl3.addLayout(_row("시작 전 버퍼 (초)", self._rec_pre_edit, "1~30 / 기본값 5"))
+        sl3.addLayout(_row("이후 녹화 시간 (초)", self._rec_post_edit, "1~60 / 기본값 15"))
+        sl3.addLayout(_row("최대 보관 기간 (일)", self._rec_keep_edit, "1~365"))
+        vl.addWidget(box3)
 
-        vl.addWidget(_sep())
-
-        # 녹화 품질
-        vl.addWidget(_hdr("● 녹화 품질 설정"))
+        # ── 녹화 품질 설정 ──────────────────────────────────────
+        box4, sl4 = _section("녹화 품질 설정")
         self._res_combo = QComboBox()
         for label, wv, hv in [("960×540 (기본값)", 960, 540),
                                ("1280×720", 1280, 720),
@@ -369,8 +390,8 @@ class SettingsDialog(QDialog):
             if self._res_combo.itemData(i)[0] == cur_w:
                 self._res_combo.setCurrentIndex(i)
                 break
-        vl.addLayout(_row("출력 해상도", self._res_combo,
-                          "저해상도일수록 파일 크기 절약"))
+        sl4.addLayout(_row("출력 해상도", self._res_combo,
+                           "저해상도일수록 파일 크기 절약"))
 
         self._fps_combo = QComboBox()
         for fps_val in [10, 15, 25, 30]:
@@ -380,7 +401,8 @@ class SettingsDialog(QDialog):
             if self._fps_combo.itemData(i) == cur_fps:
                 self._fps_combo.setCurrentIndex(i)
                 break
-        vl.addLayout(_row("출력 FPS", self._fps_combo))
+        sl4.addLayout(_row("출력 FPS", self._fps_combo))
+        vl.addWidget(box4)
 
         vl.addStretch()
         btn_reset_v = QPushButton("영상설정 전체 초기화")
@@ -420,6 +442,7 @@ class SettingsDialog(QDialog):
 
         # 테이블 버튼
         table_btn_hl = QHBoxLayout()
+        table_btn_hl.setContentsMargins(0, 0, 0, 0)
         btn_add = QPushButton("추가")
         btn_add.clicked.connect(lambda: self._roi_table_add(roi_type, table))
         btn_del = QPushButton("삭제")
@@ -552,52 +575,50 @@ class SettingsDialog(QDialog):
         inner = QWidget()
         vl = QVBoxLayout(inner)
         vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(6)
+        vl.setSpacing(10)
         det = self._cfg.get("detection", {})
         perf = self._cfg.get("performance", {})
 
         # ── 블랙 감지 ────────────────────────────────────
-        vl.addWidget(_hdr("● 블랙 감지"))
+        box1, sl1 = _section("블랙 감지")
         self._black_thresh = _int_edit(det.get("black_threshold", 10), 0, 255)
         self._black_ratio = _float_edit(det.get("black_dark_ratio", 95.0))
         self._black_suppress = _float_edit(det.get("black_motion_suppress_ratio", 0.2))
         self._black_dur = _int_edit(det.get("black_duration", 20), 1, 300)
         self._black_alarm_dur = _int_edit(det.get("black_alarm_duration", 60), 1, 300)
-        vl.addLayout(_row("밝기 임계값", self._black_thresh,
-                          "0~255 / 이 값 이하면 어두운 픽셀로 판단"))
-        vl.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
-                          "50~100% / 이 비율 이상이면 블랙 판정"))
-        vl.addLayout(_row("모션 억제 비율", self._black_suppress,
-                          "0~5.0 / 움직임 비율이 이 이상이면 블랙 억제"))
-        vl.addLayout(_row("알람 발생까지 지속 시간(초)", self._black_dur,
-                          "1~300 / 기본값 20"))
-        vl.addLayout(_row("알람 소리 지속 시간(초)", self._black_alarm_dur,
-                          "1~300 / 기본값 60"))
-
-        vl.addWidget(_sep())
+        sl1.addLayout(_row("밝기 임계값", self._black_thresh,
+                           "0~255 / 이 값 이하면 어두운 픽셀로 판단"))
+        sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
+                           "50~100% / 이 비율 이상이면 블랙 판정"))
+        sl1.addLayout(_row("모션 억제 비율", self._black_suppress,
+                           "0~5.0 / 움직임 비율이 이 이상이면 블랙 억제"))
+        sl1.addLayout(_row("알람 발생까지 지속 시간(초)", self._black_dur,
+                           "1~300 / 기본값 20"))
+        sl1.addLayout(_row("알람 소리 지속 시간(초)", self._black_alarm_dur,
+                           "1~300 / 기본값 60"))
+        vl.addWidget(box1)
 
         # ── 스틸 감지 ────────────────────────────────────
-        vl.addWidget(_hdr("● 스틸 감지"))
+        box2, sl2 = _section("스틸 감지")
         self._still_thresh = _int_edit(det.get("still_threshold", 8), 0, 255)
         self._still_changed = _float_edit(det.get("still_changed_ratio", 2.0))
         self._still_reset = _int_edit(det.get("still_reset_frames", 3), 1, 10)
         self._still_dur = _int_edit(det.get("still_duration", 60), 1, 300)
         self._still_alarm_dur = _int_edit(det.get("still_alarm_duration", 60), 1, 300)
-        vl.addLayout(_row("픽셀 차이 임계값", self._still_thresh,
-                          "0~255 / 프레임 차이 기준"))
-        vl.addLayout(_row("블록 변화 비율(%)", self._still_changed,
-                          "0~100% / 이 비율 미만이면 스틸로 판정"))
-        vl.addLayout(_row("히스테리시스 프레임 수", self._still_reset,
-                          "1~10 / 연속 정상 프레임 수 (글리치 방지)"))
-        vl.addLayout(_row("알람 발생까지 지속 시간(초)", self._still_dur,
-                          "1~300 / 기본값 60"))
-        vl.addLayout(_row("알람 소리 지속 시간(초)", self._still_alarm_dur,
-                          "1~300 / 기본값 60"))
-
-        vl.addWidget(_sep())
+        sl2.addLayout(_row("픽셀 차이 임계값", self._still_thresh,
+                           "0~255 / 프레임 차이 기준"))
+        sl2.addLayout(_row("블록 변화 비율(%)", self._still_changed,
+                           "0~100% / 이 비율 미만이면 스틸로 판정"))
+        sl2.addLayout(_row("히스테리시스 프레임 수", self._still_reset,
+                           "1~10 / 연속 정상 프레임 수 (글리치 방지)"))
+        sl2.addLayout(_row("알람 발생까지 지속 시간(초)", self._still_dur,
+                           "1~300 / 기본값 60"))
+        sl2.addLayout(_row("알람 소리 지속 시간(초)", self._still_alarm_dur,
+                           "1~300 / 기본값 60"))
+        vl.addWidget(box2)
 
         # ── 오디오 레벨미터 감지 (HSV) ───────────────────
-        vl.addWidget(_hdr("● 오디오 레벨미터 감지 (HSV)"))
+        box3, sl3 = _section("오디오 레벨미터 감지 (HSV)")
         self._hsv_h = DualSlider(0, 179, "hue")
         self._hsv_h.set_range(det.get("audio_hsv_h_min", 40),
                                det.get("audio_hsv_h_max", 95))
@@ -612,37 +633,35 @@ class SettingsDialog(QDialog):
         self._audio_level_alarm_dur = _int_edit(
             det.get("audio_level_alarm_duration", 60), 1, 300)
         self._audio_recovery = _float_edit(det.get("audio_level_recovery_seconds", 2.0))
-        vl.addLayout(_row("H 범위 (색조, 0~179)", self._hsv_h,
-                          "OpenCV HSV. 기본값 40~95 (초록 계열)"))
-        vl.addLayout(_row("S 범위 (채도, 0~255)", self._hsv_s, "기본값 80~255"))
-        vl.addLayout(_row("V 범위 (명도, 0~255)", self._hsv_v, "기본값 60~255"))
-        vl.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
-                          "1~50% / ROI 내 HSV 범위 픽셀이 이 값 이상이면 활성"))
-        vl.addLayout(_row("알람 발생까지 지속 시간(초)", self._audio_level_dur,
-                          "1~300 / 기본값 20"))
-        vl.addLayout(_row("알람 소리 지속 시간(초)", self._audio_level_alarm_dur,
-                          "1~300 / 기본값 60"))
-        vl.addLayout(_row("복구 딜레이(초)", self._audio_recovery,
-                          "0~30 / 0=즉시복구. 기본값 2"))
-
-        vl.addWidget(_sep())
+        sl3.addLayout(_row("H 범위 (색조, 0~179)", self._hsv_h,
+                           "OpenCV HSV. 기본값 40~95 (초록 계열)"))
+        sl3.addLayout(_row("S 범위 (채도, 0~255)", self._hsv_s, "기본값 80~255"))
+        sl3.addLayout(_row("V 범위 (명도, 0~255)", self._hsv_v, "기본값 60~255"))
+        sl3.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
+                           "1~50% / ROI 내 HSV 범위 픽셀이 이 값 이상이면 활성"))
+        sl3.addLayout(_row("알람 발생까지 지속 시간(초)", self._audio_level_dur,
+                           "1~300 / 기본값 20"))
+        sl3.addLayout(_row("알람 소리 지속 시간(초)", self._audio_level_alarm_dur,
+                           "1~300 / 기본값 60"))
+        sl3.addLayout(_row("복구 딜레이(초)", self._audio_recovery,
+                           "0~30 / 0=즉시복구. 기본값 2"))
+        vl.addWidget(box3)
 
         # ── 임베디드 오디오 감지 ──────────────────────────
-        vl.addWidget(_hdr("● 임베디드 오디오 감지 (무음)"))
+        box4, sl4 = _section("임베디드 오디오 감지 (무음)")
         self._emb_thresh = _int_edit(det.get("embedded_silence_threshold", -50), -60, 0)
         self._emb_dur = _int_edit(det.get("embedded_silence_duration", 20), 1, 300)
         self._emb_alarm_dur = _int_edit(det.get("embedded_alarm_duration", 60), 1, 300)
-        vl.addLayout(_row("무음 임계값(dB)", self._emb_thresh,
-                          "-60~0 / 이 값 이하일 때 무음 판정. 기본값 -50"))
-        vl.addLayout(_row("알람 발생까지 지속 시간(초)", self._emb_dur,
-                          "1~300 / 기본값 20"))
-        vl.addLayout(_row("알람 소리 지속 시간(초)", self._emb_alarm_dur,
-                          "1~300 / 기본값 60"))
-
-        vl.addWidget(_sep())
+        sl4.addLayout(_row("무음 임계값(dB)", self._emb_thresh,
+                           "-60~0 / 이 값 이하일 때 무음 판정. 기본값 -50"))
+        sl4.addLayout(_row("알람 발생까지 지속 시간(초)", self._emb_dur,
+                           "1~300 / 기본값 20"))
+        sl4.addLayout(_row("알람 소리 지속 시간(초)", self._emb_alarm_dur,
+                           "1~300 / 기본값 60"))
+        vl.addWidget(box4)
 
         # ── 성능 설정 ─────────────────────────────────────
-        vl.addWidget(_hdr("● 성능 설정"))
+        box5, sl5 = _section("성능 설정")
         self._detect_interval_combo = QComboBox()
         for ms in [100, 200, 500, 1000]:
             self._detect_interval_combo.addItem(f"{ms} ms", ms)
@@ -651,8 +670,8 @@ class SettingsDialog(QDialog):
             if self._detect_interval_combo.itemData(i) == cur_interval:
                 self._detect_interval_combo.setCurrentIndex(i)
                 break
-        vl.addLayout(_row("감지 주기", self._detect_interval_combo,
-                          "100/200/500/1000 ms 이산값"))
+        sl5.addLayout(_row("감지 주기", self._detect_interval_combo,
+                           "100/200/500/1000 ms 이산값"))
 
         self._scale_combo = QComboBox()
         for label, val in [("원본 (1.0×)", 1.0), ("0.5× 해상도", 0.5),
@@ -663,8 +682,8 @@ class SettingsDialog(QDialog):
             if abs(self._scale_combo.itemData(i) - cur_scale) < 0.01:
                 self._scale_combo.setCurrentIndex(i)
                 break
-        vl.addLayout(_row("감지 해상도 스케일", self._scale_combo,
-                          "50% 시 CPU 부담 약 50% 절감"))
+        sl5.addLayout(_row("감지 해상도 스케일", self._scale_combo,
+                           "50% 시 CPU 부담 약 50% 절감"))
 
         self._black_enabled_cb = QCheckBox("블랙 감지 활성화")
         self._still_enabled_cb = QCheckBox("스틸 감지 활성화")
@@ -676,15 +695,17 @@ class SettingsDialog(QDialog):
         self._emb_enabled_cb.setChecked(perf.get("embedded_detection_enabled", True))
         for cb in (self._black_enabled_cb, self._still_enabled_cb,
                    self._audio_enabled_cb, self._emb_enabled_cb):
-            vl.addWidget(cb)
+            sl5.addWidget(cb)
 
         perf_btn_hl = QHBoxLayout()
+        perf_btn_hl.setContentsMargins(0, 0, 0, 0)
         btn_auto_perf = QPushButton("자동 성능 감지")
         btn_auto_perf.setObjectName("btnPrimary")
         btn_auto_perf.clicked.connect(self._auto_detect_performance)
         perf_btn_hl.addWidget(btn_auto_perf)
         perf_btn_hl.addStretch()
-        vl.addLayout(perf_btn_hl)
+        sl5.addLayout(perf_btn_hl)
+        vl.addWidget(box5)
 
         vl.addStretch()
         return _make_scroll(inner)
@@ -697,7 +718,7 @@ class SettingsDialog(QDialog):
         inner = QWidget()
         vl = QVBoxLayout(inner)
         vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(6)
+        vl.setSpacing(10)
         so = self._cfg.get("signoff", {})
 
         self._auto_prep_cb = QCheckBox("자동 정파 활성화")
@@ -711,28 +732,27 @@ class SettingsDialog(QDialog):
             widgets = self._build_signoff_group_section(vl, gid, grp)
             self._so_grp.append(widgets)
 
-        vl.addWidget(_sep())
-
         # 정파 알림음
-        vl.addWidget(_hdr("● 정파 알림음"))
+        box_sound, sl_sound = _section("정파 알림음")
         self._so_prep_sound = QLineEdit(so.get("prep_alarm_sound", ""))
         self._so_enter_sound = QLineEdit(so.get("enter_alarm_sound", ""))
         self._so_release_sound = QLineEdit(so.get("release_alarm_sound", ""))
-        vl.addLayout(_file_row(
+        sl_sound.addLayout(_file_row(
             "정파준비 시작:",   self._so_prep_sound,
             lambda: self._browse_sound(self._so_prep_sound),
             test_cb=lambda: self._test_sound(self._so_prep_sound.text()),
         ))
-        vl.addLayout(_file_row(
+        sl_sound.addLayout(_file_row(
             "정파모드 진입:",   self._so_enter_sound,
             lambda: self._browse_sound(self._so_enter_sound),
             test_cb=lambda: self._test_sound(self._so_enter_sound.text()),
         ))
-        vl.addLayout(_file_row(
+        sl_sound.addLayout(_file_row(
             "정파 해제:",       self._so_release_sound,
             lambda: self._browse_sound(self._so_release_sound),
             test_cb=lambda: self._test_sound(self._so_release_sound.text()),
         ))
+        vl.addWidget(box_sound)
 
         vl.addStretch()
         btn_reset_so = QPushButton("정파설정 전체 초기화")
@@ -744,18 +764,19 @@ class SettingsDialog(QDialog):
 
     def _build_signoff_group_section(self, parent_vl: QVBoxLayout,
                                      gid: int, grp: dict) -> dict:
-        parent_vl.addWidget(_sep())
-        parent_vl.addWidget(_hdr(f"● 그룹 {gid}"))
+        box, sl = _section(f"그룹 {gid}")
+        parent_vl.addWidget(box)
 
         widgets = {}
 
         # 그룹명
         name_edit = QLineEdit(grp.get("name", f"{gid}TV"))
-        parent_vl.addLayout(_row(f"그룹{gid} 이름", name_edit))
+        sl.addLayout(_row(f"그룹{gid} 이름", name_edit))
         widgets["name"] = name_edit
 
         # 정파 시작/종료 시각
         time_hl = QHBoxLayout()
+        time_hl.setContentsMargins(0, 0, 0, 0)
         time_hl.addWidget(QLabel("정파모드 시작 HH:MM:"))
         start_h = _int_edit(int(grp.get("start_time", "03:00").split(":")[0]), 0, 23, 50)
         start_m = _int_edit(int(grp.get("start_time", "03:00").split(":")[1]), 0, 59, 50)
@@ -772,7 +793,7 @@ class SettingsDialog(QDialog):
         end_next_cb.setChecked(grp.get("end_next_day", False))
         time_hl.addWidget(end_next_cb)
         time_hl.addStretch()
-        parent_vl.addLayout(time_hl)
+        sl.addLayout(time_hl)
         widgets.update({"start_h": start_h, "start_m": start_m,
                         "end_h": end_h, "end_m": end_m, "end_next_day": end_next_cb})
 
@@ -787,8 +808,8 @@ class SettingsDialog(QDialog):
             if prep_combo.itemData(i) == cur_prep:
                 prep_combo.setCurrentIndex(i)
                 break
-        parent_vl.addLayout(_row("정파준비 활성화", prep_combo,
-                                  "정파 시작 X분 전에 PREPARATION 전환"))
+        sl.addLayout(_row("정파준비 활성화", prep_combo,
+                          "정파 시작 X분 전에 PREPARATION 전환"))
         widgets["prep_minutes"] = prep_combo
 
         # 정파해제준비 활성화
@@ -802,18 +823,19 @@ class SettingsDialog(QDialog):
             if exit_prep_combo.itemData(i) == cur_exit_prep:
                 exit_prep_combo.setCurrentIndex(i)
                 break
-        parent_vl.addLayout(_row("정파해제준비 활성화", exit_prep_combo,
-                                  "정파 종료 X분 전에 해제준비 구간 시작"))
+        sl.addLayout(_row("정파해제준비 활성화", exit_prep_combo,
+                          "정파 종료 X분 전에 해제준비 구간 시작"))
         widgets["exit_prep_minutes"] = exit_prep_combo
 
         # 조기 해제 트리거 시간
         exit_trig = _int_edit(grp.get("exit_trigger_sec", 5), 1, 300)
-        parent_vl.addLayout(_row("조기 해제 기준 시간(초)", exit_trig,
-                                  "비-스틸이 이 시간 이상 지속 시 SIGNOFF → IDLE"))
+        sl.addLayout(_row("조기 해제 기준 시간(초)", exit_trig,
+                          "비-스틸이 이 시간 이상 지속 시 SIGNOFF → IDLE"))
         widgets["exit_trigger_sec"] = exit_trig
 
         # 요일 선택
         day_hl = QHBoxLayout()
+        day_hl.setContentsMargins(0, 0, 0, 0)
         day_hl.addWidget(QLabel("적용 요일:"))
         day_names = ["월", "화", "수", "목", "금", "토", "일"]
         cur_days = set(grp.get("weekdays", list(range(7))))
@@ -824,11 +846,12 @@ class SettingsDialog(QDialog):
             day_hl.addWidget(cb)
             day_cbs.append(cb)
         day_hl.addStretch()
-        parent_vl.addLayout(day_hl)
+        sl.addLayout(day_hl)
         widgets["weekdays"] = day_cbs
 
         # 감지영역 선택 버튼
         roi_btn_hl = QHBoxLayout()
+        roi_btn_hl.setContentsMargins(0, 0, 0, 0)
         roi_btn_hl.addWidget(QLabel("정파 감지영역:"))
         btn_roi = QPushButton("감지영역 선택...")
         btn_roi.clicked.connect(lambda: self._open_signoff_roi_dialog(gid - 1))
@@ -837,7 +860,7 @@ class SettingsDialog(QDialog):
             (grp.get("enter_roi") or {}).get("video_label", "없음") or "없음")
         roi_btn_hl.addWidget(enter_lbl)
         roi_btn_hl.addStretch()
-        parent_vl.addLayout(roi_btn_hl)
+        sl.addLayout(roi_btn_hl)
         widgets["enter_label_lbl"] = enter_lbl
 
         # 억제 라벨 내부 저장 (SignoffROIDialog 결과용)
@@ -868,16 +891,16 @@ class SettingsDialog(QDialog):
         inner = QWidget()
         vl = QVBoxLayout(inner)
         vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(6)
+        vl.setSpacing(10)
         alm = self._cfg.get("alarm", {})
         tg = self._cfg.get("telegram", {})
         sys_cfg = self._cfg.get("system", {})
         emb = self._cfg.get("embedded", {})
 
         # 알림음 파일
-        vl.addWidget(_hdr("● 알림음 공통 설정"))
+        box1, sl1 = _section("알림음 공통 설정")
         self._alarm_sound_edit = QLineEdit(alm.get("sound_file", ""))
-        vl.addLayout(_file_row(
+        sl1.addLayout(_file_row(
             "알림음 파일:",
             self._alarm_sound_edit,
             lambda: self._browse_sound(self._alarm_sound_edit),
@@ -885,11 +908,10 @@ class SettingsDialog(QDialog):
                 "resources/sounds/alarm.wav"),
             test_cb=lambda: self._test_sound(self._alarm_sound_edit.text()),
         ))
-
-        vl.addWidget(_sep())
+        vl.addWidget(box1)
 
         # 임베디드 오디오 입력 장치
-        vl.addWidget(_hdr("● 임베디드 오디오 입력 장치"))
+        box2, sl2 = _section("임베디드 오디오 입력 장치")
         self._audio_dev_combo = QComboBox()
         self._audio_dev_combo.addItem("시스템 기본 입력", "")
         if _SD_OK:
@@ -906,35 +928,34 @@ class SettingsDialog(QDialog):
             if self._audio_dev_combo.itemData(i) == cur_dev:
                 self._audio_dev_combo.setCurrentIndex(i)
                 break
-        vl.addLayout(_row("입력 장치", self._audio_dev_combo,
-                          "이름 기반 저장 — 재부팅 후에도 유지"))
-
-        vl.addWidget(_sep())
+        sl2.addLayout(_row("입력 장치", self._audio_dev_combo,
+                           "이름 기반 저장 — 재부팅 후에도 유지"))
+        vl.addWidget(box2)
 
         # 텔레그램
-        vl.addWidget(_hdr("● 텔레그램 봇 설정"))
+        box3, sl3 = _section("텔레그램 봇 설정")
         self._tg_enabled_cb = QCheckBox("텔레그램 알림 활성화")
         self._tg_enabled_cb.setChecked(tg.get("enabled", False))
-        vl.addWidget(self._tg_enabled_cb)
+        sl3.addWidget(self._tg_enabled_cb)
 
         self._tg_token_edit = QLineEdit(tg.get("bot_token", ""))
         self._tg_token_edit.setPlaceholderText("BotFather에서 발급받은 토큰")
         self._tg_chat_edit = QLineEdit(tg.get("chat_id", ""))
         self._tg_chat_edit.setPlaceholderText("수신할 채팅/그룹/채널 ID")
-        vl.addLayout(_row("Bot Token", self._tg_token_edit))
-        vl.addLayout(_row("Chat ID", self._tg_chat_edit))
+        sl3.addLayout(_row("Bot Token", self._tg_token_edit))
+        sl3.addLayout(_row("Chat ID", self._tg_chat_edit))
 
         tg_test_hl = QHBoxLayout()
+        tg_test_hl.setContentsMargins(0, 0, 0, 0)
         btn_tg_test = QPushButton("연결 테스트")
         btn_tg_test.clicked.connect(self._test_telegram)
         tg_test_hl.addWidget(btn_tg_test)
         tg_test_hl.addStretch()
-        vl.addLayout(tg_test_hl)
-
-        vl.addWidget(_sep())
+        sl3.addLayout(tg_test_hl)
+        vl.addWidget(box3)
 
         # 텔레그램 알림 옵션
-        vl.addWidget(_hdr("● 텔레그램 알림 옵션"))
+        box4, sl4 = _section("텔레그램 알림 옵션")
         self._tg_image_cb = QCheckBox("알림 발생 시 스냅샷 이미지 첨부")
         self._tg_black_cb = QCheckBox("블랙 감지 알림")
         self._tg_still_cb = QCheckBox("스틸 감지 알림")
@@ -949,26 +970,26 @@ class SettingsDialog(QDialog):
         self._tg_system_cb.setChecked(tg.get("notify_system", True))
         for cb in (self._tg_image_cb, self._tg_black_cb, self._tg_still_cb,
                    self._tg_audio_cb, self._tg_emb_cb, self._tg_system_cb):
-            vl.addWidget(cb)
+            sl4.addWidget(cb)
 
         self._tg_cooldown_edit = _int_edit(tg.get("cooldown", 60), 1, 3600)
-        vl.addLayout(_row("재전송 대기(초)", self._tg_cooldown_edit,
-                          "동일 감지유형 연속 재전송 방지. 기본 60초"))
-
-        vl.addWidget(_sep())
+        sl4.addLayout(_row("재전송 대기(초)", self._tg_cooldown_edit,
+                           "동일 감지유형 연속 재전송 방지. 기본 60초"))
+        vl.addWidget(box4)
 
         # 자동 재시작
-        vl.addWidget(_hdr("● 자동 재시작"))
+        box5, sl5 = _section("자동 재시작")
         self._restart1_cb = QCheckBox("재시작 시각 1 활성화")
         self._restart1_cb.setChecked(bool(sys_cfg.get("scheduled_restart_time", "")))
         self._restart1_edit = QLineEdit(sys_cfg.get("scheduled_restart_time", ""))
         self._restart1_edit.setPlaceholderText("HH:MM")
         self._restart1_edit.setFixedWidth(80)
         restart1_hl = QHBoxLayout()
+        restart1_hl.setContentsMargins(0, 0, 0, 0)
         restart1_hl.addWidget(self._restart1_cb)
         restart1_hl.addWidget(self._restart1_edit)
         restart1_hl.addStretch()
-        vl.addLayout(restart1_hl)
+        sl5.addLayout(restart1_hl)
 
         self._restart2_cb = QCheckBox("재시작 시각 2 활성화")
         self._restart2_cb.setChecked(bool(sys_cfg.get("scheduled_restart_time_2", "")))
@@ -976,10 +997,12 @@ class SettingsDialog(QDialog):
         self._restart2_edit.setPlaceholderText("HH:MM")
         self._restart2_edit.setFixedWidth(80)
         restart2_hl = QHBoxLayout()
+        restart2_hl.setContentsMargins(0, 0, 0, 0)
         restart2_hl.addWidget(self._restart2_cb)
         restart2_hl.addWidget(self._restart2_edit)
         restart2_hl.addStretch()
-        vl.addLayout(restart2_hl)
+        sl5.addLayout(restart2_hl)
+        vl.addWidget(box5)
 
         vl.addStretch()
         return _make_scroll(inner)
@@ -992,35 +1015,37 @@ class SettingsDialog(QDialog):
         inner = QWidget()
         vl = QVBoxLayout(inner)
         vl.setContentsMargins(12, 12, 12, 12)
-        vl.setSpacing(12)
+        vl.setSpacing(10)
 
         # 저장
-        vl.addWidget(_hdr("● 설정 파일 저장"))
+        box1, sl1 = _section("설정 파일 저장")
         btn_export = QPushButton("현재 설정 저장...")
         btn_export.setObjectName("btnOutlineOrange")
         btn_export.setMinimumHeight(48)
         btn_export.clicked.connect(self._export_config)
-        vl.addWidget(btn_export)
+        sl1.addWidget(btn_export)
+        vl.addWidget(box1)
 
         # 불러오기
-        vl.addWidget(_hdr("● 설정 파일 불러오기"))
+        box2, sl2 = _section("설정 파일 불러오기")
         btn_import = QPushButton("설정 파일 불러오기...")
         btn_import.setObjectName("btnOutlineOrange")
         btn_import.setMinimumHeight(48)
         btn_import.clicked.connect(self._import_config)
-        vl.addWidget(btn_import)
+        sl2.addWidget(btn_import)
+        vl.addWidget(box2)
 
         # 초기화
-        vl.addWidget(_hdr("● 기본값으로 초기화"))
+        box3, sl3 = _section("기본값으로 초기화")
         btn_reset_all = QPushButton("기본값으로 초기화")
         btn_reset_all.setObjectName("btnOutlineDanger")
         btn_reset_all.setMinimumHeight(48)
         btn_reset_all.clicked.connect(self._reset_all_settings)
-        vl.addWidget(btn_reset_all)
+        sl3.addWidget(btn_reset_all)
+        vl.addWidget(box3)
 
         # About
-        vl.addWidget(_sep())
-        vl.addWidget(_hdr("● About"))
+        box4, sl4 = _section("About")
         from utils.config_manager import DEFAULT_CONFIG
         about_lbl = QLabel(
             "버전:     KBS Monitoring v2.0.0\n"
@@ -1028,7 +1053,8 @@ class SettingsDialog(QDialog):
             "제작:     KBS 기술본부"
         )
         about_lbl.setObjectName("settingsAbout")
-        vl.addWidget(about_lbl)
+        sl4.addWidget(about_lbl)
+        vl.addWidget(box4)
 
         vl.addStretch()
         return _make_scroll(inner)
@@ -1195,7 +1221,7 @@ class SettingsDialog(QDialog):
 
     def _browse_video_file(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "비상 입력 영상 파일 선택", "",
+            self, "테스트용 영상 파일 선택", "",
             "동영상 파일 (*.mp4 *.avi *.mkv *.mov);;모든 파일 (*)")
         if path:
             self._video_file_edit.setText(path)

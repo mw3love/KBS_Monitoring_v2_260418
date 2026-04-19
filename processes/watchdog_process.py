@@ -195,6 +195,12 @@ def run(
                     dead_pid = detection_proc.pid
                     log_err(f"Detection 비정상 종료 감지 (PID={dead_pid}) → 재spawn")
                     tg(f"KBS Monitoring v{version} Detection 중단 감지 (PID={dead_pid}) → 재spawn 중")
+                    try:
+                        from ipc.messages import DetectionCrashed
+                        result_queue.put_nowait(DetectionCrashed(
+                            dead_pid=dead_pid, reason="process_dead"))
+                    except Exception:
+                        pass
                     detection_proc = _spawn_detection()
                     _spawn_count += 1
                     tg(f"KBS Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
@@ -212,6 +218,15 @@ def run(
                     stale_sec = now - hb_time
                     log_err(f"heartbeat stale ({stale_sec:.1f}초) → Detection kill 후 재spawn")
                     tg(f"KBS Monitoring v{version} Detection heartbeat stale ({stale_sec:.0f}초) → kill 후 재spawn 중")
+                    try:
+                        from ipc.messages import DetectionCrashed
+                        result_queue.put_nowait(DetectionCrashed(
+                            dead_pid=detection_proc.pid if detection_proc else 0,
+                            reason="heartbeat_stale",
+                            stale_sec=stale_sec,
+                        ))
+                    except Exception:
+                        pass
                     _kill_detection(detection_proc)
                     if now - last_spawn_time >= _SPAWN_COOLDOWN:
                         detection_proc = _spawn_detection()
