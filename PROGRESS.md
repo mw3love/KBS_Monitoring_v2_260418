@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
-> 마지막 업데이트: 2026-04-18
-> 현재 단계: Phase 3 완료 (알림 + 정파 + ROI 편집)
+> 마지막 업데이트: 2026-04-19
+> 현재 단계: Phase 4 완료 (Watchdog + Launcher 완성)
 
 ---
 
@@ -90,12 +90,12 @@
 
 ---
 
-## Phase 4 — Watchdog + Launcher 완성
-- [ ] `processes/watchdog_process.py`: heartbeat 감시 + Detection kill/재spawn + UI parent PID 감시 + shutdown_event 존중
-- [ ] Watchdog 직접 텔레그램 발송 경로 (`[SYSTEM]` prefix)
-- [ ] 재spawn 후 UI 측 런타임 상태 재주입 경로 통합 테스트 (`DetectionReady` → `ApplyConfig`/`UpdateROIs`/`SetDetectionEnabled` 재송신 확인)
-- [ ] `main.py`: last_exit.json 기록 + 비정상 종료 감지 텔레그램 + 종료 시 SharedMemory close+unlink try-finally
-- [ ] 예약 재시작: MainWindow → Launcher 이관 (날짜+시각 조합으로 중복 방지)
+## Phase 4 — Watchdog + Launcher 완성 ✅
+- [x] `processes/watchdog_process.py`: heartbeat 감시 + Detection kill/재spawn + UI parent PID 감시 + shutdown_event 존중
+- [x] Watchdog 직접 텔레그램 발송 경로 (`[SYSTEM]` prefix) — Detection 재spawn/heartbeat stale/UI 사망 3종
+- [x] 재spawn 후 UI 측 런타임 상태 재주입 경로 통합 테스트 (`DetectionReady` → `ApplyConfig`/`UpdateROIs`/`SetDetectionEnabled`/`SetVolume`/`SetMute`/`SetSignoffState` 재송신 — `main_window.py:249` 구현 확인)
+- [x] `main.py`: last_exit.json 기록 + Watchdog 비정상 종료 감지 텔레그램 + 종료 시 SharedMemory close+unlink try-finally
+- [x] 예약 재시작: Launcher(`main.py`) 단독 관리, 날짜+시각(YYYY-MM-DD HH:MM) 조합으로 중복 방지, 30초 주기 QTimer
 
 **완료 기준**: Detection 강제 kill 시 10초 내 재spawn + UI 상태 자동 복원(조작 불필요). `[SYSTEM]` 텔레그램 알림 수신. UI 강제 kill 시 Watchdog이 Detection 정리 후 자신 종료.
 
