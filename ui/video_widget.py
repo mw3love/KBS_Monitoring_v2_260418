@@ -2,13 +2,12 @@
 비디오 표시 위젯
 v1 ui/video_widget.py에서 프레임 소스를 SharedMemory 폴링으로 변경.
 SharedFramePoller: QTimer 33ms 주기로 seq_no 변경 감지 → update_frame().
-깜빡임 방지: QLabel.setPixmap 대신 paintEvent 직접 그리기 (Qt 더블버퍼링 활용).
 """
 import numpy as np
 import cv2
 from itertools import chain
-from PySide6.QtWidgets import QWidget, QSizePolicy
-from PySide6.QtCore import Qt, QTimer, QRect
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QSizePolicy
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap, QImage, QPainter, QFont, QColor
 from typing import List, Dict, Optional
 from core.roi_manager import ROI
@@ -18,7 +17,7 @@ _NO_SIGNAL_H = 1080
 
 
 class VideoWidget(QWidget):
-    """16분할 멀티뷰 영상을 표시하는 위젯. paintEvent 기반으로 깜빡임 없음."""
+    """16분할 멀티뷰 영상을 표시하는 위젯"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -29,15 +28,20 @@ class VideoWidget(QWidget):
         self._alert_labels: Dict[str, bool] = {}
         self._blink_on = False
         self._no_signal_frame: Optional[np.ndarray] = None
+        self._setup_ui()
 
-        # 화면에 그릴 픽셀맵 (스케일 적용 전 원본 해상도)
-        self._display_pixmap: Optional[QPixmap] = None
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        self.setMinimumSize(640, 360)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        # Qt 더블버퍼링 — WA_OpaquePaintEvent로 배경 지우기 스킵해 깜빡임 제거
-        self.setAttribute(Qt.WA_OpaquePaintEvent, True)
-        self._rebuild_pixmap()
+        self._label = QLabel()
+        self._label.setObjectName("videoLabel")
+        self._label.setAlignment(Qt.AlignCenter)
+        self._label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._label.setMinimumSize(640, 360)
+        layout.addWidget(self._label)
+
+        self._render()
 
     def _make_no_signal_frame(self) -> np.ndarray:
         if self._no_signal_frame is not None:
@@ -55,46 +59,34 @@ class VideoWidget(QWidget):
         self._no_signal_frame = img
         return img
 
-    # ── 외부에서 상태 변경 ────────────────────────────────────────
-
     def update_frame(self, frame: np.ndarray):
         self._current_frame = frame
-        self._rebuild_pixmap()
-        self.update()  # paintEvent 예약 (더블버퍼링)
+        self._render()
 
     def set_show_rois(self, show: bool):
         self._show_rois = show
-        self._rebuild_pixmap()
-        self.update()
+        self._render()
 
     def set_rois(self, video_rois: List[ROI], audio_rois: List[ROI]):
         self._video_rois = video_rois
         self._audio_rois = audio_rois
-        self._rebuild_pixmap()
-        self.update()
+        self._render()
 
     def set_alert_state(self, label: str, alerting: bool):
         if self._alert_labels.get(label) == alerting:
             return
         self._alert_labels[label] = alerting
-        self._rebuild_pixmap()
-        self.update()
+        self._render()
 
     def set_blink_state(self, blink_on: bool):
         self._blink_on = blink_on
-        if any(self._alert_labels.values()):
-            self._rebuild_pixmap()
-            self.update()
+        self._render()
 
     def clear_signal(self):
         self._current_frame = None
-        self._display_pixmap = None
-        self.update()
+        self._render()
 
-    # ── 픽셀맵 빌드 (BGR→RGB 변환 + ROI 오버레이) ────────────────
-
-    def _rebuild_pixmap(self):
-        """현재 프레임(또는 NO SIGNAL)으로 _display_pixmap을 재빌드."""
+    def _render(self):
         frame = (self._current_frame.copy()
                  if self._current_frame is not None
                  else self._make_no_signal_frame().copy())
@@ -108,27 +100,7 @@ class VideoWidget(QWidget):
         if self._show_rois or has_alerts:
             text_overlays = self._draw_rois(frame, w, h)
 
-        # BGR → RGB 변환 후 QPixmap 생성
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        ch = rgb.shape[2]
-        image = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888).copy()
-        pixmap = QPixmap.fromImage(image)
-
-        if text_overlays:
-            scale = 1.0  # 원본 해상도에서 텍스트 그리기
-            font = QFont()
-            font.setPixelSize(14)
-            painter = QPainter(pixmap)
-            painter.setFont(font)
-            for fx, fy, text in text_overlays:
-                painter.setPen(QColor(0, 0, 0))
-                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                    painter.drawText(fx + dx, fy + dy, text)
-                painter.setPen(QColor(255, 255, 255))
-                painter.drawText(fx, fy, text)
-            painter.end()
-
-        self._display_pixmap = pixmap
+        self._display_numpy(frame, text_overlays)
 
     def _draw_rois(self, frame: np.ndarray, fw: int, fh: int) -> list:
         all_rois = ([("video", r) for r in self._video_rois] +
@@ -145,13 +117,13 @@ class VideoWidget(QWidget):
             y2 = max(0, min(roi.y + roi.h, fh))
 
             if roi_type == "video":
-                normal_color = (0, 0, 204)
+                normal_color = (0, 0, 200)
                 alert_color  = (0, 0, 255)
-                fill_color   = (0, 0, 160)
+                fill_color   = (0, 0, 180)
             else:
-                normal_color = (190, 47, 123)
+                normal_color = (0, 165, 255)
                 alert_color  = (0, 0, 255)
-                fill_color   = (160, 40, 100)
+                fill_color   = (0, 0, 180)
 
             if alerting and self._blink_on:
                 overlay = frame.copy()
@@ -167,37 +139,44 @@ class VideoWidget(QWidget):
 
         return text_overlays
 
-    # ── Qt 이벤트 ────────────────────────────────────────────────
+    def _display_numpy(self, frame: np.ndarray, text_overlays: list = None):
+        h, w, ch = frame.shape
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image = QImage(rgb.tobytes(), w, h, ch * w, QImage.Format_RGB888)
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        if self._display_pixmap is None:
-            painter.fillRect(self.rect(), QColor(0, 0, 0))
-            return
+        lw = self._label.width()
+        lh = self._label.height()
+        if lw > 0 and lh > 0:
+            pixmap = QPixmap.fromImage(image).scaled(
+                lw, lh, Qt.KeepAspectRatio, Qt.FastTransformation,
+            )
+        else:
+            pixmap = QPixmap.fromImage(image)
 
-        pw = self._display_pixmap.width()
-        ph = self._display_pixmap.height()
-        ww = self.width()
-        wh = self.height()
+        if text_overlays and w > 0:
+            scale = pixmap.width() / w
+            font = QFont()
+            font.setPixelSize(max(9, int(14 * scale)))
+            painter = QPainter(pixmap)
+            painter.setFont(font)
+            for fx, fy, text in text_overlays:
+                px = int(fx * scale)
+                py = int(fy * scale)
+                painter.setPen(QColor(0, 0, 0))
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    painter.drawText(px + dx, py + dy, text)
+                painter.setPen(QColor(255, 255, 255))
+                painter.drawText(px, py, text)
+            painter.end()
 
-        # 비율 유지 스케일
-        scale = min(ww / pw, wh / ph) if pw > 0 and ph > 0 else 1.0
-        dw = int(pw * scale)
-        dh = int(ph * scale)
-        dx = (ww - dw) // 2
-        dy = (wh - dh) // 2
-
-        painter.fillRect(self.rect(), QColor(0, 0, 0))
-        painter.drawPixmap(QRect(dx, dy, dw, dh), self._display_pixmap)
+        self._label.setPixmap(pixmap)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        # paintEvent가 알아서 리사이즈에 맞춰 그리므로 update()만 호출
-        self.update()
+        self._render()
 
-    # ── 좌표 변환 (ROI 편집 등에 사용) ──────────────────────────
-
-    def get_current_frame(self) -> Optional[np.ndarray]:
+    def get_current_frame(self):
+        """현재 프레임 복사본 반환 (ROI 편집 등에 사용). 없으면 None."""
         if self._current_frame is not None:
             return self._current_frame.copy()
         return None
@@ -214,24 +193,16 @@ class VideoWidget(QWidget):
         else:
             fw, fh = _NO_SIGNAL_W, _NO_SIGNAL_H
 
-        if self._display_pixmap is None:
+        lw = self._label.width()
+        lh = self._label.height()
+        scale = min(lw / fw, lh / fh)
+        if scale == 0:
             return 0, 0
 
-        pw = self._display_pixmap.width()
-        ph = self._display_pixmap.height()
-        ww = self.width()
-        wh = self.height()
-        scale = min(ww / pw, wh / ph) if pw > 0 and ph > 0 else 1.0
-        dw = int(pw * scale)
-        dh = int(ph * scale)
-        off_x = (ww - dw) / 2
-        off_y = (wh - dh) / 2
-
-        # 위젯 좌표 → 픽셀맵 좌표 → 원본 프레임 좌표
-        px = (wx - off_x) / scale
-        py = (wy - off_y) / scale
-        fx = max(0, min(fw, int(px)))
-        fy = max(0, min(fh, int(py)))
+        off_x = (lw - fw * scale) / 2
+        off_y = (lh - fh * scale) / 2
+        fx = max(0, min(fw, int((wx - off_x) / scale)))
+        fy = max(0, min(fh, int((wy - off_y) / scale)))
         return fx, fy
 
 
