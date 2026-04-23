@@ -16,6 +16,7 @@ main (= UI 프로세스)
   ├─ multiprocessing.Queue result_queue  [Detection→UI]
   ├─ multiprocessing.Queue cmd_queue     [UI→Detection]
   ├─ multiprocessing.Event shutdown_event  [정상 종료 브로드캐스트]
+  ├─ multiprocessing.Event cmd_event       [cmd_queue 도착 알림, Detection 폴링 지연 제거]
   │
   └─ Watchdog Process (main이 spawn)
        │   — Detection params / shm names / queue handles / shutdown_event 전달
@@ -94,6 +95,7 @@ class BaseMsg:
 | `TelegramStatus` | `event:str('sent'\|'failed'\|'retry'\|'worker_dead'\|'worker_restart')`, `message:str\|None`, `queue_size:int` | 텔레그램 워커 이벤트 |
 | `StreamError` | `source:str('video'\|'audio')`, `message:str`, `retry_count:int` | 캡처/오디오 장애 및 재연결 |
 | `DetectionReady` | `pid:int`, `config_loaded:bool`, `roi_count:int`, `version:str` | Detection 기동 완료 (**최초 기동 및 재spawn 직후 각 1회**) |
+| `DetectionCrashed` | `dead_pid:int`, `reason:str('process_dead'\|'heartbeat_stale')`, `stale_sec:float` | Watchdog이 Detection 비정상 종료 감지 시 재spawn 직전 발행 (**drop 금지**) |
 | `PerfMeasurement` | `recommended_interval:int`, `recommended_scale:float`, `cpu_percent:float`, `ram_percent:float` | `RequestAutoPerf` 응답 |
 
 - `FrameReady` 메시지는 **정의하지 않음**. UI는 `SharedFrameBuffer`를 약 33ms 주기로 폴링하고 `seq_no` 변경 시 화면 갱신.
@@ -118,7 +120,7 @@ class BaseMsg:
 
 - 모두 `put_nowait()`. Full 시: `get_nowait()` 1개 drop → 재시도 1회 → 실패면 로그.
 - 드롭 카운터는 `DiagSnapshot.section='DIAG-IPC'`에 포함: `{result_dropped, cmd_dropped, result_qsize, cmd_qsize}`.
-- `DetectionReady` / `Shutdown` / `SignoffStateChange`는 **drop 금지** (최대 3회 재put + 지연).
+- `DetectionReady` / `DetectionCrashed` / `Shutdown` / `SignoffStateChange`는 **drop 금지** (최대 3회 재put + 지연).
 
 ---
 
@@ -129,7 +131,7 @@ class BaseMsg:
 1. `main.py` 진입 → `multiprocessing.freeze_support()` → `faulthandler.enable(logs/fault.log)`
 2. 기존 SharedMemory 이름 잔존 확인: 각 이름으로 `create=False` 시도 → 성공 시 `unlink()`.
 3. SharedMemory `kbs_frame_v2`·`kbs_state_v2` create. state는 magic/version 초기화, 나머지 0.
-4. `result_queue(maxsize=200)`, `cmd_queue(maxsize=50)`, `shutdown_event` 생성.
+4. `result_queue(maxsize=200)`, `cmd_queue(maxsize=50)`, `shutdown_event`, `cmd_event` 생성.
 5. **Watchdog 프로세스 spawn** (Detection params + shm names + queue handles + shutdown_event 전달).
    - Watchdog은 Detection을 즉시 spawn 후 감시 루프 시작.
 6. Detection 기동 절차 (Watchdog이 수행):
@@ -147,7 +149,7 @@ class BaseMsg:
 4. Detection은 `Shutdown` 수신 → 작업자 스레드 join(개별 타임아웃 3초) → 종료.
 5. Watchdog은 Detection join(timeout=5s) → 실패 시 `terminate()`.
 6. Watchdog 자신 종료.
-7. `main`: Watchdog join(timeout=5s) → 실패 시 terminate.
+7. `main`: Watchdog join(timeout=8s) → 실패 시 terminate.
 8. `data/last_exit.json` 기록: `{"exit_time":ISO8601, "exit_code":0, "reason":"user", "pid":<main pid>}`.
 9. SharedMemory `close()` + `unlink()` (try-finally 보장).
 10. `QApplication.quit()`.
@@ -155,7 +157,7 @@ class BaseMsg:
 ### 3.3 Detection 재spawn 복원 시퀀스 (하이브리드)
 
 1. Watchdog: `heartbeat.dat` 10초 stale 감지 OR Detection 프로세스 exit 감지.
-2. `shutdown_event` 미set → 비정상 이탈 판정. `result_queue.put(LogEntry(level='error', ...))`.
+2. `shutdown_event` 미set → 비정상 이탈 판정. `result_queue.put(DetectionCrashed(dead_pid, reason, stale_sec))`.
 3. 텔레그램 알림: "감지 루프 중단 감지, 재시작 중" (Watchdog 프로세스에서 직접 발송 — UI 없이도 알림 보장).
 4. 이전 Detection 프로세스: `terminate()` → `join(3s)` → 실패 시 `kill()`.
 5. `result_queue` / `cmd_queue` **drain 불필요** (기존 핸들 재사용). SharedMemory 동일.
