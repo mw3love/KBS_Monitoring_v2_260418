@@ -7,11 +7,16 @@ shutdown_event set 시 "의도된 종료" 플래그 ON → false-positive respaw
 [SYSTEM] prefix 텔레그램 직접 발송: Detection 재spawn / UI 사망 이벤트.
 """
 import json
+import logging
 import os
 import sys
 import struct
 import time
 import multiprocessing
+
+from ipc.messages import DetectionCrashed
+
+_log = logging.getLogger(__name__)
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -127,10 +132,11 @@ def run(
             except Exception:
                 time.sleep(0.05)
         try:
-            result_queue.get_nowait()
+            dropped = result_queue.get_nowait()
             result_queue.put_nowait(msg)
-        except Exception:
-            pass
+            log_err(f"result_queue FULL → {type(dropped).__name__} drop 후 {type(msg).__name__} 강제 삽입")
+        except Exception as e:
+            log_err(f"result_queue 심각 문제 → {type(msg).__name__} 저장 실패: {e}")
 
     def tg(msg: str):
         """비동기 없이 직접 발송 — 블로킹이지만 Watchdog은 이벤트 루프 없음."""
@@ -211,7 +217,6 @@ def run(
                     dead_pid = detection_proc.pid
                     log_err(f"Detection 비정상 종료 감지 (PID={dead_pid}) → 재spawn")
                     tg(f"KBS Monitoring v{version} Detection 중단 감지 (PID={dead_pid}) → 재spawn 중")
-                    from ipc.messages import DetectionCrashed
                     _nodrop_put(DetectionCrashed(
                         dead_pid=dead_pid, reason="process_dead", stale_sec=0.0))
                     detection_proc = _spawn_detection()
@@ -231,7 +236,6 @@ def run(
                     stale_sec = now - hb_time
                     log_err(f"heartbeat stale ({stale_sec:.1f}초) → Detection kill 후 재spawn")
                     tg(f"KBS Monitoring v{version} Detection heartbeat stale ({stale_sec:.0f}초) → kill 후 재spawn 중")
-                    from ipc.messages import DetectionCrashed
                     _nodrop_put(DetectionCrashed(
                         dead_pid=detection_proc.pid if detection_proc else 0,
                         reason="heartbeat_stale",

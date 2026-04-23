@@ -78,10 +78,11 @@ def _put_nodrop(result_queue, msg, max_retry: int = 3):
             time.sleep(0.05)
     # 최후 수단: 1개 drop 후 강제 삽입
     try:
-        result_queue.get_nowait()
+        dropped = result_queue.get_nowait()
         result_queue.put_nowait(msg)
-    except Exception:
-        pass
+        _log.error(f"result_queue FULL → {type(dropped).__name__} drop 후 {type(msg).__name__} 강제 삽입")
+    except Exception as e:
+        _log.error(f"result_queue 심각 문제 → {type(msg).__name__} 저장 실패: {e}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
