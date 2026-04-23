@@ -62,10 +62,9 @@ def _make_scroll(inner: QWidget) -> QScrollArea:
     return sa
 
 
-def _section(title: str, enable_cb=None, reset_cb=None) -> tuple["QFrame", "QVBoxLayout"]:
+def _section(title: str, enable_cb=None) -> tuple["QFrame", "QVBoxLayout"]:
     """테두리 박스 섹션. (box_frame, inner_layout) 반환.
-    enable_cb: 헤더 우측 활성화 체크박스 (QCheckBox 인스턴스 전달)
-    reset_cb: 헤더 맨 우측 ↺ 초기화 버튼 클릭 콜백
+    enable_cb: 제목 왼쪽에 놓을 활성화 체크박스 (QCheckBox 인스턴스 전달)
     """
     box = QFrame()
     box.setObjectName("settingsSection")
@@ -73,23 +72,15 @@ def _section(title: str, enable_cb=None, reset_cb=None) -> tuple["QFrame", "QVBo
     outer_vl.setContentsMargins(14, 10, 14, 12)
     outer_vl.setSpacing(0)
 
-    if enable_cb is not None or reset_cb is not None:
+    if enable_cb is not None:
         header_hl = QHBoxLayout()
         header_hl.setContentsMargins(0, 0, 0, 0)
         header_hl.setSpacing(6)
+        header_hl.addWidget(enable_cb)
         lbl = QLabel(title)
         lbl.setObjectName("settingsSectionLabel")
         header_hl.addWidget(lbl)
         header_hl.addStretch()
-        if enable_cb is not None:
-            header_hl.addWidget(enable_cb)
-        if reset_cb is not None:
-            btn_rst = QPushButton("↺")
-            btn_rst.setObjectName("btnNeutral")
-            btn_rst.setFixedSize(28, 22)
-            btn_rst.setToolTip("이 섹션 기본값으로 초기화")
-            btn_rst.clicked.connect(reset_cb)
-            header_hl.addWidget(btn_rst)
         outer_vl.addLayout(header_hl)
     else:
         lbl = QLabel(title)
@@ -790,19 +781,17 @@ class SettingsDialog(QDialog):
         perf = self._cfg.get("performance", {})
 
         # ── 활성화 체크박스 (섹션 헤더 통합용) ──────────────
-        self._black_enabled_cb = QCheckBox("활성화")
-        self._still_enabled_cb = QCheckBox("활성화")
-        self._audio_enabled_cb = QCheckBox("활성화")
-        self._emb_enabled_cb = QCheckBox("활성화")
+        self._black_enabled_cb = QCheckBox()
+        self._still_enabled_cb = QCheckBox()
+        self._audio_enabled_cb = QCheckBox()
+        self._emb_enabled_cb = QCheckBox()
         self._black_enabled_cb.setChecked(perf.get("black_detection_enabled", True))
         self._still_enabled_cb.setChecked(perf.get("still_detection_enabled", True))
         self._audio_enabled_cb.setChecked(perf.get("audio_detection_enabled", True))
         self._emb_enabled_cb.setChecked(perf.get("embedded_detection_enabled", True))
 
         # ── 블랙 감지 ────────────────────────────────────
-        box1, sl1 = _section("블랙 감지",
-                             enable_cb=self._black_enabled_cb,
-                             reset_cb=self._reset_black_section)
+        box1, sl1 = _section("블랙 감지", enable_cb=self._black_enabled_cb)
         self._black_thresh = _int_edit(det.get("black_threshold", 5), 0, 255)
         self._black_ratio = _float_edit(det.get("black_dark_ratio", 98.0))
         self._black_suppress = _float_edit(det.get("black_motion_suppress_ratio", 0.2))
@@ -827,9 +816,7 @@ class SettingsDialog(QDialog):
                                      self._black_enabled_cb.isChecked())
 
         # ── 스틸 감지 ────────────────────────────────────
-        box2, sl2 = _section("스틸 감지",
-                             enable_cb=self._still_enabled_cb,
-                             reset_cb=self._reset_still_section)
+        box2, sl2 = _section("스틸 감지", enable_cb=self._still_enabled_cb)
         self._still_thresh = _int_edit(det.get("still_threshold", 4), 0, 255)
         self._still_changed = _float_edit(det.get("still_changed_ratio", 10.0))
         self._still_reset = _int_edit(det.get("still_reset_frames", 3), 1, 10)
@@ -854,9 +841,7 @@ class SettingsDialog(QDialog):
                                      self._still_enabled_cb.isChecked())
 
         # ── 오디오 레벨미터 감지 (HSV) ───────────────────
-        box3, sl3 = _section("오디오 레벨미터 감지 (HSV)",
-                             enable_cb=self._audio_enabled_cb,
-                             reset_cb=self._reset_audio_section)
+        box3, sl3 = _section("오디오 레벨미터 감지 (HSV)", enable_cb=self._audio_enabled_cb)
 
         preset_hl = QHBoxLayout()
         preset_hl.setContentsMargins(0, 0, 0, 4)
@@ -907,9 +892,7 @@ class SettingsDialog(QDialog):
                                      self._audio_enabled_cb.isChecked())
 
         # ── 임베디드 오디오 감지 ──────────────────────────
-        box4, sl4 = _section("임베디드 오디오 감지 (무음)",
-                             enable_cb=self._emb_enabled_cb,
-                             reset_cb=self._reset_embedded_section)
+        box4, sl4 = _section("임베디드 오디오 감지 (무음)", enable_cb=self._emb_enabled_cb)
         self._emb_thresh = _int_edit(det.get("embedded_silence_threshold", -50), -60, 0)
         self._emb_dur = _int_edit(det.get("embedded_silence_duration", 20), 1, 300)
         self._emb_alarm_dur = _int_edit(det.get("embedded_alarm_duration", 60), 1, 300)
@@ -1023,42 +1006,6 @@ class SettingsDialog(QDialog):
     def _on_emb_enabled_changed(self, state):
         self._toggle_section_widgets(self._emb_section_widgets,
                                      state == Qt.Checked)
-        self._apply_now()
-
-    def _reset_black_section(self):
-        d = DEFAULT_CONFIG.get("detection", {})
-        self._black_thresh.setText(str(d.get("black_threshold", 5)))
-        self._black_ratio.setText(str(d.get("black_dark_ratio", 98.0)))
-        self._black_suppress.setText(str(d.get("black_motion_suppress_ratio", 0.2)))
-        self._black_dur.setText(str(d.get("black_duration", 20)))
-        self._black_alarm_dur.setText(str(d.get("black_alarm_duration", 60)))
-        self._apply_now()
-
-    def _reset_still_section(self):
-        d = DEFAULT_CONFIG.get("detection", {})
-        self._still_thresh.setText(str(d.get("still_threshold", 4)))
-        self._still_changed.setText(str(d.get("still_changed_ratio", 10.0)))
-        self._still_reset.setText(str(d.get("still_reset_frames", 3)))
-        self._still_dur.setText(str(d.get("still_duration", 60)))
-        self._still_alarm_dur.setText(str(d.get("still_alarm_duration", 60)))
-        self._apply_now()
-
-    def _reset_audio_section(self):
-        d = DEFAULT_CONFIG.get("detection", {})
-        self._hsv_h.set_range(d.get("audio_hsv_h_min", 40), d.get("audio_hsv_h_max", 95))
-        self._hsv_s.set_range(d.get("audio_hsv_s_min", 80), d.get("audio_hsv_s_max", 255))
-        self._hsv_v.set_range(d.get("audio_hsv_v_min", 60), d.get("audio_hsv_v_max", 255))
-        self._audio_pixel_ratio.setText(str(d.get("audio_pixel_ratio", 5.0)))
-        self._audio_level_dur.setText(str(d.get("audio_level_duration", 20)))
-        self._audio_level_alarm_dur.setText(str(d.get("audio_level_alarm_duration", 60)))
-        self._audio_recovery.setText(str(d.get("audio_level_recovery_seconds", 2.0)))
-        self._apply_now()
-
-    def _reset_embedded_section(self):
-        d = DEFAULT_CONFIG.get("detection", {})
-        self._emb_thresh.setText(str(d.get("embedded_silence_threshold", -50)))
-        self._emb_dur.setText(str(d.get("embedded_silence_duration", 20)))
-        self._emb_alarm_dur.setText(str(d.get("embedded_alarm_duration", 60)))
         self._apply_now()
 
     # ─────────────────────────────────────────────────────────────────
