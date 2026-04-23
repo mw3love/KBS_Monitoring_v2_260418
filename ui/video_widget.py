@@ -238,5 +238,7 @@ class SharedFramePoller:
                 frame = self._shared_frame.read_frame()
                 if frame is not None:
                     self._video_widget.update_frame(frame)
+                else:
+                    self._video_widget.clear_signal()
         except Exception:
             pass
