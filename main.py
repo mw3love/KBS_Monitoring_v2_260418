@@ -94,6 +94,7 @@ def main():
     result_queue   = multiprocessing.Queue(maxsize=200)
     cmd_queue      = multiprocessing.Queue(maxsize=50)
     shutdown_event = multiprocessing.Event()
+    cmd_event      = multiprocessing.Event()   # cmd_queue에 메시지 도착 알림
 
     # ── Watchdog 프로세스 spawn ───────────────────────────────────
     from processes.watchdog_process import run as watchdog_run
@@ -104,6 +105,7 @@ def main():
             state_lock, FRAME_SHM, STATE_SHM,
             os.getpid(),
             "2.0",
+            cmd_event,
         ),
         daemon=False,
         name="WatchdogProcess",
@@ -126,6 +128,7 @@ def main():
         shutdown_event=shutdown_event,
         shared_frame=shared_frame,
         shared_state=shared_state,
+        cmd_event=cmd_event,
     )
     window.show()
 

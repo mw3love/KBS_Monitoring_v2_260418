@@ -152,7 +152,7 @@ def _apply_config_to_telegram(telegram, cfg: dict):
 
 def run(result_queue, cmd_queue, shutdown_event,
         state_lock, frame_shm_name: str, state_shm_name: str,
-        version: str = "2.0"):
+        version: str = "2.0", cmd_event=None):
     """
     Watchdog이 spawn하는 Detection 프로세스 메인 함수.
     종료 조건: shutdown_event set 또는 Shutdown 메시지 수신.
@@ -444,7 +444,11 @@ def run(result_queue, cmd_queue, shutdown_event,
 
         elapsed = time.monotonic() - t
         sleep_target = max(0.0, detection_interval - elapsed)
-        time.sleep(sleep_target)
+        if cmd_event is not None and sleep_target > 0:
+            cmd_event.wait(timeout=sleep_target)
+            cmd_event.clear()
+        else:
+            time.sleep(sleep_target)
         actual_elapsed = time.monotonic() - t
         _jitter_sum_ms += abs(actual_elapsed - detection_interval) * 1000.0
         _jitter_samples += 1

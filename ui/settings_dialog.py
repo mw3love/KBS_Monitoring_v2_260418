@@ -213,10 +213,11 @@ class SettingsDialog(QDialog):
     ]
 
     def __init__(self, cfg: dict, cmd_queue, alarm,
-                 frozen_frame=None, parent=None):
+                 frozen_frame=None, parent=None, cmd_event=None):
         super().__init__(parent, Qt.Window)
         self._cfg = copy.deepcopy(cfg)
         self._cmd_queue = cmd_queue
+        self._cmd_event = cmd_event
         self._alarm = alarm
         self._frozen_frame = frozen_frame
         self._cfg_mgr = ConfigManager()
@@ -1403,6 +1404,8 @@ class SettingsDialog(QDialog):
                 self._cmd_queue.put_nowait(msg)
             except Exception:
                 pass
+        if self._cmd_event is not None:
+            self._cmd_event.set()
 
     # ─────────────────────────────────────────────────────────────────
     # 브라우저 / 테스트 / 리셋 슬롯
