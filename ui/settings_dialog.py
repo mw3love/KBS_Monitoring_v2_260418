@@ -62,9 +62,10 @@ def _make_scroll(inner: QWidget) -> QScrollArea:
     return sa
 
 
-def _section(title: str) -> tuple["QFrame", "QVBoxLayout"]:
+def _section(title: str, enable_cb=None, reset_cb=None) -> tuple["QFrame", "QVBoxLayout"]:
     """테두리 박스 섹션. (box_frame, inner_layout) 반환.
-    호출부: box, sl = _section("제목"); sl.addLayout(...); vl.addWidget(box)
+    enable_cb: 헤더 우측 활성화 체크박스 (QCheckBox 인스턴스 전달)
+    reset_cb: 헤더 맨 우측 ↺ 초기화 버튼 클릭 콜백
     """
     box = QFrame()
     box.setObjectName("settingsSection")
@@ -72,10 +73,29 @@ def _section(title: str) -> tuple["QFrame", "QVBoxLayout"]:
     outer_vl.setContentsMargins(14, 10, 14, 12)
     outer_vl.setSpacing(0)
 
-    lbl = QLabel(title)
-    lbl.setObjectName("settingsSectionLabel")
-    lbl.setContentsMargins(0, 0, 0, 0)
-    outer_vl.addWidget(lbl)
+    if enable_cb is not None or reset_cb is not None:
+        header_hl = QHBoxLayout()
+        header_hl.setContentsMargins(0, 0, 0, 0)
+        header_hl.setSpacing(6)
+        lbl = QLabel(title)
+        lbl.setObjectName("settingsSectionLabel")
+        header_hl.addWidget(lbl)
+        header_hl.addStretch()
+        if enable_cb is not None:
+            header_hl.addWidget(enable_cb)
+        if reset_cb is not None:
+            btn_rst = QPushButton("↺")
+            btn_rst.setObjectName("btnNeutral")
+            btn_rst.setFixedSize(28, 22)
+            btn_rst.setToolTip("이 섹션 기본값으로 초기화")
+            btn_rst.clicked.connect(reset_cb)
+            header_hl.addWidget(btn_rst)
+        outer_vl.addLayout(header_hl)
+    else:
+        lbl = QLabel(title)
+        lbl.setObjectName("settingsSectionLabel")
+        lbl.setContentsMargins(0, 0, 0, 0)
+        outer_vl.addWidget(lbl)
 
     content_vl = QVBoxLayout()
     content_vl.setContentsMargins(0, 8, 0, 0)
@@ -331,11 +351,11 @@ class SettingsDialog(QDialog):
         # ── 캡처 포트 ──────────────────────────────────────────
         box1, sl1 = _section("캡처 포트")
         self._port_combo = QComboBox()
-        for i in range(10):
+        for i in range(4):
             self._port_combo.addItem(str(i), i)
         self._port_combo.setCurrentIndex(self._cfg.get("port", 0))
-        sl1.addLayout(_row("포트 번호 (0~9)", self._port_combo,
-                           "카메라/캡처카드 번호. 보통 0"))
+        sl1.addLayout(_row("포트 번호 (0~3)", self._port_combo,
+                           "캡처카드 포트 번호 (0~3)"))
         vl.addWidget(box1)
 
         # ── 파일 입력 (테스트용) ────────────────────────────────
@@ -366,9 +386,10 @@ class SettingsDialog(QDialog):
         self._rec_enabled_cb.setChecked(rec.get("enabled", True))
         sl3.addWidget(self._rec_enabled_cb)
 
-        dir_hl = QHBoxLayout()
+        dir_widget = QWidget()
+        dir_hl = QHBoxLayout(dir_widget)
         dir_hl.setContentsMargins(0, 0, 0, 0)
-        dir_hl.addWidget(QLabel("저장 폴더:"))
+        dir_hl.setSpacing(4)
         self._rec_dir_edit = QLineEdit(rec.get("save_dir", "recordings"))
         dir_hl.addWidget(self._rec_dir_edit, 1)
         btn_dir_browse = QPushButton("찾아보기")
@@ -377,15 +398,24 @@ class SettingsDialog(QDialog):
         btn_dir_open.clicked.connect(self._open_rec_dir)
         dir_hl.addWidget(btn_dir_browse)
         dir_hl.addWidget(btn_dir_open)
-        sl3.addLayout(dir_hl)
+        sl3.addLayout(_row("저장 폴더", dir_widget))
 
         self._rec_pre_edit = _int_edit(rec.get("pre_seconds", 5), 1, 30)
         self._rec_post_edit = _int_edit(rec.get("post_seconds", 15), 1, 60)
         self._rec_keep_edit = _int_edit(rec.get("max_keep_days", 7), 1, 365)
-        sl3.addLayout(_row("시작 전 버퍼 (초)", self._rec_pre_edit, "알림 발생 전 N초를 함께 저장 (기본 5초)"))
-        sl3.addLayout(_row("이후 녹화 시간 (초)", self._rec_post_edit, "알림 발생 후 추가 녹화 시간 (기본 15초)"))
-        sl3.addLayout(_row("최대 보관 기간 (일)", self._rec_keep_edit, "1~365"))
+        sl3.addLayout(_row("시작 전 버퍼 (초)", self._rec_pre_edit,
+                           "1~30 / 기본값 5 — 알림 발생 전 구간 저장"))
+        sl3.addLayout(_row("이후 녹화 시간 (초)", self._rec_post_edit,
+                           "1~60 / 기본값 15 — 알림 발생 후 추가 녹화"))
+        sl3.addLayout(_row("최대 보관 기간 (일)", self._rec_keep_edit,
+                           "1~365 / 기본값 7 — 초과 파일 자동 삭제"))
         vl.addWidget(box3)
+
+        # dim 처리용 위젯 목록 (자동 녹화 활성화 체크박스 연동)
+        self._rec_sub_widgets = [
+            self._rec_dir_edit, btn_dir_browse, btn_dir_open,
+            self._rec_pre_edit, self._rec_post_edit, self._rec_keep_edit,
+        ]
 
         # ── 녹화 품질 설정 ──────────────────────────────────────
         box4, sl4 = _section("녹화 품질 설정")
@@ -410,19 +440,43 @@ class SettingsDialog(QDialog):
             if self._fps_combo.itemData(i) == cur_fps:
                 self._fps_combo.setCurrentIndex(i)
                 break
-        sl4.addLayout(_row("출력 FPS", self._fps_combo))
+        sl4.addLayout(_row("출력 FPS", self._fps_combo,
+                           "10fps 권장 (파일 크기 절약)"))
         vl.addWidget(box4)
+
+        # dim 처리 목록에 녹화 품질 위젯 추가
+        self._rec_sub_widgets += [self._res_combo, self._fps_combo]
+
+        # 용량 추정 정보 바
+        self._capacity_label = QLabel()
+        self._capacity_label.setObjectName("capacityBar")
+        self._capacity_label.setTextFormat(Qt.RichText)
+        vl.addWidget(self._capacity_label)
 
         # 즉시 반영 연결 — 영상설정
         self._port_combo.currentIndexChanged.connect(self._apply_now)
         self._video_file_edit.editingFinished.connect(self._apply_now)
-        self._rec_enabled_cb.stateChanged.connect(self._apply_now)
         self._rec_dir_edit.editingFinished.connect(self._apply_now)
         self._rec_pre_edit.editingFinished.connect(self._apply_now)
         self._rec_post_edit.editingFinished.connect(self._apply_now)
         self._rec_keep_edit.editingFinished.connect(self._apply_now)
         self._res_combo.currentIndexChanged.connect(self._apply_now)
         self._fps_combo.currentIndexChanged.connect(self._apply_now)
+
+        # 용량 바 갱신 연결
+        self._res_combo.currentIndexChanged.connect(self._update_capacity_label)
+        self._fps_combo.currentIndexChanged.connect(self._update_capacity_label)
+        self._rec_pre_edit.editingFinished.connect(self._update_capacity_label)
+        self._rec_post_edit.editingFinished.connect(self._update_capacity_label)
+
+        # 자동 녹화 체크박스: dim 처리 슬롯 연결
+        self._rec_enabled_cb.stateChanged.connect(self._on_rec_enabled_changed)
+
+        # 초기 상태 적용 (신호 연결 후)
+        _rec_on = self._rec_enabled_cb.isChecked()
+        for _w in self._rec_sub_widgets:
+            _w.setEnabled(_rec_on)
+        self._update_capacity_label()
 
         vl.addStretch()
         btn_reset_v = QPushButton("영상설정 전체 초기화")
@@ -707,8 +761,20 @@ class SettingsDialog(QDialog):
         det = self._cfg.get("detection", {})
         perf = self._cfg.get("performance", {})
 
+        # ── 활성화 체크박스 (섹션 헤더 통합용) ──────────────
+        self._black_enabled_cb = QCheckBox("활성화")
+        self._still_enabled_cb = QCheckBox("활성화")
+        self._audio_enabled_cb = QCheckBox("활성화")
+        self._emb_enabled_cb = QCheckBox("활성화")
+        self._black_enabled_cb.setChecked(perf.get("black_detection_enabled", True))
+        self._still_enabled_cb.setChecked(perf.get("still_detection_enabled", True))
+        self._audio_enabled_cb.setChecked(perf.get("audio_detection_enabled", True))
+        self._emb_enabled_cb.setChecked(perf.get("embedded_detection_enabled", True))
+
         # ── 블랙 감지 ────────────────────────────────────
-        box1, sl1 = _section("블랙 감지")
+        box1, sl1 = _section("블랙 감지",
+                             enable_cb=self._black_enabled_cb,
+                             reset_cb=self._reset_black_section)
         self._black_thresh = _int_edit(det.get("black_threshold", 5), 0, 255)
         self._black_ratio = _float_edit(det.get("black_dark_ratio", 98.0))
         self._black_suppress = _float_edit(det.get("black_motion_suppress_ratio", 0.2))
@@ -720,14 +786,22 @@ class SettingsDialog(QDialog):
                            "50~100% / 이 비율 이상이면 블랙 판정 (기본값: 98%)"))
         sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준", self._black_suppress,
                            "0~5.0 / 움직임 비율이 이 이상이면 블랙 억제"))
-        sl1.addLayout(_row("N초 이상 지속 시 알림", self._black_dur,
-                           "1~300 / 기본값 20"))
-        sl1.addLayout(_row("알림음 재생 시간(초)", self._black_alarm_dur,
-                           "1~300 / 기본값 60"))
+        sl1.addLayout(_row("이상 지속 후 알림(초)", self._black_dur,
+                           "1~300 / 이상 상태가 이 시간 이상 지속될 때 알림 발동"))
+        sl1.addLayout(_row("알림음 지속(초)", self._black_alarm_dur,
+                           "1~300 / 알림음이 최대 이 시간 동안 재생"))
         vl.addWidget(box1)
+        self._black_section_widgets = (
+            self._black_thresh, self._black_ratio, self._black_suppress,
+            self._black_dur, self._black_alarm_dur,
+        )
+        self._toggle_section_widgets(self._black_section_widgets,
+                                     self._black_enabled_cb.isChecked())
 
         # ── 스틸 감지 ────────────────────────────────────
-        box2, sl2 = _section("스틸 감지")
+        box2, sl2 = _section("스틸 감지",
+                             enable_cb=self._still_enabled_cb,
+                             reset_cb=self._reset_still_section)
         self._still_thresh = _int_edit(det.get("still_threshold", 4), 0, 255)
         self._still_changed = _float_edit(det.get("still_changed_ratio", 10.0))
         self._still_reset = _int_edit(det.get("still_reset_frames", 3), 1, 10)
@@ -739,14 +813,35 @@ class SettingsDialog(QDialog):
                            "0~100% / 이 비율 미만이면 스틸로 판정 (기본값: 10%)"))
         sl2.addLayout(_row("연속 정상 프레임 수", self._still_reset,
                            "1~10 / 연속 정상 프레임 수 (글리치 방지)"))
-        sl2.addLayout(_row("N초 이상 지속 시 알림", self._still_dur,
-                           "1~300 / 기본값 60"))
-        sl2.addLayout(_row("알림음 재생 시간(초)", self._still_alarm_dur,
-                           "1~300 / 기본값 60"))
+        sl2.addLayout(_row("이상 지속 후 알림(초)", self._still_dur,
+                           "1~300 / 이상 상태가 이 시간 이상 지속될 때 알림 발동"))
+        sl2.addLayout(_row("알림음 지속(초)", self._still_alarm_dur,
+                           "1~300 / 알림음이 최대 이 시간 동안 재생"))
         vl.addWidget(box2)
+        self._still_section_widgets = (
+            self._still_thresh, self._still_changed, self._still_reset,
+            self._still_dur, self._still_alarm_dur,
+        )
+        self._toggle_section_widgets(self._still_section_widgets,
+                                     self._still_enabled_cb.isChecked())
 
         # ── 오디오 레벨미터 감지 (HSV) ───────────────────
-        box3, sl3 = _section("오디오 레벨미터 감지 (HSV)")
+        box3, sl3 = _section("오디오 레벨미터 감지 (HSV)",
+                             enable_cb=self._audio_enabled_cb,
+                             reset_cb=self._reset_audio_section)
+
+        preset_hl = QHBoxLayout()
+        preset_hl.setContentsMargins(0, 0, 0, 4)
+        preset_hl.setSpacing(6)
+        btn_preset_std = QPushButton("표준 녹색")
+        btn_preset_wide = QPushButton("넓은 범위")
+        for _btn in (btn_preset_std, btn_preset_wide):
+            _btn.setObjectName("btnSecondary")
+            _btn.setFixedHeight(26)
+            preset_hl.addWidget(_btn)
+        preset_hl.addStretch()
+        sl3.addLayout(preset_hl)
+
         self._hsv_h = DualSlider(0, 179, "hue")
         self._hsv_h.set_range(det.get("audio_hsv_h_min", 40),
                                det.get("audio_hsv_h_max", 95))
@@ -767,26 +862,41 @@ class SettingsDialog(QDialog):
         sl3.addLayout(_row("V 범위 (명도, 0~255)", self._hsv_v, "기본값 60~255"))
         sl3.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
                            "1~50% / 감지영역 내 해당 색상 픽셀이 이 값 이상이면 활성"))
-        sl3.addLayout(_row("N초 이상 지속 시 알림", self._audio_level_dur,
-                           "1~300 / 기본값 20"))
-        sl3.addLayout(_row("알림음 재생 시간(초)", self._audio_level_alarm_dur,
-                           "1~300 / 기본값 60"))
-        sl3.addLayout(_row("정상 복귀 대기 시간(초)", self._audio_recovery,
-                           "0~30 / 0=즉시복구. 기본값 2"))
+        sl3.addLayout(_row("이상 지속 후 알림(초)", self._audio_level_dur,
+                           "1~300 / 이상 상태가 이 시간 이상 지속될 때 알림 발동"))
+        sl3.addLayout(_row("알림음 지속(초)", self._audio_level_alarm_dur,
+                           "1~300 / 알림음이 최대 이 시간 동안 재생"))
+        sl3.addLayout(_row("복구 대기(초)", self._audio_recovery,
+                           "0~30 / 정상 복귀 후 이 시간이 지나야 알림 해제. 기본값 2"))
         vl.addWidget(box3)
+        self._audio_section_widgets = (
+            btn_preset_std, btn_preset_wide,
+            self._hsv_h, self._hsv_s, self._hsv_v,
+            self._audio_pixel_ratio, self._audio_level_dur,
+            self._audio_level_alarm_dur, self._audio_recovery,
+        )
+        self._toggle_section_widgets(self._audio_section_widgets,
+                                     self._audio_enabled_cb.isChecked())
 
         # ── 임베디드 오디오 감지 ──────────────────────────
-        box4, sl4 = _section("임베디드 오디오 감지 (무음)")
+        box4, sl4 = _section("임베디드 오디오 감지 (무음)",
+                             enable_cb=self._emb_enabled_cb,
+                             reset_cb=self._reset_embedded_section)
         self._emb_thresh = _int_edit(det.get("embedded_silence_threshold", -50), -60, 0)
         self._emb_dur = _int_edit(det.get("embedded_silence_duration", 20), 1, 300)
         self._emb_alarm_dur = _int_edit(det.get("embedded_alarm_duration", 60), 1, 300)
         sl4.addLayout(_row("무음 임계값(dB)", self._emb_thresh,
                            "-60~0 / 이 값 이하일 때 무음 판정. 기본값 -50"))
-        sl4.addLayout(_row("N초 이상 지속 시 알림", self._emb_dur,
-                           "1~300 / 기본값 20"))
-        sl4.addLayout(_row("알림음 재생 시간(초)", self._emb_alarm_dur,
-                           "1~300 / 기본값 60"))
+        sl4.addLayout(_row("이상 지속 후 알림(초)", self._emb_dur,
+                           "1~300 / 이상 상태가 이 시간 이상 지속될 때 알림 발동"))
+        sl4.addLayout(_row("알림음 지속(초)", self._emb_alarm_dur,
+                           "1~300 / 알림음이 최대 이 시간 동안 재생"))
         vl.addWidget(box4)
+        self._emb_section_widgets = (
+            self._emb_thresh, self._emb_dur, self._emb_alarm_dur,
+        )
+        self._toggle_section_widgets(self._emb_section_widgets,
+                                     self._emb_enabled_cb.isChecked())
 
         # ── 성능 설정 ─────────────────────────────────────
         box5, sl5 = _section("성능 설정")
@@ -813,18 +923,6 @@ class SettingsDialog(QDialog):
         sl5.addLayout(_row("감지 해상도 스케일", self._scale_combo,
                            "50% 시 CPU 부담 약 50% 절감"))
 
-        self._black_enabled_cb = QCheckBox("블랙 감지 활성화")
-        self._still_enabled_cb = QCheckBox("스틸 감지 활성화")
-        self._audio_enabled_cb = QCheckBox("오디오 레벨미터 감지 활성화")
-        self._emb_enabled_cb = QCheckBox("임베디드 오디오 감지 활성화")
-        self._black_enabled_cb.setChecked(perf.get("black_detection_enabled", True))
-        self._still_enabled_cb.setChecked(perf.get("still_detection_enabled", True))
-        self._audio_enabled_cb.setChecked(perf.get("audio_detection_enabled", True))
-        self._emb_enabled_cb.setChecked(perf.get("embedded_detection_enabled", True))
-        for cb in (self._black_enabled_cb, self._still_enabled_cb,
-                   self._audio_enabled_cb, self._emb_enabled_cb):
-            sl5.addWidget(cb)
-
         perf_btn_hl = QHBoxLayout()
         perf_btn_hl.setContentsMargins(0, 0, 0, 0)
         btn_auto_perf = QPushButton("자동 성능 감지")
@@ -847,11 +945,24 @@ class SettingsDialog(QDialog):
         self._hsv_h.range_changed.connect(self._apply_now)
         self._hsv_s.range_changed.connect(self._apply_now)
         self._hsv_v.range_changed.connect(self._apply_now)
+
+        def _apply_hsv_preset(h_min, h_max, s_min, s_max, v_min, v_max):
+            self._hsv_h.set_range(h_min, h_max)
+            self._hsv_s.set_range(s_min, s_max)
+            self._hsv_v.set_range(v_min, v_max)
+            self._apply_now()
+
+        btn_preset_std.clicked.connect(
+            lambda: _apply_hsv_preset(40, 95, 80, 255, 60, 255))
+        btn_preset_wide.clicked.connect(
+            lambda: _apply_hsv_preset(30, 120, 50, 255, 40, 255))
         self._detect_interval_combo.currentIndexChanged.connect(self._apply_now)
         self._scale_combo.currentIndexChanged.connect(self._apply_now)
-        for cb in (self._black_enabled_cb, self._still_enabled_cb,
-                   self._audio_enabled_cb, self._emb_enabled_cb):
-            cb.stateChanged.connect(self._apply_now)
+
+        self._black_enabled_cb.stateChanged.connect(self._on_black_enabled_changed)
+        self._still_enabled_cb.stateChanged.connect(self._on_still_enabled_changed)
+        self._audio_enabled_cb.stateChanged.connect(self._on_audio_enabled_changed)
+        self._emb_enabled_cb.stateChanged.connect(self._on_emb_enabled_changed)
 
         vl.addStretch()
         btn_reset_sens = QPushButton("감도설정 전체 초기화")
@@ -860,6 +971,67 @@ class SettingsDialog(QDialog):
         vl.addWidget(btn_reset_sens)
 
         return _make_scroll(inner)
+
+    @staticmethod
+    def _toggle_section_widgets(widgets, enabled: bool):
+        for w in widgets:
+            w.setEnabled(enabled)
+
+    def _on_black_enabled_changed(self, state):
+        self._toggle_section_widgets(self._black_section_widgets,
+                                     state == Qt.Checked)
+        self._apply_now()
+
+    def _on_still_enabled_changed(self, state):
+        self._toggle_section_widgets(self._still_section_widgets,
+                                     state == Qt.Checked)
+        self._apply_now()
+
+    def _on_audio_enabled_changed(self, state):
+        self._toggle_section_widgets(self._audio_section_widgets,
+                                     state == Qt.Checked)
+        self._apply_now()
+
+    def _on_emb_enabled_changed(self, state):
+        self._toggle_section_widgets(self._emb_section_widgets,
+                                     state == Qt.Checked)
+        self._apply_now()
+
+    def _reset_black_section(self):
+        d = DEFAULT_CONFIG.get("detection", {})
+        self._black_thresh.setText(str(d.get("black_threshold", 5)))
+        self._black_ratio.setText(str(d.get("black_dark_ratio", 98.0)))
+        self._black_suppress.setText(str(d.get("black_motion_suppress_ratio", 0.2)))
+        self._black_dur.setText(str(d.get("black_duration", 20)))
+        self._black_alarm_dur.setText(str(d.get("black_alarm_duration", 60)))
+        self._apply_now()
+
+    def _reset_still_section(self):
+        d = DEFAULT_CONFIG.get("detection", {})
+        self._still_thresh.setText(str(d.get("still_threshold", 4)))
+        self._still_changed.setText(str(d.get("still_changed_ratio", 10.0)))
+        self._still_reset.setText(str(d.get("still_reset_frames", 3)))
+        self._still_dur.setText(str(d.get("still_duration", 60)))
+        self._still_alarm_dur.setText(str(d.get("still_alarm_duration", 60)))
+        self._apply_now()
+
+    def _reset_audio_section(self):
+        d = DEFAULT_CONFIG.get("detection", {})
+        self._hsv_h.set_range(d.get("audio_hsv_h_min", 40), d.get("audio_hsv_h_max", 95))
+        self._hsv_s.set_range(d.get("audio_hsv_s_min", 80), d.get("audio_hsv_s_max", 255))
+        self._hsv_v.set_range(d.get("audio_hsv_v_min", 60), d.get("audio_hsv_v_max", 255))
+        self._audio_pixel_ratio.setText(str(d.get("audio_pixel_ratio", 5.0)))
+        self._audio_level_dur.setText(str(d.get("audio_level_duration", 20)))
+        self._audio_level_alarm_dur.setText(str(d.get("audio_level_alarm_duration", 60)))
+        self._audio_recovery.setText(str(d.get("audio_level_recovery_seconds", 2.0)))
+        self._apply_now()
+
+    def _reset_embedded_section(self):
+        d = DEFAULT_CONFIG.get("detection", {})
+        self._emb_thresh.setText(str(d.get("embedded_silence_threshold", -50)))
+        self._emb_dur.setText(str(d.get("embedded_silence_duration", 20)))
+        self._emb_alarm_dur.setText(str(d.get("embedded_alarm_duration", 60)))
+        self._apply_now()
 
     # ─────────────────────────────────────────────────────────────────
     # 탭 5: 정파설정
@@ -1419,6 +1591,32 @@ class SettingsDialog(QDialog):
     # 브라우저 / 테스트 / 리셋 슬롯
     # ─────────────────────────────────────────────────────────────────
 
+    def _on_rec_enabled_changed(self):
+        enabled = self._rec_enabled_cb.isChecked()
+        for w in self._rec_sub_widgets:
+            w.setEnabled(enabled)
+        self._apply_now()
+
+    def _update_capacity_label(self):
+        res_data = self._res_combo.currentData() or (960, 540)
+        w, h = res_data
+        fps = self._fps_combo.currentData() or 10
+        try:
+            pre = int(self._rec_pre_edit.text() or 5)
+            post = int(self._rec_post_edit.text() or 15)
+        except ValueError:
+            pre, post = 5, 15
+        frame_bytes = w * h * 3 * 0.07
+        pre_mb = (pre * fps + 5) * frame_bytes / 1024 / 1024
+        rec_mb_lo = post * fps * frame_bytes / 1024 / 1024
+        rec_mb_hi = rec_mb_lo * 1.5
+        self._capacity_label.setText(
+            f"출력: <b>{w}×{h}</b> | FPS: <b>{fps}</b> | "
+            f"사전버퍼: 약 <b>{pre_mb:.1f} MB</b> | "
+            f"녹화 파일: 약 <b>{rec_mb_lo:.0f}~{rec_mb_hi:.0f} MB</b> / {pre + post}초 | "
+            f"코덱: <b>mp4v</b>"
+        )
+
     def _browse_video_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self, "테스트용 영상 파일 선택", "",
@@ -1432,6 +1630,7 @@ class SettingsDialog(QDialog):
                                                  self._rec_dir_edit.text())
         if path:
             self._rec_dir_edit.setText(path)
+            self._apply_now()
 
     def _open_rec_dir(self):
         path = os.path.abspath(self._rec_dir_edit.text() or "recordings")
@@ -1503,15 +1702,26 @@ class SettingsDialog(QDialog):
 
     def _reset_video_settings(self):
         d = DEFAULT_CONFIG
+        rec = d.get("recording", {})
         self._port_combo.setCurrentIndex(d.get("port", 0))
         self._video_file_edit.clear()
-        rec = d.get("recording", {})
         self._rec_enabled_cb.setChecked(rec.get("enabled", True))
         self._rec_dir_edit.setText(rec.get("save_dir", "recordings"))
         self._rec_pre_edit.setText(str(rec.get("pre_seconds", 5)))
         self._rec_post_edit.setText(str(rec.get("post_seconds", 15)))
         self._rec_keep_edit.setText(str(rec.get("max_keep_days", 7)))
+        default_w = rec.get("output_width", 960)
+        for i in range(self._res_combo.count()):
+            if self._res_combo.itemData(i)[0] == default_w:
+                self._res_combo.setCurrentIndex(i)
+                break
+        default_fps = rec.get("output_fps", 10)
+        for i in range(self._fps_combo.count()):
+            if self._fps_combo.itemData(i) == default_fps:
+                self._fps_combo.setCurrentIndex(i)
+                break
         self._apply_now()
+        self._update_capacity_label()
 
     def _reset_sensitivity_settings(self):
         d = DEFAULT_CONFIG.get("detection", {})
@@ -1552,6 +1762,14 @@ class SettingsDialog(QDialog):
         self._still_enabled_cb.setChecked(p.get("still_detection_enabled", True))
         self._audio_enabled_cb.setChecked(p.get("audio_detection_enabled", True))
         self._emb_enabled_cb.setChecked(p.get("embedded_detection_enabled", True))
+        self._toggle_section_widgets(self._black_section_widgets,
+                                     self._black_enabled_cb.isChecked())
+        self._toggle_section_widgets(self._still_section_widgets,
+                                     self._still_enabled_cb.isChecked())
+        self._toggle_section_widgets(self._audio_section_widgets,
+                                     self._audio_enabled_cb.isChecked())
+        self._toggle_section_widgets(self._emb_section_widgets,
+                                     self._emb_enabled_cb.isChecked())
         self._apply_now()
 
     def _reset_signoff_settings(self):

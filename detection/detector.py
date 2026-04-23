@@ -26,6 +26,8 @@ class Detector:
         self.scale_factor = 1.0
         self.black_detection_enabled = True
         self.still_detection_enabled = True
+        self.audio_detection_enabled = True
+        self.embedded_detection_enabled = True
 
         self.black_threshold = 5
         self.black_dark_ratio = 98.0
@@ -40,10 +42,10 @@ class Detector:
         self.still_reset_frames = 3
 
         self.audio_hsv_h_min = 40
-        self.audio_hsv_h_max = 80
-        self.audio_hsv_s_min = 30
+        self.audio_hsv_h_max = 95
+        self.audio_hsv_s_min = 80
         self.audio_hsv_s_max = 255
-        self.audio_hsv_v_min = 30
+        self.audio_hsv_v_min = 60
         self.audio_hsv_v_max = 255
         self.audio_pixel_ratio = 5.0
         self.audio_level_duration = 5.0
@@ -226,6 +228,10 @@ class Detector:
         오디오 ROI에서 HSV 기반 레벨미터 색상 감지.
         반환값: {label: {"active": bool, "ratio": float, "alerting": bool, ...}}
         """
+        if not self.audio_detection_enabled:
+            return {roi.label: {"active": False, "ratio": 0.0, "alerting": False,
+                                "duration": 0.0, "resolved": False,
+                                "last_duration": 0.0} for roi in audio_rois}
         results = {}
         lower = np.array([self.audio_hsv_h_min, self.audio_hsv_s_min, self.audio_hsv_v_min])
         upper = np.array([self.audio_hsv_h_max, self.audio_hsv_s_max, self.audio_hsv_v_max])
@@ -279,6 +285,8 @@ class Detector:
         return results
 
     def update_embedded_silence(self, silence_seconds: float) -> bool:
+        if not self.embedded_detection_enabled:
+            return False
         if silence_seconds > 0:
             if self._embedded_alert_start is None:
                 self._embedded_alert_start = time.time() - silence_seconds
