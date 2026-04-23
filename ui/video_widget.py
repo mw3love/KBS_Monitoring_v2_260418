@@ -1,19 +1,27 @@
 """
 비디오 표시 위젯
 v1 ui/video_widget.py에서 프레임 소스를 SharedMemory 폴링으로 변경.
-SharedFramePoller: QTimer 33ms 주기로 seq_no 변경 감지 → update_frame().
+SharedFramePoller: QTimer 33ms 주기로 seq_no 변경을 감지 → update_frame().
 """
 import numpy as np
 import cv2
 from itertools import chain
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QSizePolicy
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPixmap, QImage, QPainter, QFont, QColor
+from PySide6.QtGui import QPixmap, QImage, QPainter, QPen, QFont, QColor
 from typing import List, Dict, Optional
 from core.roi_manager import ROI
 
 _NO_SIGNAL_W = 1920
 _NO_SIGNAL_H = 1080
+
+# 에디터(roi_editor.py)와 동일한 색상 상수
+_VIDEO_COLOR        = QColor("#cc0000")
+_VIDEO_ALERT_COLOR  = QColor("#ff4444")
+_VIDEO_FILL_COLOR   = QColor(204, 0, 0, 60)
+_AUDIO_COLOR        = QColor("#D97757")
+_AUDIO_ALERT_COLOR  = QColor("#ff9955")
+_AUDIO_FILL_COLOR   = QColor(217, 119, 87, 60)
 
 
 class VideoWidget(QWidget):
@@ -96,16 +104,17 @@ class VideoWidget(QWidget):
             self._alert_labels.get(r.label, False)
             for r in chain(self._video_rois, self._audio_rois)
         )
-        text_overlays = []
+        roi_overlays = []
         if self._show_rois or has_alerts:
-            text_overlays = self._draw_rois(frame, w, h)
+            roi_overlays = self._collect_roi_overlays(w, h)
 
-        self._display_numpy(frame, text_overlays)
+        self._display_numpy(frame, roi_overlays)
 
-    def _draw_rois(self, frame: np.ndarray, fw: int, fh: int) -> list:
+    def _collect_roi_overlays(self, fw: int, fh: int) -> list:
+        """ROI 좌표·색상 정보를 수집 (프레임 좌표계). 실제 그리기는 QPainter로."""
+        overlays = []
         all_rois = ([("video", r) for r in self._video_rois] +
                     [("audio", r) for r in self._audio_rois])
-        text_overlays = []
         for roi_type, roi in all_rois:
             alerting = self._alert_labels.get(roi.label, False)
             if not self._show_rois and not alerting:
@@ -117,29 +126,23 @@ class VideoWidget(QWidget):
             y2 = max(0, min(roi.y + roi.h, fh))
 
             if roi_type == "video":
-                normal_color = (0, 0, 200)
-                alert_color  = (0, 0, 255)
-                fill_color   = (0, 0, 180)
+                color = _VIDEO_ALERT_COLOR if (alerting and self._blink_on) else _VIDEO_COLOR
+                fill  = _VIDEO_FILL_COLOR  if (alerting and self._blink_on) else None
             else:
-                normal_color = (0, 165, 255)
-                alert_color  = (0, 0, 255)
-                fill_color   = (0, 0, 180)
-
-            if alerting and self._blink_on:
-                overlay = frame.copy()
-                cv2.rectangle(overlay, (x1, y1), (x2, y2), fill_color, -1)
-                cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), alert_color, 2)
-            else:
-                cv2.rectangle(frame, (x1, y1), (x2, y2), normal_color, 2)
+                color = _AUDIO_ALERT_COLOR if (alerting and self._blink_on) else _AUDIO_COLOR
+                fill  = _AUDIO_FILL_COLOR  if (alerting and self._blink_on) else None
 
             label_text = (f"{roi.label} [{roi.media_name}]"
                           if roi.media_name else roi.label)
-            text_overlays.append((x1 + 3, y1 + 18, label_text))
+            overlays.append({
+                "rect": (x1, y1, x2 - x1, y2 - y1),
+                "color": color,
+                "fill": fill,
+                "label": label_text,
+            })
+        return overlays
 
-        return text_overlays
-
-    def _display_numpy(self, frame: np.ndarray, text_overlays: list = None):
+    def _display_numpy(self, frame: np.ndarray, roi_overlays: list = None):
         h, w, ch = frame.shape
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = QImage(rgb.tobytes(), w, h, ch * w, QImage.Format_RGB888)
@@ -153,20 +156,37 @@ class VideoWidget(QWidget):
         else:
             pixmap = QPixmap.fromImage(image)
 
-        if text_overlays and w > 0:
+        if roi_overlays and w > 0:
             scale = pixmap.width() / w
             font = QFont()
             font.setPixelSize(max(9, int(14 * scale)))
+
             painter = QPainter(pixmap)
             painter.setFont(font)
-            for fx, fy, text in text_overlays:
+
+            for ov in roi_overlays:
+                fx, fy, fw_roi, fh_roi = ov["rect"]
                 px = int(fx * scale)
                 py = int(fy * scale)
+                pw = int(fw_roi * scale)
+                ph = int(fh_roi * scale)
+                color = ov["color"]
+
+                if ov["fill"]:
+                    painter.fillRect(px, py, pw, ph, ov["fill"])
+
+                painter.setPen(QPen(color, 2.0))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawRect(px, py, pw, ph)
+
+                tx = px + 3
+                ty = py + max(9, int(14 * scale))
                 painter.setPen(QColor(0, 0, 0))
                 for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                    painter.drawText(px + dx, py + dy, text)
+                    painter.drawText(tx + dx, ty + dy, ov["label"])
                 painter.setPen(QColor(255, 255, 255))
-                painter.drawText(px, py, text)
+                painter.drawText(tx, ty, ov["label"])
+
             painter.end()
 
         self._label.setPixmap(pixmap)
@@ -220,8 +240,16 @@ class SharedFramePoller:
         self._timer = QTimer(parent)
         self._timer.setInterval(33)
         self._timer.timeout.connect(self._poll)
+        # 측정 카운터
+        self._stat_ok = 0
+        self._stat_writing = 0
+        self._stat_torn = 0
+        self._stat_no_signal = 0
+        self._stat_t0 = 0.0
 
     def start(self):
+        import time
+        self._stat_t0 = time.monotonic()
         self._timer.start()
 
     def stop(self):
@@ -231,14 +259,37 @@ class SharedFramePoller:
         if self._shared_frame is None:
             return
         try:
+            import time
             meta = self._shared_frame.read_meta()
             seq = meta.get("seq_no", 0)
             if seq != self._last_seq and seq % 2 == 0 and seq > 0:
-                self._last_seq = seq
-                frame = self._shared_frame.read_frame()
+                frame, reason = self._shared_frame.read_frame_debug()
                 if frame is not None:
+                    self._last_seq = seq   # 성공 시에만 갱신 (실패 시 다음 poll 재시도)
+                    self._stat_ok += 1
                     self._video_widget.update_frame(frame)
                 else:
-                    self._video_widget.clear_signal()
+                    # None은 일시적 tearing/쓰기중 — 이전 프레임 유지, clear_signal 호출 안 함
+                    if reason == "writing":
+                        self._stat_writing += 1
+                    elif reason == "torn":
+                        self._stat_torn += 1
+                    else:
+                        self._stat_no_signal += 1
+
+            # 5초마다 None 비율 로그 출력
+            elapsed = time.monotonic() - self._stat_t0
+            if elapsed >= 5.0:
+                total = self._stat_ok + self._stat_writing + self._stat_torn + self._stat_no_signal
+                if total > 0:
+                    import logging
+                    logging.getLogger(__name__).debug(
+                        "[SharedFramePoller] 5s 통계: ok=%d writing=%d torn=%d no_signal=%d "
+                        "(None율=%.1f%%)",
+                        self._stat_ok, self._stat_writing, self._stat_torn, self._stat_no_signal,
+                        100.0 * (total - self._stat_ok) / total,
+                    )
+                self._stat_ok = self._stat_writing = self._stat_torn = self._stat_no_signal = 0
+                self._stat_t0 = time.monotonic()
         except Exception:
             pass

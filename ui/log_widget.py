@@ -28,6 +28,7 @@ class LogWidget(QWidget):
         "audio":    ("#006600", "#ffffff"),
         "embedded": ("#004488", "#ffffff"),
         "info":     (None,      "#cccccc"),
+        "debug":    (None,      "#555555"),
     }
 
     log_cleared = Signal()
@@ -36,6 +37,8 @@ class LogWidget(QWidget):
         super().__init__(parent)
         self._last_date: str = ""
         self._item_count: int = 0
+        self._show_debug: bool = False
+        self._auto_scroll: bool = True
         self._setup_ui()
 
     def _setup_ui(self):
@@ -54,6 +57,15 @@ class LogWidget(QWidget):
         header_layout.addWidget(self._header)
 
         header_layout.addStretch()
+
+        self._btn_debug = QPushButton("DEBUG")
+        self._btn_debug.setObjectName("btnLogDebug")
+        self._btn_debug.setFixedSize(60, 26)
+        self._btn_debug.setToolTip("내부 디버그 로그 표시/숨김")
+        self._btn_debug.setCheckable(True)
+        self._btn_debug.setChecked(False)
+        self._btn_debug.toggled.connect(self._on_debug_toggled)
+        header_layout.addWidget(self._btn_debug)
 
         self._btn_open_folder = QPushButton()
         self._btn_open_folder.setObjectName("btnLogFolder")
@@ -81,12 +93,22 @@ class LogWidget(QWidget):
         self._text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self._text.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._text.setFocusPolicy(Qt.NoFocus)
+        self._text.verticalScrollBar().valueChanged.connect(self._on_scroll_changed)
         layout.addWidget(self._text)
+
+    def _on_debug_toggled(self, checked: bool):
+        self._show_debug = checked
+
+    def _on_scroll_changed(self, value: int):
+        sb = self._text.verticalScrollBar()
+        self._auto_scroll = (value >= sb.maximum() - 4)
 
     def add_log(self, message: str, log_type: str = "info"):
         """로그 항목 추가.
-        log_type: "info" | "error" | "still" | "audio" | "embedded"
+        log_type: "debug" | "info" | "error" | "still" | "audio" | "embedded"
         """
+        if log_type == "debug" and not self._show_debug:
+            return
         now = datetime.datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H:%M:%S")
@@ -127,7 +149,8 @@ class LogWidget(QWidget):
             cursor.insertText(text, char_fmt)
 
         self._text.setTextCursor(cursor)
-        self._text.ensureCursorVisible()
+        if self._auto_scroll:
+            self._text.ensureCursorVisible()
 
     def _trim_oldest(self):
         doc = self._text.document()
@@ -153,6 +176,7 @@ class LogWidget(QWidget):
         self._text.document().clear()
         self._last_date = ""
         self._item_count = 0
+        self._auto_scroll = True
         self.log_cleared.emit()
 
     def _open_log_folder(self):

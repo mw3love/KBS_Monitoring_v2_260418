@@ -44,7 +44,7 @@ class AlarmResolve(BaseMsg):
 
 @dataclass
 class LogEntry(BaseMsg):
-    level: str = "info"         # 'info' | 'error' | 'still' | 'audio' | 'embedded'
+    level: str = "info"         # 'debug' | 'info' | 'error' | 'still' | 'audio' | 'embedded'
     source: str = ""
     message: str = ""
 

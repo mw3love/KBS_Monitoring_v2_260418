@@ -164,6 +164,12 @@ def run(result_queue, cmd_queue, shutdown_event,
     from utils.logger import AppLogger
     logger = AppLogger(suffix="_detection")
 
+    def log_debug(msg: str):
+        logger.debug(msg)
+        from ipc.messages import LogEntry
+        _put(result_queue, LogEntry(level="debug", source="detection", message=msg),
+             _ipc_counters, "result")
+
     def log_info(msg: str):
         logger.info(msg)
         from ipc.messages import LogEntry
@@ -179,13 +185,13 @@ def run(result_queue, cmd_queue, shutdown_event,
     _ipc_counters = [0]   # [result_dropped]
     _cmd_dropped  = [0]
 
-    log_info(f"Detection 프로세스 시작 (PID={os.getpid()}, v{version})")
+    log_debug(f"Detection 프로세스 시작 (PID={os.getpid()}, v{version})")
 
     # ── 1. 설정 로드 ──────────────────────────────────────────────────────────
     from utils.config_manager import ConfigManager
     cfg_mgr = ConfigManager()
     cfg = cfg_mgr.load()
-    log_info(f"설정 로드 완료 (config_version={cfg.get('config_version', '?')})")
+    log_debug(f"설정 로드 완료 (config_version={cfg.get('config_version', '?')})")
 
     # ── 2. SharedMemory 연결 ──────────────────────────────────────────────────
     from ipc.shared_frame import SharedFrameBuffer
@@ -193,7 +199,7 @@ def run(result_queue, cmd_queue, shutdown_event,
     try:
         shared_frame = SharedFrameBuffer(create=False, name=frame_shm_name)
         shared_state = SharedStateBuffer(create=False, name=state_shm_name, lock=state_lock)
-        log_info("SharedMemory 연결 성공")
+        log_debug("SharedMemory 연결 성공")
     except Exception as e:
         log_error(f"SharedMemory 연결 실패: {e}")
         shared_frame = None
@@ -318,7 +324,7 @@ def run(result_queue, cmd_queue, shutdown_event,
         telegram.start()
         heartbeat.start()
         workers_started = True
-        log_info("워커 스레드 전체 시작 완료")
+        log_debug("워커 스레드 전체 시작 완료")
     except OSError as e:
         log_error(f"워커 스레드 시작 실패: {e}")
 
@@ -330,7 +336,7 @@ def run(result_queue, cmd_queue, shutdown_event,
         roi_count=len(video_rois) + len(audio_rois),
         version=version,
     ))
-    log_info(f"DetectionReady 발행 (ROI={len(video_rois)}V+{len(audio_rois)}A)")
+    log_debug(f"DetectionReady 발행 (ROI={len(video_rois)}V+{len(audio_rois)}A)")
 
     # ── 6. DIAG 상태 ─────────────────────────────────────────────────────────
     _diag_last_t = 0.0
@@ -458,7 +464,7 @@ def run(result_queue, cmd_queue, shutdown_event,
         _jitter_samples += 1
 
     # ── 8. 정리 ───────────────────────────────────────────────────────────────
-    log_info("Detection 프로세스 종료 중...")
+    log_debug("Detection 프로세스 종료 중...")
     heartbeat.stop()
     signoff_mgr.stop()
     recorder.stop()
@@ -483,7 +489,7 @@ def run(result_queue, cmd_queue, shutdown_event,
         except Exception:
             pass
 
-    log_info("Detection 프로세스 종료 완료")
+    log_debug("Detection 프로세스 종료 완료")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -527,7 +533,7 @@ def _process_commands(
                 if msg.reason in ("user_save",):
                     cfg_mgr.save(cfg)
                 _put(result_queue,
-                     LogEntry(level="info", source="detection",
+                     LogEntry(level="debug", source="detection",
                               message=f"ApplyConfig 적용 완료 (reason={msg.reason})"),
                      ipc_counters)
 

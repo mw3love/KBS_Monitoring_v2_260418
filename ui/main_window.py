@@ -188,6 +188,7 @@ class MainWindow(QMainWindow):
         if not enabled:
             self._send_cmd(ClearAlarms())
             self._alarm.resolve_all()
+            self._top_bar.update_health(False)
 
     def _on_volume_changed(self, value: int):
         from ipc.messages import SetVolume
@@ -204,7 +205,7 @@ class MainWindow(QMainWindow):
     # ── 슬롯: UIBridge ────────────────────────────────────────────
 
     def _on_log_entry(self, msg):
-        level_map = {"error": "error", "still": "still",
+        level_map = {"debug": "debug", "error": "error", "still": "still",
                      "audio": "audio", "embedded": "embedded"}
         log_type = level_map.get(msg.level, "info")
         self._log_widget.add_log(f"[{msg.source}] {msg.message}", log_type)
@@ -262,7 +263,8 @@ class MainWindow(QMainWindow):
 
     def _on_diag_snapshot(self, msg):
         if msg.section == "SYSTEM-HB":
-            stale = msg.payload.get("loop_count", 1) == 0
+            detection_enabled = msg.payload.get("detection_enabled", True)
+            stale = msg.payload.get("loop_count", 1) == 0 and detection_enabled
             self._top_bar.update_health(stale)
 
     # ── 런타임 상태 재주입 ────────────────────────────────────────

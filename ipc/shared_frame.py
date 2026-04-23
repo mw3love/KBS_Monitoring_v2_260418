@@ -77,23 +77,31 @@ class SharedFrameBuffer:
         쓰기 중이거나 읽는 사이 seq 변경이면 None 반환 (최악 1프레임 스킵 허용).
         반환값은 항상 .copy() 된 독립 배열.
         """
+        frame, _ = self.read_frame_debug()
+        return frame
+
+    def read_frame_debug(self) -> "tuple[np.ndarray | None, str]":
+        """
+        read_frame()과 동일하나 None 반환 시 이유를 함께 반환.
+        반환: (frame_or_None, reason)  reason: "" | "writing" | "no_signal" | "torn"
+        """
         s1 = struct.unpack_from("<Q", self._buf, 0)[0]
         if s1 & 1:          # 홀수 = 쓰기 중
-            return None
+            return None, "writing"
 
         seq, ts, w, h, ch, flags = struct.unpack_from(_HEADER_FMT, self._buf, 0)
         if w == 0 or h == 0:
-            return None
+            return None, "no_signal"
 
         nbytes = w * h * ch
         raw = bytes(self._buf[_HEADER_SIZE: _HEADER_SIZE + nbytes])
 
         s2 = struct.unpack_from("<Q", self._buf, 0)[0]
         if s1 != s2:        # 읽는 사이 seq 변경
-            return None
+            return None, "torn"
 
         arr = np.frombuffer(raw, dtype=np.uint8).reshape(h, w, ch)
-        return arr.copy()   # SharedMemory 해제 후 원본 참조 무효화 방지
+        return arr.copy(), ""   # SharedMemory 해제 후 원본 참조 무효화 방지
 
     def read_meta(self) -> dict:
         """헤더만 읽어 width/height/seq_no/flags 반환."""

@@ -86,15 +86,15 @@ class LevelMeterBar(QWidget):
             y_top = label_h + i * (seg_h + gap)
             from_bottom = n - 1 - i
             if from_bottom < lit_count:
-                if i <= 1:
-                    color = QColor("#ff2222")
-                elif i <= 3:
-                    color = QColor("#ee3322")
-                else:
-                    color = QColor("#bb1111")
+                if i <= 1:       # top 2 — 피크/위험
+                    color = QColor("#ff3333")
+                elif i <= 3:     # 3~4번째 — 경계
+                    color = QColor("#e8a730")
+                else:            # 하단 6칸 — 정상
+                    color = QColor("#2f9e44")
                 painter.fillRect(2, y_top, w - 4, seg_h, color)
             else:
-                painter.fillRect(2, y_top, w - 4, seg_h, QColor("#222233"))
+                painter.fillRect(2, y_top, w - 4, seg_h, QColor("#1e1e1e"))
 
         painter.setPen(QColor("#aaaacc"))
         painter.setFont(QFont("Segoe UI", 7, QFont.Bold))
@@ -255,9 +255,6 @@ class TopBar(QWidget):
         self._sys_monitor = SysMonitorWidget()
         layout.addWidget(self._sys_monitor, alignment=Qt.AlignTop)
 
-        self._health_indicator = self._create_health_indicator()
-        layout.addWidget(self._health_indicator, alignment=Qt.AlignTop)
-
         layout.addWidget(self._make_separator())
 
         time_container = QWidget()
@@ -336,11 +333,11 @@ class TopBar(QWidget):
         self._btn_detection.clicked.connect(self._on_detection_clicked)
         layout.addWidget(self._btn_detection)
 
-        self._btn_roi = QPushButton("감지영역")
+        self._btn_roi = QPushButton("감지영역 ON")
         self._btn_roi.setObjectName("btnRoi")
         self._btn_roi.setCheckable(True)
         self._btn_roi.setChecked(True)
-        self._btn_roi.setFixedSize(90, 36)
+        self._btn_roi.setFixedSize(100, 36)
         self._btn_roi.setFont(QFont("Segoe UI", 10, QFont.Bold))
         self._btn_roi.clicked.connect(self._on_roi_clicked)
         layout.addWidget(self._btn_roi)
@@ -348,7 +345,7 @@ class TopBar(QWidget):
         self._btn_mute = QPushButton("Mute")
         self._btn_mute.setObjectName("btnMuteText")
         self._btn_mute.setCheckable(True)
-        self._btn_mute.setFixedSize(70, 36)
+        self._btn_mute.setFixedSize(80, 36)
         self._btn_mute.setFont(QFont("Segoe UI", 10, QFont.Bold))
         self._btn_mute.setToolTip("알림음 음소거")
         self._btn_mute.clicked.connect(self._on_mute_clicked)
@@ -358,7 +355,7 @@ class TopBar(QWidget):
 
         self._btn_ack = QPushButton("알림확인")
         self._btn_ack.setObjectName("btnAlarmAck")
-        self._btn_ack.setFixedSize(86, 36)
+        self._btn_ack.setFixedSize(90, 36)
         self._btn_ack.setFont(QFont("Segoe UI", 10, QFont.Bold))
         self._btn_ack.setToolTip("알림확인 — 소리 및 깜빡임 해제")
         self._btn_ack.clicked.connect(self.alarm_acknowledged)
@@ -468,48 +465,33 @@ class TopBar(QWidget):
         vbox.addWidget(items_widget)
         return container
 
-    def _create_health_indicator(self) -> QWidget:
-        container = QWidget()
-        container.setObjectName("healthIndicator")
-        container.setFixedWidth(80)
-        hc_vbox = QVBoxLayout(container)
-        hc_vbox.setContentsMargins(4, 2, 4, 2)
-        hc_vbox.setSpacing(2)
-
-        self._lbl_health = QLabel("")
-        self._lbl_health.setAlignment(Qt.AlignCenter)
-        self._lbl_health.setFont(QFont("Segoe UI", 9, QFont.Bold))
-        self._lbl_health.setWordWrap(True)
-        hc_vbox.addWidget(self._lbl_health)
-
-        container.setVisible(False)
-        return container
-
     def update_health(self, detect_stale: bool):
+        """감지 루프 stale 여부 → 감지 ON 버튼 테두리로 표현."""
         if detect_stale:
-            self._lbl_health.setText("감지 중단")
-            self._lbl_health.setStyleSheet(
-                "color: white; background-color: #cc0000; "
-                "border-radius: 4px; padding: 2px 6px;"
+            self._btn_detection.setStyleSheet(
+                "QPushButton#btnDetection {"
+                "  border: 2px solid #cc0000;"
+                "  color: #cc0000;"
+                "}"
             )
-            self._health_indicator.setVisible(True)
+            self._btn_detection.setToolTip("감지 중단 — 루프 응답 없음")
         else:
-            self._health_indicator.setVisible(False)
-            self._lbl_health.setText("")
-            self._lbl_health.setStyleSheet("")
+            self._btn_detection.setStyleSheet("")
+            self._btn_detection.setToolTip("")
 
     def show_detection_crashed(self, reason: str, stale_sec: float = 0.0):
-        """Detection 비정상 종료 — 재spawn 진행 중임을 표시."""
+        """Detection 비정상 종료 — 재spawn 진행 중임을 버튼 테두리로 표현."""
         if reason == "heartbeat_stale":
-            text = f"재시작 중\n(HB {stale_sec:.0f}초)"
+            tip = f"재시작 중 (HB {stale_sec:.0f}초 무응답)"
         else:
-            text = "재시작 중"
-        self._lbl_health.setText(text)
-        self._lbl_health.setStyleSheet(
-            "color: white; background-color: #D97757; "
-            "border-radius: 4px; padding: 2px 6px;"
+            tip = "재시작 중"
+        self._btn_detection.setStyleSheet(
+            "QPushButton#btnDetection {"
+            "  border: 2px solid #D97757;"
+            "  color: #D97757;"
+            "}"
         )
-        self._health_indicator.setVisible(True)
+        self._btn_detection.setToolTip(tip)
 
     def _make_separator(self) -> QFrame:
         line = QFrame()
@@ -659,6 +641,7 @@ class TopBar(QWidget):
 
     def _on_roi_clicked(self, checked: bool):
         self._roi_visible = checked
+        self._btn_roi.setText("감지영역 ON" if checked else "감지영역 OFF")
         self.roi_visibility_changed.emit(checked)
 
     def _on_dark_mode_clicked(self, checked: bool):
@@ -700,6 +683,7 @@ class TopBar(QWidget):
         self._roi_visible = visible
         self._btn_roi.blockSignals(True)
         self._btn_roi.setChecked(visible)
+        self._btn_roi.setText("감지영역 ON" if visible else "감지영역 OFF")
         self._btn_roi.blockSignals(False)
 
     def set_volume_display(self, value: int):

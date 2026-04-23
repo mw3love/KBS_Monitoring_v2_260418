@@ -45,6 +45,14 @@ def _float_edit(val: float, w: int = 90) -> QLineEdit:
     return e
 
 
+def _sep() -> QFrame:
+    """가로 구분선."""
+    line = QFrame()
+    line.setFrameShape(QFrame.HLine)
+    line.setFrameShadow(QFrame.Sunken)
+    return line
+
+
 def _make_scroll(inner: QWidget) -> QScrollArea:
     """inner를 QScrollArea로 감싸 반환. setWidget() 즉시 호출."""
     sa = QScrollArea()
@@ -327,7 +335,7 @@ class SettingsDialog(QDialog):
             self._port_combo.addItem(str(i), i)
         self._port_combo.setCurrentIndex(self._cfg.get("port", 0))
         sl1.addLayout(_row("포트 번호 (0~9)", self._port_combo,
-                           "OpenCV VideoCapture 인덱스"))
+                           "카메라/캡처카드 번호. 보통 0"))
         vl.addWidget(box1)
 
         # ── 파일 입력 (테스트용) ────────────────────────────────
@@ -374,8 +382,8 @@ class SettingsDialog(QDialog):
         self._rec_pre_edit = _int_edit(rec.get("pre_seconds", 5), 1, 30)
         self._rec_post_edit = _int_edit(rec.get("post_seconds", 15), 1, 60)
         self._rec_keep_edit = _int_edit(rec.get("max_keep_days", 7), 1, 365)
-        sl3.addLayout(_row("시작 전 버퍼 (초)", self._rec_pre_edit, "1~30 / 기본값 5"))
-        sl3.addLayout(_row("이후 녹화 시간 (초)", self._rec_post_edit, "1~60 / 기본값 15"))
+        sl3.addLayout(_row("시작 전 버퍼 (초)", self._rec_pre_edit, "알림 발생 전 N초를 함께 저장 (기본 5초)"))
+        sl3.addLayout(_row("이후 녹화 시간 (초)", self._rec_post_edit, "알림 발생 후 추가 녹화 시간 (기본 15초)"))
         sl3.addLayout(_row("최대 보관 기간 (일)", self._rec_keep_edit, "1~365"))
         vl.addWidget(box3)
 
@@ -710,11 +718,11 @@ class SettingsDialog(QDialog):
                            "0~255 / 이 값 이하면 어두운 픽셀로 판단 (기본값: 5)"))
         sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
                            "50~100% / 이 비율 이상이면 블랙 판정 (기본값: 98%)"))
-        sl1.addLayout(_row("모션 억제 비율", self._black_suppress,
+        sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준", self._black_suppress,
                            "0~5.0 / 움직임 비율이 이 이상이면 블랙 억제"))
-        sl1.addLayout(_row("알람 발생까지 지속 시간(초)", self._black_dur,
+        sl1.addLayout(_row("N초 이상 지속 시 알림", self._black_dur,
                            "1~300 / 기본값 20"))
-        sl1.addLayout(_row("알람 소리 지속 시간(초)", self._black_alarm_dur,
+        sl1.addLayout(_row("알림음 재생 시간(초)", self._black_alarm_dur,
                            "1~300 / 기본값 60"))
         vl.addWidget(box1)
 
@@ -729,11 +737,11 @@ class SettingsDialog(QDialog):
                            "0~255 / 프레임 차이 기준 (기본값: 4)"))
         sl2.addLayout(_row("블록 변화 비율(%)", self._still_changed,
                            "0~100% / 이 비율 미만이면 스틸로 판정 (기본값: 10%)"))
-        sl2.addLayout(_row("히스테리시스 프레임 수", self._still_reset,
+        sl2.addLayout(_row("연속 정상 프레임 수", self._still_reset,
                            "1~10 / 연속 정상 프레임 수 (글리치 방지)"))
-        sl2.addLayout(_row("알람 발생까지 지속 시간(초)", self._still_dur,
+        sl2.addLayout(_row("N초 이상 지속 시 알림", self._still_dur,
                            "1~300 / 기본값 60"))
-        sl2.addLayout(_row("알람 소리 지속 시간(초)", self._still_alarm_dur,
+        sl2.addLayout(_row("알림음 재생 시간(초)", self._still_alarm_dur,
                            "1~300 / 기본값 60"))
         vl.addWidget(box2)
 
@@ -754,16 +762,16 @@ class SettingsDialog(QDialog):
             det.get("audio_level_alarm_duration", 60), 1, 300)
         self._audio_recovery = _float_edit(det.get("audio_level_recovery_seconds", 2.0))
         sl3.addLayout(_row("H 범위 (색조, 0~179)", self._hsv_h,
-                           "OpenCV HSV. 기본값 40~95 (초록 계열)"))
+                           "레벨미터 초록색 범위. 기본값 유지 권장"))
         sl3.addLayout(_row("S 범위 (채도, 0~255)", self._hsv_s, "기본값 80~255"))
         sl3.addLayout(_row("V 범위 (명도, 0~255)", self._hsv_v, "기본값 60~255"))
         sl3.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
-                           "1~50% / ROI 내 HSV 범위 픽셀이 이 값 이상이면 활성"))
-        sl3.addLayout(_row("알람 발생까지 지속 시간(초)", self._audio_level_dur,
+                           "1~50% / 감지영역 내 해당 색상 픽셀이 이 값 이상이면 활성"))
+        sl3.addLayout(_row("N초 이상 지속 시 알림", self._audio_level_dur,
                            "1~300 / 기본값 20"))
-        sl3.addLayout(_row("알람 소리 지속 시간(초)", self._audio_level_alarm_dur,
+        sl3.addLayout(_row("알림음 재생 시간(초)", self._audio_level_alarm_dur,
                            "1~300 / 기본값 60"))
-        sl3.addLayout(_row("복구 딜레이(초)", self._audio_recovery,
+        sl3.addLayout(_row("정상 복귀 대기 시간(초)", self._audio_recovery,
                            "0~30 / 0=즉시복구. 기본값 2"))
         vl.addWidget(box3)
 
@@ -774,9 +782,9 @@ class SettingsDialog(QDialog):
         self._emb_alarm_dur = _int_edit(det.get("embedded_alarm_duration", 60), 1, 300)
         sl4.addLayout(_row("무음 임계값(dB)", self._emb_thresh,
                            "-60~0 / 이 값 이하일 때 무음 판정. 기본값 -50"))
-        sl4.addLayout(_row("알람 발생까지 지속 시간(초)", self._emb_dur,
+        sl4.addLayout(_row("N초 이상 지속 시 알림", self._emb_dur,
                            "1~300 / 기본값 20"))
-        sl4.addLayout(_row("알람 소리 지속 시간(초)", self._emb_alarm_dur,
+        sl4.addLayout(_row("알림음 재생 시간(초)", self._emb_alarm_dur,
                            "1~300 / 기본값 60"))
         vl.addWidget(box4)
 
@@ -791,7 +799,7 @@ class SettingsDialog(QDialog):
                 self._detect_interval_combo.setCurrentIndex(i)
                 break
         sl5.addLayout(_row("감지 주기", self._detect_interval_combo,
-                           "100/200/500/1000 ms 이산값"))
+                           "짧을수록 반응 빠름, CPU 부담 증가"))
 
         self._scale_combo = QComboBox()
         for label, val in [("원본 (1.0×)", 1.0), ("0.5× 해상도", 0.5),
@@ -967,7 +975,7 @@ class SettingsDialog(QDialog):
                 prep_combo.setCurrentIndex(i)
                 break
         sl.addLayout(_row("정파준비 활성화", prep_combo,
-                          "정파 시작 X분 전에 PREPARATION 전환"))
+                          "정파 시작 X분 전에 정파준비 모드로 전환"))
         widgets["prep_minutes"] = prep_combo
 
         # 정파해제준비 활성화
@@ -988,7 +996,7 @@ class SettingsDialog(QDialog):
         # 조기 해제 트리거 시간
         exit_trig = _int_edit(grp.get("exit_trigger_sec", 5), 1, 300)
         sl.addLayout(_row("조기 해제 기준 시간(초)", exit_trig,
-                          "비-스틸이 이 시간 이상 지속 시 SIGNOFF → IDLE"))
+                          "화면이 바뀌면 이 시간 후 정파 종료"))
         widgets["exit_trigger_sec"] = exit_trig
 
         # 요일 선택
