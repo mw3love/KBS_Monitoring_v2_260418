@@ -83,7 +83,7 @@ class LevelMeterBar(QWidget):
         lit_count = round(ratio * n)
 
         for i in range(n):
-            y_top = label_h + i * (seg_h + gap)
+            y_top = i * (seg_h + gap)
             from_bottom = n - 1 - i
             if from_bottom < lit_count:
                 if i <= 1:       # top 2 — 피크/위험
@@ -98,7 +98,7 @@ class LevelMeterBar(QWidget):
 
         painter.setPen(QColor("#aaaacc"))
         painter.setFont(QFont("Segoe UI", 7, QFont.Bold))
-        painter.drawText(0, 0, w, label_h, Qt.AlignCenter, self._channel)
+        painter.drawText(0, h - label_h, w, label_h, Qt.AlignCenter, self._channel)
         painter.end()
 
 

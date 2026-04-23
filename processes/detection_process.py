@@ -100,6 +100,7 @@ def _apply_config_to_detector(detector, cfg: dict):
     detector.still_changed_ratio        = det.get("still_changed_ratio", 10.0)
     detector.still_duration             = det.get("still_duration", 60)
     detector.still_alarm_duration       = det.get("still_alarm_duration", 60)
+    detector.still_reset_frames         = det.get("still_reset_frames", 3)
     detector.audio_hsv_h_min            = det.get("audio_hsv_h_min", 40)
     detector.audio_hsv_h_max            = det.get("audio_hsv_h_max", 95)
     detector.audio_hsv_s_min            = det.get("audio_hsv_s_min", 80)
@@ -118,6 +119,8 @@ def _apply_config_to_detector(detector, cfg: dict):
     detector.scale_factor               = perf.get("scale_factor", 1.0)
     detector.black_detection_enabled    = perf.get("black_detection_enabled", True)
     detector.still_detection_enabled    = perf.get("still_detection_enabled", True)
+    detector.audio_detection_enabled    = perf.get("audio_detection_enabled", True)
+    detector.embedded_detection_enabled = perf.get("embedded_detection_enabled", True)
 
 
 def _apply_config_to_recorder(recorder, cfg: dict):
@@ -306,6 +309,9 @@ def run(result_queue, cmd_queue, shutdown_event,
     )
     audio_worker.on_silence_detected = _on_silence
     audio_worker.on_audio_chunk = _on_audio_chunk
+    audio_worker.silence_threshold_db = cfg.get("detection", {}).get(
+        "embedded_silence_threshold", -50
+    )
 
     # 볼륨/Mute 초기값 시스템 적용
     if shared_state:
@@ -339,7 +345,7 @@ def run(result_queue, cmd_queue, shutdown_event,
     log_debug(f"DetectionReady 발행 (ROI={len(video_rois)}V+{len(audio_rois)}A)")
 
     # ── 6. DIAG 상태 ─────────────────────────────────────────────────────────
-    _diag_last_t = 0.0
+    _diag_last_t = time.time()  # 첫 루프 즉시 DIAG 방지 (DetectionReady 이후 stale 오판 예방)
     _diag_interval = 30.0
     _loop_count = 0
     _drop_count_snap = 0
@@ -408,9 +414,9 @@ def run(result_queue, cmd_queue, shutdown_event,
         # ── 감지 루프 (독립 try-except) ────────────────────────────────────
         try:
             if detection_enabled and not paused_for_roi and shared_frame:
+                _loop_count += 1  # 루프 생존 카운터 (프레임 유무 무관)
                 frame = shared_frame.read_frame()
                 if frame is not None:
-                    _loop_count += 1
                     video_rois = roi_mgr.video_rois
                     audio_rois = roi_mgr.audio_rois
 
@@ -523,6 +529,10 @@ def _process_commands(
                 _apply_config_to_detector(detector, cfg)
                 _apply_config_to_recorder(recorder, cfg)
                 _apply_config_to_telegram(telegram, cfg)
+                if audio_worker:
+                    audio_worker.silence_threshold_db = cfg.get("detection", {}).get(
+                        "embedded_silence_threshold", -50
+                    )
                 new_video_file = cfg.get("video_file", "").strip()
                 new_port = cfg.get("port", 0)
                 if new_video_file != old_video_file or new_port != old_port:

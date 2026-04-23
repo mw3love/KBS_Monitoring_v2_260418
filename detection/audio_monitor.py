@@ -39,7 +39,6 @@ class AudioMonitorWorker(threading.Thread):
     CHUNK = 1024
     SAMPLE_RATE = 44100
     CHANNELS = 2
-    SILENCE_THRESHOLD_DB = -50.0
 
     def __init__(self, shared_state, result_queue):
         super().__init__(daemon=True, name="AudioMonitorWorker")
@@ -51,6 +50,7 @@ class AudioMonitorWorker(threading.Thread):
         self._volume = 1.0
         self._stereo = (self.CHANNELS == 2)
         self._lock = threading.Lock()
+        self.silence_threshold_db = -50.0  # detection_process에서 config 값으로 주입
 
         # 외부 콜백
         self.on_silence_detected = None   # callable(float)
@@ -190,7 +190,7 @@ class AudioMonitorWorker(threading.Thread):
                             pass
 
                     avg_db = (l_db + r_db) / 2.0
-                    if avg_db <= self.SILENCE_THRESHOLD_DB:
+                    if avg_db <= self.silence_threshold_db:
                         self._silence_duration += chunk_duration
                         if self.on_silence_detected is not None:
                             try:
