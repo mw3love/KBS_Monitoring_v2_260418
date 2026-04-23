@@ -546,7 +546,7 @@ class SettingsDialog(QDialog):
         btn_add = QPushButton("추가")
         btn_add.clicked.connect(lambda: self._roi_table_add(roi_type, table))
         btn_del = QPushButton("삭제")
-        btn_del.clicked.connect(lambda: self._roi_table_del(roi_type, table))
+        btn_del.clicked.connect(lambda: self._roi_table_del_last(roi_type, table))
         btn_up = QPushButton("▲ 위로")
         btn_up.clicked.connect(lambda: self._roi_table_move(roi_type, table, -1))
         btn_down = QPushButton("▼ 아래로")
@@ -566,6 +566,15 @@ class SettingsDialog(QDialog):
         else:
             self._audio_roi_table = table
         self._refresh_roi_table(roi_type)
+
+        # Del 키 → 선택 행 삭제
+        orig_kpe = table.keyPressEvent
+        def _kpe(event, _rt=roi_type, _tbl=table, _orig=orig_kpe):
+            if event.key() == Qt.Key_Delete:
+                self._roi_table_del(_rt, _tbl)
+            else:
+                _orig(event)
+        table.keyPressEvent = _kpe
 
         # 테이블 셀 편집 완료 시 즉시 반영
         table.itemChanged.connect(
@@ -669,6 +678,25 @@ class SettingsDialog(QDialog):
         for r in rows:
             if 0 <= r < len(rois):
                 rois.pop(r)
+        prefix = "V" if roi_type == "video" else "A"
+        for i, roi in enumerate(rois):
+            roi.label = f"{prefix}{i + 1}"
+        if roi_type == "video":
+            self._roi_mgr.replace_video_rois(rois)
+        else:
+            self._roi_mgr.replace_audio_rois(rois)
+        self._sync_overlay_canvas(roi_type)
+        self._refresh_roi_table(roi_type)
+        self._apply_now()
+
+    def _roi_table_del_last(self, roi_type: str, table: QTableWidget):
+        """삭제 버튼: 항상 마지막 행 삭제."""
+        self._sync_table_to_rois(roi_type, table)
+        rois = list(self._roi_mgr.video_rois if roi_type == "video"
+                    else self._roi_mgr.audio_rois)
+        if not rois:
+            return
+        rois.pop()
         prefix = "V" if roi_type == "video" else "A"
         for i, roi in enumerate(rois):
             roi.label = f"{prefix}{i + 1}"
