@@ -371,11 +371,10 @@ class SettingsDialog(QDialog):
         vl.addWidget(box2)
 
         # ── 자동 녹화 설정 ──────────────────────────────────────
-        box3, sl3 = _section("자동 녹화 설정")
         rec = self._cfg.get("recording", {})
-        self._rec_enabled_cb = QCheckBox("알림 발생 시 자동 녹화 활성화")
+        self._rec_enabled_cb = QCheckBox()
         self._rec_enabled_cb.setChecked(rec.get("enabled", True))
-        sl3.addWidget(self._rec_enabled_cb)
+        box3, sl3 = _section("자동 녹화 설정", enable_cb=self._rec_enabled_cb)
 
         dir_widget = QWidget()
         dir_hl = QHBoxLayout(dir_widget)
