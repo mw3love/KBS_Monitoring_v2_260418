@@ -3,7 +3,7 @@ HSV 듀얼 슬라이더 위젯
 두 핸들을 드래그하여 값 범위를 선택하는 슬라이더
 """
 from PySide6.QtWidgets import QWidget
-from PySide6.QtCore import Qt, Signal, QRect
+from PySide6.QtCore import Qt, Signal, QRect, QEvent
 from PySide6.QtGui import QPainter, QLinearGradient, QColor, QPen, QBrush
 
 
@@ -61,11 +61,18 @@ class DualSlider(QWidget):
         ratio = max(0.0, min(1.0, ratio))
         return self._min + int(ratio * (self._max - self._min))
 
+    def changeEvent(self, event):
+        if event.type() == QEvent.Type.EnabledChange:
+            self.update()
+        super().changeEvent(event)
+
     # ── 그리기 ────────────────────────────────────────
 
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
+        if not self.isEnabled():
+            p.setOpacity(0.3)
 
         bar_y = (self.height() - self._BAR_H) // 2
         bar_w = self.width() - self._PAD * 2

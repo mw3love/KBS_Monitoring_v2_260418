@@ -988,24 +988,24 @@ class SettingsDialog(QDialog):
         for w in widgets:
             w.setEnabled(enabled)
 
-    def _on_black_enabled_changed(self, state):
+    def _on_black_enabled_changed(self, _state):
         self._toggle_section_widgets(self._black_section_widgets,
-                                     state == Qt.Checked)
+                                     self._black_enabled_cb.isChecked())
         self._apply_now()
 
-    def _on_still_enabled_changed(self, state):
+    def _on_still_enabled_changed(self, _state):
         self._toggle_section_widgets(self._still_section_widgets,
-                                     state == Qt.Checked)
+                                     self._still_enabled_cb.isChecked())
         self._apply_now()
 
-    def _on_audio_enabled_changed(self, state):
+    def _on_audio_enabled_changed(self, _state):
         self._toggle_section_widgets(self._audio_section_widgets,
-                                     state == Qt.Checked)
+                                     self._audio_enabled_cb.isChecked())
         self._apply_now()
 
-    def _on_emb_enabled_changed(self, state):
+    def _on_emb_enabled_changed(self, _state):
         self._toggle_section_widgets(self._emb_section_widgets,
-                                     state == Qt.Checked)
+                                     self._emb_enabled_cb.isChecked())
         self._apply_now()
 
     # ─────────────────────────────────────────────────────────────────

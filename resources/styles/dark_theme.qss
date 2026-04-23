@@ -369,6 +369,14 @@ QFrame#settingsSection QComboBox:focus {
     border-color: #D97757;
 }
 
+QFrame#settingsSection QLineEdit:disabled,
+QFrame#settingsSection QComboBox:disabled,
+QFrame#settingsSection QSpinBox:disabled {
+    background-color: #1e1f23;
+    color: #45464c;
+    border-color: #25262a;
+}
+
 QFrame#settingsSection QPushButton {
     min-height: 24px;
     max-height: 28px;
