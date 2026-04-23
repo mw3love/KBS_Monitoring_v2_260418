@@ -1,0 +1,8 @@
+PySide6
+opencv-python
+numpy
+sounddevice
+psutil
+gputil
+pycaw
+requests

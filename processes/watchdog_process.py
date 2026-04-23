@@ -118,6 +118,20 @@ def run(
     def log_err(msg: str):
         logger.error(msg)
 
+    def _nodrop_put(msg, max_retry: int = 3):
+        """drop 금지 메시지 최대 3회 재시도 (docs_ipc_spec.md §2.3)."""
+        for _ in range(max_retry):
+            try:
+                result_queue.put_nowait(msg)
+                return
+            except Exception:
+                time.sleep(0.05)
+        try:
+            result_queue.get_nowait()
+            result_queue.put_nowait(msg)
+        except Exception:
+            pass
+
     def tg(msg: str):
         """비동기 없이 직접 발송 — 블로킹이지만 Watchdog은 이벤트 루프 없음."""
         _send_system_telegram(msg, logger=logger)
@@ -197,12 +211,9 @@ def run(
                     dead_pid = detection_proc.pid
                     log_err(f"Detection 비정상 종료 감지 (PID={dead_pid}) → 재spawn")
                     tg(f"KBS Monitoring v{version} Detection 중단 감지 (PID={dead_pid}) → 재spawn 중")
-                    try:
-                        from ipc.messages import DetectionCrashed
-                        result_queue.put_nowait(DetectionCrashed(
-                            dead_pid=dead_pid, reason="process_dead"))
-                    except Exception:
-                        pass
+                    from ipc.messages import DetectionCrashed
+                    _nodrop_put(DetectionCrashed(
+                        dead_pid=dead_pid, reason="process_dead", stale_sec=0.0))
                     detection_proc = _spawn_detection()
                     _spawn_count += 1
                     tg(f"KBS Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
@@ -220,15 +231,12 @@ def run(
                     stale_sec = now - hb_time
                     log_err(f"heartbeat stale ({stale_sec:.1f}초) → Detection kill 후 재spawn")
                     tg(f"KBS Monitoring v{version} Detection heartbeat stale ({stale_sec:.0f}초) → kill 후 재spawn 중")
-                    try:
-                        from ipc.messages import DetectionCrashed
-                        result_queue.put_nowait(DetectionCrashed(
-                            dead_pid=detection_proc.pid if detection_proc else 0,
-                            reason="heartbeat_stale",
-                            stale_sec=stale_sec,
-                        ))
-                    except Exception:
-                        pass
+                    from ipc.messages import DetectionCrashed
+                    _nodrop_put(DetectionCrashed(
+                        dead_pid=detection_proc.pid if detection_proc else 0,
+                        reason="heartbeat_stale",
+                        stale_sec=stale_sec,
+                    ))
                     _kill_detection(detection_proc)
                     if now - last_spawn_time >= _SPAWN_COOLDOWN:
                         detection_proc = _spawn_detection()

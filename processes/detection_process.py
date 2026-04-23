@@ -12,6 +12,8 @@ import logging
 import traceback
 from typing import Dict, Optional
 
+_log = logging.getLogger(__name__)
+
 # ── 경로 설정 (프로세스 독립 실행 시 패키지 루트 보장) ───────────────────────
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -93,7 +95,7 @@ def _apply_config_to_detector(detector, cfg: dict):
     detector.black_duration             = det.get("black_duration", 20)
     detector.black_alarm_duration       = det.get("black_alarm_duration", 60)
     detector.black_motion_suppress_ratio = det.get("black_motion_suppress_ratio", 0.2)
-    detector.still_threshold            = det.get("still_threshold", 8)
+    detector.still_changed_ratio         = det.get("still_changed_ratio", 10.0)
     detector.still_duration             = det.get("still_duration", 60)
     detector.still_alarm_duration       = det.get("still_alarm_duration", 60)
     detector.audio_hsv_h_min            = det.get("audio_hsv_h_min", 40)
@@ -723,8 +725,8 @@ def _run_diag(
             "paused_for_roi": paused_for_roi,
             "loop_jitter_ms": round(loop_jitter_ms, 2),
         })
-    except Exception:
-        pass
+    except Exception as e:
+        _log.error(f"SYSTEM-HB DIAG 실패: {e}")
 
     try:
         raw = detector._last_raw
@@ -737,8 +739,8 @@ def _run_diag(
             }
             for lbl, v in raw.items()
         })
-    except Exception:
-        pass
+    except Exception as e:
+        _log.error(f"DIAG-V 실패: {e}")
 
     try:
         alarm_payload = {}
@@ -758,8 +760,8 @@ def _run_diag(
                 "duration": round(state.alert_duration, 1),
             }
         emit("DIAG-ALARM", alarm_payload)
-    except Exception:
-        pass
+    except Exception as e:
+        _log.error(f"DIAG-ALARM 실패: {e}")
 
     try:
         signoff_payload = {}
@@ -773,8 +775,8 @@ def _run_diag(
                 "elapsed": round(signoff_mgr.get_elapsed_seconds(gid), 1),
             }
         emit("DIAG-SIGNOFF", signoff_payload)
-    except Exception:
-        pass
+    except Exception as e:
+        _log.error(f"DIAG-SIGNOFF 실패: {e}")
 
     try:
         emit("DIAG-AUDIO", {
@@ -782,8 +784,8 @@ def _run_diag(
             "silence_sec": round(getattr(audio_worker, "_silence_duration", 0.0), 1),
             "embedded_alerting": detector.embedded_alerting,
         })
-    except Exception:
-        pass
+    except Exception as e:
+        _log.error(f"DIAG-AUDIO 실패: {e}")
 
     try:
         emit("DIAG-IPC", {
@@ -792,8 +794,8 @@ def _run_diag(
             "result_qsize":   result_queue.qsize() if hasattr(result_queue, "qsize") else -1,
             "cmd_qsize":      0,
         })
-    except Exception:
-        pass
+    except Exception as e:
+        _log.error(f"DIAG-IPC 실패: {e}")
 
     try:
         emit("DIAG-TELEGRAM", {
@@ -802,8 +804,8 @@ def _run_diag(
             "consecutive_failures": telegram._consecutive_failures,
             "worker_alive":         telegram._worker_thread.is_alive(),
         })
-    except Exception:
-        pass
+    except Exception as e:
+        _log.error(f"DIAG-TELEGRAM 실패: {e}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

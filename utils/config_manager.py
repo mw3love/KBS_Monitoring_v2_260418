@@ -33,6 +33,7 @@ DEFAULT_CONFIG = {
         "embedded_silence_threshold": -50,
         "embedded_silence_duration": 20,
         "embedded_alarm_duration": 60,
+        # 향후 오디오 톤 감지 기능 확장용 (현재 미사용)
         "audio_tone_std_threshold": 3.0,
         "audio_tone_duration": 60.0,
         "audio_tone_min_level": 5.0,

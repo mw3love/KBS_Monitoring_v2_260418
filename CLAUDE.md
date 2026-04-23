@@ -34,22 +34,14 @@
 - 루트 CLAUDE.md는 전체 아키텍처·공통 규칙만 유지
 - 하위 CLAUDE.md는 Claude Code가 해당 폴더 작업 시 자동으로 로드됨 (별도 참조 불필요)
 
-### v1 코드 이식 규칙
-- v1 코드 이식 시, `QThread` / `QTimer` / `Signal` / `QObject` 잔재 여부를 체크 후 보고할 것
-- Detection 프로세스에 이식하는 코드는 PySide6 임포트가 없는지 반드시 확인
-- 이식 후 변경사항 목록을 사용자에게 보고할 것
-
 ## 개발 규칙
 - 모든 응답은 한국어
 - PySide6 사용 (PyQt 아님)
 - 다크 모드 UI 기본
-- 색상 원칙: 정상=색 없음(기본 배경/텍스트), 이상=빨간색만 사용 (초록색 금지)
-  - 예외: `ui/log_widget.py`의 로그 타입 구분 색상은 시각 구별을 위해 허용
-    (블랙이상=빨간 #cc0000, 스틸이상=보라 #7B2FBE, 오디오레벨미터=초록 #006600, 임베디드=파란 #004488)
+- 색상 원칙·QSpinBox 금지: `ui/CLAUDE.md` 참조
 - 파일 인코딩: UTF-8
 - 들여쓰기: 4 spaces
 - docstring: 한국어
-- QSpinBox 위아래 버튼 사용 금지
 
 ## 용어
 - ROI → "감지영역"으로 통일
@@ -96,7 +88,7 @@ Watchdog Process  (Detection의 spawn 주체)
   ├─ main(UI) 생존 확인 (30초 주기 psutil.pid_exists) → 죽으면 Detection 정리 + 자신 종료
   └─ shutdown_event set 시 "의도된 종료" 플래그 ON → false-positive respawn 방지
 
-Detection Process (PySide6 임포트 금지)
+Detection Process (PySide6 임포트 금지 — 세부 규칙은 detection/CLAUDE.md)
   ├─ 기동 시 config/kbs_config.json 자체 로드 (fast start)
   ├─ DetectionReady 이벤트 발행 (최초 + 재spawn 직후 각 1회)
   ├─ VideoCaptureWorker   (threading.Thread)
@@ -138,40 +130,40 @@ Detection Process (PySide6 임포트 금지)
 ## 파일 구조
 ```
 kbs_monitoring_v2/
-├── main.py                          # Launcher (faulthandler 활성화 포함)
-├── data/                            # 런타임 상태 파일 (gitignore)
-│   ├── heartbeat.dat                # 바이너리 8바이트: time.time() double
-│   └── last_exit.json               # {"exit_time","exit_code","reason","pid"}
+├── main.py
+├── data/
+│   ├── heartbeat.dat
+│   └── last_exit.json
 ├── processes/
-│   ├── detection_process.py         # Detection 프로세스 진입점 + 메인 루프
-│   └── watchdog_process.py          # Watchdog 프로세스
+│   ├── detection_process.py
+│   └── watchdog_process.py
 ├── ipc/
-│   ├── shared_frame.py              # SharedMemory 프레임 버퍼 래퍼
-│   ├── shared_state.py              # SharedMemory 상태 버퍼 래퍼
-│   └── messages.py                  # Queue 메시지 dataclass 정의
+│   ├── shared_frame.py
+│   ├── shared_state.py
+│   └── messages.py
 ├── detection/
-│   ├── video_capture.py             # VideoCaptureWorker (threading.Thread)
-│   ├── audio_monitor.py             # AudioMonitorWorker (threading.Thread)
-│   ├── detector.py                  # DetectionEngine
-│   ├── detection_state.py           # DetectionState (히스테리시스)
-│   ├── signoff_manager.py           # SignoffManager
-│   ├── auto_recorder.py             # 순환버퍼 + ffmpeg
-│   └── telegram_worker.py           # HTTP 전송 스레드
+│   ├── video_capture.py
+│   ├── audio_monitor.py
+│   ├── detector.py
+│   ├── detection_state.py
+│   ├── signoff_manager.py
+│   ├── auto_recorder.py
+│   └── telegram_worker.py
 ├── ui/
-│   ├── main_window.py               # MainWindow (3분할, IPC 연결)
-│   ├── ui_bridge.py                 # result_queue → Qt Signal (QThread)
-│   ├── alarm.py                     # AlarmSystem (시각/청각 알림, UI 프로세스 전용)
-│   ├── top_bar.py                   # 상단 바
-│   ├── video_widget.py              # 프레임 표시 + ROI 오버레이
-│   ├── log_widget.py                # 시스템 로그
-│   ├── settings_dialog.py           # 7탭 설정 (비모달)
-│   ├── roi_editor.py                # ROI 편집 캔버스 (설정창+영상 동시 표시)
-│   └── dual_slider.py               # HSV 듀얼 슬라이더
+│   ├── main_window.py
+│   ├── ui_bridge.py
+│   ├── alarm.py
+│   ├── top_bar.py
+│   ├── video_widget.py
+│   ├── log_widget.py
+│   ├── settings_dialog.py
+│   ├── roi_editor.py
+│   └── dual_slider.py
 ├── core/
-│   └── roi_manager.py               # ROI dataclass + ROIManager
+│   └── roi_manager.py
 ├── utils/
-│   ├── config_manager.py            # JSON 설정 저장/불러오기
-│   └── logger.py                    # 파일 로그 (일별 로테이션)
+│   ├── config_manager.py
+│   └── logger.py
 ├── config/
 │   └── default_config.json
 └── resources/
@@ -185,28 +177,6 @@ kbs_monitoring_v2/
 
 ## 핵심 설계 원칙
 
-### Detection 프로세스 절대 규칙
-- **PySide6 임포트 금지** (Qt 이벤트 루프 없음)
-- QThread, QTimer, Signal/Slot 사용 금지
-- 메인 루프: `while running: ... time.sleep(0.200 - elapsed)`
-- 예외 발생 시 로그 후 루프 계속 (루프 탈출 금지)
-- DIAG 블록과 감지 블록은 반드시 독립된 try-except로 분리
-
-```python
-# 올바른 패턴
-while self._running:
-    t = time.monotonic()
-    try:
-        _run_diag_if_needed()
-    except Exception as e:
-        log_error(str(e))
-    try:
-        _run_detection_once()
-    except Exception as e:
-        log_error(str(e))
-    time.sleep(max(0, 0.200 - (time.monotonic() - t)))
-```
-
 ### Windows multiprocessing 필수 조건
 ```python
 # main.py 최상단 — 없으면 Windows에서 무한 재spawn 발생
@@ -215,90 +185,14 @@ if __name__ == '__main__':
     main()
 ```
 
-### 히스테리시스 원칙 (v1에서 이식)
-- 경보 전/후 대칭 적용
-- SignoffManager: IDLE 진입 시 `_reset_enter_timers()`, SIGNOFF 진입 시 `_reset_exit_timers()`
-- still_reset_frames: 연속 정상 프레임 카운터 (글리치 방지)
-
-### AlarmSystem 위치
-- UI 프로세스에만 존재 (winsound는 Windows GUI 스레드 연관)
-- trigger/resolve는 UIBridge.alarm_event_received Signal로 수신
-
 ### SharedMemory read_frame() 규칙
 - 반드시 `.copy()` 후 반환 (SharedMemory 해제 시 원본 참조 무효화 방지)
 
-### v1에서 그대로 이식 가능한 파일
-| v1 | v2 | 주요 변경 |
-|----|----|----|
-| `core/detector.py` | `detection/detector.py` | Signal 제거, dict 반환 |
-| `core/detection_state.py` | `detection/detection_state.py` | Signal 제거 |
-| `core/signoff_manager.py` | `detection/signoff_manager.py` | QTimer → time.sleep(1) (1초 주기 상태 점검) |
-| `core/auto_recorder.py` | `detection/auto_recorder.py` | 거의 없음 |
-| `core/telegram_notifier.py` | `detection/telegram_worker.py` | QObject 제거 |
-| `core/roi_manager.py` | `core/roi_manager.py` | 없음 |
-| `ui/video_widget.py` | `ui/video_widget.py` | 프레임 소스만 변경 |
-| `ui/log_widget.py` | `ui/log_widget.py` | 없음 |
-| `ui/dual_slider.py` | `ui/dual_slider.py` | 없음 |
-| `utils/` | `utils/` | 거의 없음 |
-
-### 새로 작성하는 파일 (v2 신규)
-- `main.py`, `processes/*`, `ipc/*`, `ui/ui_bridge.py`, `ui/main_window.py`
-
----
-
-## v1 반복 버그에서 도출한 추가 원칙
-
-### 예외 처리 원칙
-- 모든 DIAG 섹션은 반드시 독립된 try-except로 격리 (하나 실패해도 나머지 계속)
-- `traceback.format_exc()` 호출 자체도 inner-try로 보호 (호출 실패 시 에러 정보 소실 방지)
-- `threading.Thread.start()` 실패 시 OSError를 반드시 로그에 기록
-
-### PySide6 QWidget 생성 규칙 (v1 ui/CLAUDE.md 이식)
-- `QScrollArea` 사용 시: `QWidget()` 생성 직후 **즉시** `setWidget()` 호출 (GC 삭제 방지)
-- 레이아웃 변수명은 역할별로 명확하게 (`inner`, `layout` 같은 범용 이름 재사용 금지)
-  - 잘못된 예: `layout = QVBoxLayout()` → 이후 `layout = QHBoxLayout()` 덮어쓰기 → 이전 위젯 GC 삭제
-  - 올바른 예: `scroll_layout = QVBoxLayout()`, `button_row = QHBoxLayout()`
-
-### 상태 전환 타이머 초기화 원칙
-- SignoffManager 상태 전환 시 반드시 해당 방향의 타이머 초기화 함수 호출
-  - IDLE 진입 시: `_reset_enter_timers()` (미호출 시 다음 날 PREPARATION 즉시 SIGNOFF 전환 버그)
-  - SIGNOFF 진입 시: `_reset_exit_timers()` (미호출 시 이전 주기 stale 타이머 잔류)
-
-### 설정 동기화 원칙
-- 파라미터 추가·변경 시 반드시 3파일 동시 업데이트:
-  1. `config/default_config.json` — 새 설치 기본값
-  2. `utils/config_manager.py` `DEFAULT_CONFIG` — 런타임 fallback
-  3. `config/kbs_config.json` — 현재 운영 설정 (값 확인)
-- 설정 갱신 후 즉시 진단 로그 기록 (silent 실패 방지)
-
-### 예약 재시작 중복 방지 원칙
-- 중복 실행 방지는 시각(HH:MM)이 아닌 **날짜+시각(YYYY-MM-DD HH:MM)** 조합으로 관리
-  - 시각만으로 방지 시 매일 같은 시각에 재시작 불가
-
-### 정파 억제 규칙
-- 억제는 그룹별로만 적용: `is_signoff_label(label, group_id)` 사용
-- 임베디드 오디오는 그룹 귀속이 없으므로 정파 억제 적용 불가 (`is_any_signoff()` 금지)
-- PREPARATION 상태: 스틸만 억제, 블랙은 계속 알림
-
-### faulthandler 필수 적용
-- `main.py` 시작 시 반드시 `faulthandler.enable(file=open("logs/fault.log", "a"))` 적용
-- Python try-except는 C++ 레벨 segfault 감지 불가 → faulthandler만 감지 가능
+> Detection·UI 프로세스별 추가 원칙은 `detection/CLAUDE.md`, `ui/CLAUDE.md` 참조.
 
 ---
 
 ## 프로세스 책임 분담
-
-### 오디오 서브시스템 (Detection 프로세스 단독)
-- `sounddevice` 스트림 오픈/읽기
-- `pycaw` 시스템 볼륨/Mute 제어
-- UI는 `cmd_queue`로 `SetVolume(value)`, `SetMute(bool)` 명령만 전송
-- 근거: 오디오 스트림과 시스템 볼륨을 서로 다른 프로세스에서 제어 시 충돌 위험
-
-### 알림 상태(Acknowledge)
-- **UI 프로세스에만 존재** (`ui/alarm.py`의 `AlarmSystem`이 보관)
-- Detection은 trigger/resolve 이벤트만 계속 발행 (ack 상태 모름)
-- UI는 동일 라벨 재trigger 시 사운드/깜빡임 억제, resolve 수신 시 ack 해제
-- 근거: Detection은 "감지 중", UI는 "사용자 알림 중" — 관심사 분리
 
 ### 로그 파일 분리 (Windows 동시 쓰기 충돌 방지)
 - Detection: `logs/YYYYMMDD_detection.txt`

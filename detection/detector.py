@@ -34,7 +34,7 @@ class Detector:
         self.black_motion_suppress_ratio = 0.2
 
         self.still_threshold = 4
-        self.still_block_threshold = 10.0
+        self.still_changed_ratio = 10.0
         self.still_duration = 10.0
         self.still_alarm_duration = 10.0
         self.still_reset_frames = 3
@@ -75,7 +75,7 @@ class Detector:
         rows, cols = 5, 5
         row_edges = np.linspace(0, bh, rows + 1, dtype=int)
         col_edges = np.linspace(0, bw, cols + 1, dtype=int)
-        threshold = self.still_block_threshold
+        threshold = self.still_changed_ratio
         for r in range(rows):
             for c in range(cols):
                 block = changed_mask[row_edges[r]:row_edges[r + 1],
