@@ -417,12 +417,8 @@ QFrame#settingsSection QPushButton:disabled {
     color: #45464c;
 }
 
-QFrame#settingsSection:disabled QLabel {
+QFrame#settingsSection QLabel:disabled {
     color: #45464c;
-}
-
-QFrame#settingsSection:disabled {
-    border-color: #25262a;
 }
 
 /* ── 설정창 공통 액션 버튼 ──────────────────────────────────────── */

@@ -1285,13 +1285,12 @@ class SettingsDialog(QDialog):
             cb.setChecked(d_idx in cur_days)
             day_hl.addWidget(cb)
             day_cbs.append(cb)
-        def _toggle_all_days(cbs=day_cbs):
+        def _toggle_all_days(checked=False, cbs=day_cbs):
             all_checked = all(cb.isChecked() for cb in cbs)
             for cb in cbs:
                 cb.setChecked(not all_checked)
         btn_day_toggle = QPushButton("전체 선택")
         btn_day_toggle.setObjectName("btnNeutral")
-        btn_day_toggle.setFixedWidth(60)
         btn_day_toggle.clicked.connect(_toggle_all_days)
 
         def _update_toggle_label(cbs=day_cbs, btn=btn_day_toggle):
