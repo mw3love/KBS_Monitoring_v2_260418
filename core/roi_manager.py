@@ -50,8 +50,6 @@ class ROI:
 class ROIManager:
     """감지영역 목록을 관리하는 클래스"""
 
-    MAX_SIZE = (500, 300)  # 최대 감지영역 크기
-
     def __init__(self):
         self._video_rois: List[ROI] = []
         self._audio_rois: List[ROI] = []
@@ -67,8 +65,6 @@ class ROIManager:
     def add_video_roi(self, x: int, y: int, w: int, h: int, media_name: str = "") -> ROI:
         """영상 감지영역 추가"""
         idx = len(self._video_rois) + 1
-        w = min(w, self.MAX_SIZE[0])
-        h = min(h, self.MAX_SIZE[1])
         roi = ROI(label=f"V{idx}", media_name=media_name, x=x, y=y, w=w, h=h, roi_type="video")
         self._video_rois.append(roi)
         self._relabel_video()

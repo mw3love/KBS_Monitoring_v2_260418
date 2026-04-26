@@ -110,12 +110,12 @@ class DualSlider(QWidget):
 
     def _fill_gradient(self, grad: QLinearGradient):
         if self._gradient_type == "hue":
-            # H: 0~179 (OpenCV) → QColor.fromHsv (0~359)
-            steps = 24
+            # OpenCV H=0~179 → Qt H=0~359 (H*2)
+            steps = 36
             for i in range(steps + 1):
                 pos = i / steps
-                hue = int(pos * 179 * 2)  # OpenCV H*2 → 0~358
-                grad.setColorAt(pos, QColor.fromHsv(hue, 220, 210))
+                hue = int(pos * 359)
+                grad.setColorAt(pos, QColor.fromHsv(hue, 255, 230))
         elif self._gradient_type == "saturation":
             # 무채색 → 채도 최대
             grad.setColorAt(0.0, QColor(210, 210, 210))

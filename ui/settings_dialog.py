@@ -115,6 +115,42 @@ def _row(label_text: str, widget: QWidget, hint: str = "") -> QHBoxLayout:
     return h
 
 
+def _hsv_row(label_text: str, slider: "DualSlider",
+             hint: str = "") -> "tuple[QHBoxLayout, QLineEdit, QLineEdit]":
+    """HSV 슬라이더 행: label + slider + min_edit ~ max_edit + hint.
+    (layout, min_edit, max_edit) 반환."""
+    h = QHBoxLayout()
+    h.setContentsMargins(0, 0, 0, 0)
+    h.setSpacing(8)
+    lbl = QLabel(label_text)
+    lbl.setObjectName("settingsRowLabel")
+    lbl.setFixedWidth(180)
+    h.addWidget(lbl)
+    h.addWidget(slider, 1)
+    lo_val, hi_val = slider.get_range()
+    min_edit = QLineEdit(str(lo_val))
+    min_edit.setFixedWidth(44)
+    min_edit.setAlignment(Qt.AlignCenter)
+    min_edit.setObjectName("hsvValueEdit")
+    sep = QLabel("~")
+    sep.setFixedWidth(10)
+    sep.setAlignment(Qt.AlignCenter)
+    max_edit = QLineEdit(str(hi_val))
+    max_edit.setFixedWidth(44)
+    max_edit.setAlignment(Qt.AlignCenter)
+    max_edit.setObjectName("hsvValueEdit")
+    h.addWidget(min_edit)
+    h.addWidget(sep)
+    h.addWidget(max_edit)
+    if hint:
+        d = QLabel(hint)
+        d.setObjectName("settingsDesc")
+        h.addWidget(d, 1)
+    else:
+        h.addStretch(1)
+    return h, min_edit, max_edit
+
+
 def _file_row(label_text: str, edit: QLineEdit,
               browse_cb, test_cb=None) -> QHBoxLayout:
     """파일 경로 편집 + 찾아보기 [테스트] 버튼 행"""
@@ -519,12 +555,28 @@ class SettingsDialog(QDialog):
         shortcut_lbl.setTextFormat(Qt.RichText)
         vl.addWidget(shortcut_lbl)
 
+        # ROI 개수 카운터 라벨
+        count_lbl = QLabel()
+        count_lbl.setObjectName("roiCountLabel")
+        count_lbl.setStyleSheet("color: #888; font-size: 11px;")
+        if roi_type == "video":
+            self._video_roi_count_lbl = count_lbl
+        else:
+            self._audio_roi_count_lbl = count_lbl
+        vl.addWidget(count_lbl)
+
         # ROI 테이블
         table = QTableWidget()
         table.setObjectName("roiTable")
         table.setColumnCount(6)
         table.setHorizontalHeaderLabels(["라벨", "매체명", "X", "Y", "W", "H"])
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        hdr = table.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.Fixed)
+        table.setColumnWidth(0, 48)
+        hdr.setSectionResizeMode(1, QHeaderView.Stretch)
+        for _col in (2, 3, 4, 5):
+            hdr.setSectionResizeMode(_col, QHeaderView.Fixed)
+            table.setColumnWidth(_col, 60)
         table.setSelectionBehavior(QAbstractItemView.SelectRows)
         table.setEditTriggers(QAbstractItemView.DoubleClicked)
         table.verticalHeader().setVisible(False)
@@ -536,7 +588,7 @@ class SettingsDialog(QDialog):
         btn_add = QPushButton("추가")
         btn_add.clicked.connect(lambda: self._roi_table_add(roi_type, table))
         btn_del = QPushButton("삭제")
-        btn_del.clicked.connect(lambda: self._roi_table_del_last(roi_type, table))
+        btn_del.clicked.connect(lambda: self._roi_table_del(roi_type, table))
         btn_up = QPushButton("▲ 위로")
         btn_up.clicked.connect(lambda: self._roi_table_move(roi_type, table, -1))
         btn_down = QPushButton("▼ 아래로")
@@ -588,6 +640,16 @@ class SettingsDialog(QDialog):
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 table.setItem(i, col, item)
         table.blockSignals(False)
+        # 개수 카운터 갱신
+        count_lbl = (self._video_roi_count_lbl if roi_type == "video"
+                     else self._audio_roi_count_lbl)
+        n = len(rois)
+        if n == 0:
+            count_lbl.setText("감지영역  0개 (등록된 영역 없음)")
+            count_lbl.setStyleSheet("color: #666; font-size: 11px;")
+        else:
+            count_lbl.setText(f"감지영역  {n}개 등록됨")
+            count_lbl.setStyleSheet("color: #aaa; font-size: 11px;")
 
     def _toggle_roi_editor(self, roi_type: str, checked: bool, btn: QPushButton):
         """편집 버튼 토글: ON→오버레이 열기, OFF→오버레이 닫기."""
@@ -662,31 +724,15 @@ class SettingsDialog(QDialog):
         self._sync_table_to_rois(roi_type, table)
         rows = sorted(set(i.row() for i in table.selectedItems()), reverse=True)
         if not rows:
-            return
+            # 선택 없으면 마지막 행 폴백
+            if table.rowCount() == 0:
+                return
+            rows = [table.rowCount() - 1]
         rois = list(self._roi_mgr.video_rois if roi_type == "video"
                     else self._roi_mgr.audio_rois)
         for r in rows:
             if 0 <= r < len(rois):
                 rois.pop(r)
-        prefix = "V" if roi_type == "video" else "A"
-        for i, roi in enumerate(rois):
-            roi.label = f"{prefix}{i + 1}"
-        if roi_type == "video":
-            self._roi_mgr.replace_video_rois(rois)
-        else:
-            self._roi_mgr.replace_audio_rois(rois)
-        self._sync_overlay_canvas(roi_type)
-        self._refresh_roi_table(roi_type)
-        self._apply_now()
-
-    def _roi_table_del_last(self, roi_type: str, table: QTableWidget):
-        """삭제 버튼: 항상 마지막 행 삭제."""
-        self._sync_table_to_rois(roi_type, table)
-        rois = list(self._roi_mgr.video_rois if roi_type == "video"
-                    else self._roi_mgr.audio_rois)
-        if not rois:
-            return
-        rois.pop()
         prefix = "V" if roi_type == "video" else "A"
         for i, roi in enumerate(rois):
             roi.label = f"{prefix}{i + 1}"
@@ -868,10 +914,15 @@ class SettingsDialog(QDialog):
         self._audio_level_alarm_dur = _int_edit(
             det.get("audio_level_alarm_duration", 60), 1, 300)
         self._audio_recovery = _float_edit(det.get("audio_level_recovery_seconds", 2.0))
-        sl3.addLayout(_row("H 범위 (색조, 0~179)", self._hsv_h,
-                           "레벨미터 초록색 범위. 기본값 유지 권장"))
-        sl3.addLayout(_row("S 범위 (채도, 0~255)", self._hsv_s, "기본값 80~255"))
-        sl3.addLayout(_row("V 범위 (명도, 0~255)", self._hsv_v, "기본값 60~255"))
+        _row_h, self._hsv_h_min, self._hsv_h_max = _hsv_row(
+            "H 범위 (색조, 0~179)", self._hsv_h, "초록=40~95 / 기본값 유지 권장")
+        _row_s, self._hsv_s_min, self._hsv_s_max = _hsv_row(
+            "S 범위 (채도, 0~255)", self._hsv_s, "기본값 80~255")
+        _row_v, self._hsv_v_min, self._hsv_v_max = _hsv_row(
+            "V 범위 (명도, 0~255)", self._hsv_v, "기본값 60~255")
+        sl3.addLayout(_row_h)
+        sl3.addLayout(_row_s)
+        sl3.addLayout(_row_v)
         sl3.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
                            "1~50% / 감지영역 내 해당 색상 픽셀이 이 값 이상이면 활성"))
         sl3.addLayout(_row("이상 지속 후 알림(초)", self._audio_level_dur,
@@ -884,6 +935,9 @@ class SettingsDialog(QDialog):
         self._audio_section_widgets = (
             btn_preset_std, btn_preset_wide,
             self._hsv_h, self._hsv_s, self._hsv_v,
+            self._hsv_h_min, self._hsv_h_max,
+            self._hsv_s_min, self._hsv_s_max,
+            self._hsv_v_min, self._hsv_v_max,
             self._audio_pixel_ratio, self._audio_level_dur,
             self._audio_level_alarm_dur, self._audio_recovery,
         )
@@ -952,9 +1006,33 @@ class SettingsDialog(QDialog):
                      self._audio_level_alarm_dur, self._audio_recovery,
                      self._emb_thresh, self._emb_dur, self._emb_alarm_dur):
             edit.editingFinished.connect(self._apply_now)
+        # 슬라이더 → 입력 필드 동기화
+        def _sync_h(lo, hi): self._hsv_h_min.setText(str(lo)); self._hsv_h_max.setText(str(hi))
+        def _sync_s(lo, hi): self._hsv_s_min.setText(str(lo)); self._hsv_s_max.setText(str(hi))
+        def _sync_v(lo, hi): self._hsv_v_min.setText(str(lo)); self._hsv_v_max.setText(str(hi))
+        self._hsv_h.range_changed.connect(_sync_h)
+        self._hsv_s.range_changed.connect(_sync_s)
+        self._hsv_v.range_changed.connect(_sync_v)
         self._hsv_h.range_changed.connect(self._apply_now)
         self._hsv_s.range_changed.connect(self._apply_now)
         self._hsv_v.range_changed.connect(self._apply_now)
+
+        # 입력 필드 → 슬라이더 동기화
+        def _edit_to_h():
+            try: self._hsv_h.set_range(int(self._hsv_h_min.text()), int(self._hsv_h_max.text()))
+            except ValueError: pass
+        def _edit_to_s():
+            try: self._hsv_s.set_range(int(self._hsv_s_min.text()), int(self._hsv_s_max.text()))
+            except ValueError: pass
+        def _edit_to_v():
+            try: self._hsv_v.set_range(int(self._hsv_v_min.text()), int(self._hsv_v_max.text()))
+            except ValueError: pass
+        self._hsv_h_min.editingFinished.connect(_edit_to_h)
+        self._hsv_h_max.editingFinished.connect(_edit_to_h)
+        self._hsv_s_min.editingFinished.connect(_edit_to_s)
+        self._hsv_s_max.editingFinished.connect(_edit_to_s)
+        self._hsv_v_min.editingFinished.connect(_edit_to_v)
+        self._hsv_v_max.editingFinished.connect(_edit_to_v)
 
         def _apply_hsv_preset(h_min, h_max, s_min, s_max, v_min, v_max):
             self._hsv_h.set_range(h_min, h_max)
