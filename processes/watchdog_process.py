@@ -139,8 +139,15 @@ def run(
             log_err(f"result_queue 심각 문제 → {type(msg).__name__} 저장 실패: {e}")
 
     def tg(msg: str):
-        """비동기 없이 직접 발송 — 블로킹이지만 Watchdog은 이벤트 루프 없음."""
-        _send_system_telegram(msg, logger=logger)
+        """daemon 스레드로 비동기 발송 — 블로킹 시 heartbeat 감시·shutdown 체크 지연 방지."""
+        import threading
+        threading.Thread(
+            target=_send_system_telegram,
+            args=(msg,),
+            kwargs={"logger": logger},
+            daemon=True,
+            name="WatchdogTelegram",
+        ).start()
 
     log(f"Watchdog 시작 (PID={os.getpid()}, parent={parent_pid})")
 
@@ -205,7 +212,7 @@ def run(
             last_parent_check = now
             if PSUTIL_AVAILABLE and not psutil.pid_exists(parent_pid):
                 log_err(f"UI 프로세스(PID={parent_pid}) 사라짐 → Watchdog 종료")
-                tg(f"KBS Monitoring v{version} UI 비정상 종료 감지 (PID={parent_pid}) → Detection 정리 후 Watchdog 종료")
+                tg(f"KBS On-Air Monitoring v{version} UI 비정상 종료 감지 (PID={parent_pid}) → Detection 정리 후 Watchdog 종료")
                 _kill_detection(detection_proc)
                 break
 
@@ -216,12 +223,12 @@ def run(
                 if elapsed >= _SPAWN_COOLDOWN:
                     dead_pid = detection_proc.pid
                     log_err(f"Detection 비정상 종료 감지 (PID={dead_pid}) → 재spawn")
-                    tg(f"KBS Monitoring v{version} Detection 중단 감지 (PID={dead_pid}) → 재spawn 중")
+                    tg(f"KBS On-Air Monitoring v{version} Detection 중단 감지 (PID={dead_pid}) → 재spawn 중")
                     _nodrop_put(DetectionCrashed(
                         dead_pid=dead_pid, reason="process_dead", stale_sec=0.0))
                     detection_proc = _spawn_detection()
                     _spawn_count += 1
-                    tg(f"KBS Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
+                    tg(f"KBS On-Air Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
                     last_hb_value = 0.0
                     last_hb_check = now
                 else:
@@ -235,7 +242,7 @@ def run(
                 if not _intentional_shutdown:
                     stale_sec = now - hb_time
                     log_err(f"heartbeat stale ({stale_sec:.1f}초) → Detection kill 후 재spawn")
-                    tg(f"KBS Monitoring v{version} Detection heartbeat stale ({stale_sec:.0f}초) → kill 후 재spawn 중")
+                    tg(f"KBS On-Air Monitoring v{version} Detection heartbeat stale ({stale_sec:.0f}초) → kill 후 재spawn 중")
                     _nodrop_put(DetectionCrashed(
                         dead_pid=detection_proc.pid if detection_proc else 0,
                         reason="heartbeat_stale",
@@ -245,7 +252,7 @@ def run(
                     if now - last_spawn_time >= _SPAWN_COOLDOWN:
                         detection_proc = _spawn_detection()
                         _spawn_count += 1
-                        tg(f"KBS Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
+                        tg(f"KBS On-Air Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
                         last_hb_value = 0.0
 
         time.sleep(1.0)

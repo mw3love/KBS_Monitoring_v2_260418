@@ -119,7 +119,7 @@ def main():
     from ui.main_window import MainWindow
 
     app = QApplication(sys.argv)
-    app.setApplicationName("KBS Monitoring v2")
+    app.setApplicationName("KBS On-Air Monitoring")
     app.setOrganizationName("KBS")
 
     window = MainWindow(
@@ -215,7 +215,7 @@ def main():
             label = now.strftime("%Y-%m-%d %H:%M")
             print(f"[main] 예약 재시작 실행: {label}", flush=True)
             _send_system_telegram_main(
-                f"KBS Monitoring v2 예약 재시작 실행 ({label})"
+                f"KBS On-Air Monitoring v2 예약 재시작 실행 ({label})"
             )
             window.close()
         except Exception:
@@ -246,7 +246,7 @@ def main():
 
         if watchdog_abnormal:
             _send_system_telegram_main(
-                "KBS Monitoring v2 Watchdog 비정상 종료 감지 — 수동 점검 필요"
+                "KBS On-Air Monitoring v2 Watchdog 비정상 종료 감지 — 수동 점검 필요"
             )
 
         # last_exit.json 기록

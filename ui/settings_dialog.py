@@ -45,7 +45,7 @@ class _TelegramTestWorker(QThread):
             url = f"https://api.telegram.org/bot{self._token}/sendMessage"
             resp = requests.post(
                 url,
-                data={"chat_id": self._chat_id, "text": "[KBS Monitoring v2] 연결 테스트"},
+                data={"chat_id": self._chat_id, "text": "[KBS On-Air Monitoring] 연결 테스트"},
                 timeout=5,
             )
             if resp.ok:
@@ -249,11 +249,15 @@ class SignoffROIDialog(QDialog):
         for roi in all_rois:
             cb = QCheckBox(f"{roi.label} [{roi.media_name}]" if roi.media_name else roi.label)
             cb.setChecked(roi.label in suppressed)
+            cb.setToolTip("")
             vl.addWidget(cb)
             self._suppress_checks.append((roi.label, cb))
 
         if not all_rois:
             vl.addWidget(QLabel("(감지영역 없음)"))
+
+        self._enter_combo.currentIndexChanged.connect(self._sync_trigger_checkbox)
+        self._sync_trigger_checkbox()
 
         vl.addStretch()
         btn_row = QHBoxLayout()
@@ -266,9 +270,24 @@ class SignoffROIDialog(QDialog):
         btn_row.addWidget(btn_cancel)
         vl.addLayout(btn_row)
 
+    def _sync_trigger_checkbox(self):
+        """진입 트리거로 선택된 ROI의 억제 체크박스를 자동 체크·비활성화."""
+        trigger_label = self._enter_combo.currentData() or ""
+        for label, cb in self._suppress_checks:
+            if label == trigger_label:
+                cb.setChecked(True)
+                cb.setEnabled(False)
+                cb.setToolTip("진입 트리거 항목은 자동으로 억제됩니다")
+            else:
+                cb.setEnabled(True)
+                cb.setToolTip("")
+
     def get_result(self) -> dict:
         enter_label = self._enter_combo.currentData() or ""
         suppressed = [label for label, cb in self._suppress_checks if cb.isChecked()]
+        # 진입 트리거가 억제 목록에 누락되지 않도록 보장
+        if enter_label and enter_label not in suppressed:
+            suppressed.append(enter_label)
         return {
             "enter_roi": {"video_label": enter_label},
             "suppressed_labels": suppressed,
@@ -310,7 +329,7 @@ class SettingsDialog(QDialog):
         self._roi_mgr = ROIManager()
         self._load_rois_from_cfg()
 
-        self.setWindowTitle("KBS Monitoring v2 — 설정")
+        self.setWindowTitle("KBS On-Air Monitoring — 설정")
         self.setMinimumSize(880, 640)
         self.resize(980, 720)
         self._setup_ui()
@@ -728,8 +747,8 @@ class SettingsDialog(QDialog):
 
     def _roi_table_add(self, roi_type: str, table: QTableWidget):
         self._sync_table_to_rois(roi_type, table)
-        rois = (self._roi_mgr.video_rois if roi_type == "video"
-                else self._roi_mgr.audio_rois)
+        rois = list(self._roi_mgr.video_rois if roi_type == "video"
+                    else self._roi_mgr.audio_rois)
         prefix = "V" if roi_type == "video" else "A"
         if rois:
             last = rois[-1]
@@ -878,8 +897,8 @@ class SettingsDialog(QDialog):
                            "50~100% / 이 비율 이상이면 블랙 판정 (기본값: 98%)"))
         sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준", self._black_suppress,
                            "0~5.0 / 움직임 비율이 이 이상이면 블랙 억제"))
-        sl1.addLayout(_row("이상 지속 후 알림(초)", self._black_dur,
-                           "1~300 / 이상 상태가 이 시간 이상 지속될 때 알림 발동"))
+        sl1.addLayout(_row("알림 발생 기준(초)", self._black_dur,
+                           "1~300 / 블랙이 이 시간(초) 이상 지속되면 알림"))
         sl1.addLayout(_row("알림음 지속(초)", self._black_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생"))
         vl.addWidget(box1)
@@ -903,8 +922,8 @@ class SettingsDialog(QDialog):
                            "0~100% / 이 비율 미만이면 스틸로 판정 (기본값: 10%)"))
         sl2.addLayout(_row("연속 정상 프레임 수", self._still_reset,
                            "1~10 / 연속 정상 프레임 수 (글리치 방지)"))
-        sl2.addLayout(_row("이상 지속 후 알림(초)", self._still_dur,
-                           "1~300 / 이상 상태가 이 시간 이상 지속될 때 알림 발동"))
+        sl2.addLayout(_row("알림 발생 기준(초)", self._still_dur,
+                           "1~300 / 정지화면이 이 시간(초) 이상 지속되면 알림"))
         sl2.addLayout(_row("알림음 지속(초)", self._still_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생"))
         vl.addWidget(box2)
@@ -955,8 +974,8 @@ class SettingsDialog(QDialog):
         sl3.addLayout(_row_v)
         sl3.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
                            "1~50% / 감지영역 내 해당 색상 픽셀이 이 값 이상이면 활성"))
-        sl3.addLayout(_row("이상 지속 후 알림(초)", self._audio_level_dur,
-                           "1~300 / 이상 상태가 이 시간 이상 지속될 때 알림 발동"))
+        sl3.addLayout(_row("알림 발생 기준(초)", self._audio_level_dur,
+                           "1~300 / 레벨 이상이 이 시간(초) 이상 지속되면 알림"))
         sl3.addLayout(_row("알림음 지속(초)", self._audio_level_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생"))
         sl3.addLayout(_row("복구 대기(초)", self._audio_recovery,
@@ -981,8 +1000,8 @@ class SettingsDialog(QDialog):
         self._emb_alarm_dur = _int_edit(det.get("embedded_alarm_duration", 60), 1, 300)
         sl4.addLayout(_row("무음 임계값(dB)", self._emb_thresh,
                            "-60~0 / 이 값 이하일 때 무음 판정. 기본값 -50"))
-        sl4.addLayout(_row("이상 지속 후 알림(초)", self._emb_dur,
-                           "1~300 / 이상 상태가 이 시간 이상 지속될 때 알림 발동"))
+        sl4.addLayout(_row("알림 발생 기준(초)", self._emb_dur,
+                           "1~300 / 무음이 이 시간(초) 이상 지속되면 알림"))
         sl4.addLayout(_row("알림음 지속(초)", self._emb_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생"))
         vl.addWidget(box4)
@@ -1020,7 +1039,7 @@ class SettingsDialog(QDialog):
         perf_btn_hl = QHBoxLayout()
         perf_btn_hl.setContentsMargins(0, 0, 0, 0)
         btn_auto_perf = QPushButton("자동 성능 감지")
-        btn_auto_perf.setObjectName("btnPrimary")
+        btn_auto_perf.setObjectName("btnOutlineOrange")
         btn_auto_perf.clicked.connect(self._auto_detect_performance)
         perf_btn_hl.addWidget(btn_auto_perf)
         perf_btn_hl.addStretch()
@@ -1165,7 +1184,9 @@ class SettingsDialog(QDialog):
         def _update_signoff_enabled(state=None):
             enabled = self._auto_prep_cb.isChecked()
             for _box in _so_sub_boxes:
-                _box.setEnabled(enabled)
+                for child in _box.findChildren(QWidget):
+                    if child.objectName() != "settingsSectionLabel":
+                        child.setEnabled(enabled)
 
         self._auto_prep_cb.stateChanged.connect(_update_signoff_enabled)
         _update_signoff_enabled()
@@ -1242,8 +1263,38 @@ class SettingsDialog(QDialog):
             if prep_combo.itemData(i) == cur_prep:
                 prep_combo.setCurrentIndex(i)
                 break
-        sl.addLayout(_row("정파준비 활성화", prep_combo,
-                          "정파 시작 시각 기준 X분 전부터 ROI 스틸 감시 시작"))
+
+        prep_calc_lbl = QLabel()
+        prep_calc_lbl.setObjectName("settingsDesc")
+
+        def _update_prep_time(_, _pc=prep_combo, _sh=start_h, _sm=start_m, _lbl=prep_calc_lbl):
+            minutes = _pc.currentData()
+            try:
+                sh = int(_sh.text()); sm = int(_sm.text())
+            except ValueError:
+                _lbl.setText("정파 시작 시각 기준 X분 전부터 ROI 스틸 감시 시작")
+                return
+            if not minutes:
+                _lbl.setText("정파 시작 시각 기준 X분 전부터 ROI 스틸 감시 시작")
+                return
+            total = (sh * 60 + sm - minutes) % (24 * 60)
+            _lbl.setText(f"→  {total // 60:02d}:{total % 60:02d}부터 준비 시작")
+
+        prep_combo.currentIndexChanged.connect(_update_prep_time)
+        start_h.textChanged.connect(_update_prep_time)
+        start_m.textChanged.connect(_update_prep_time)
+        _update_prep_time(None)
+
+        prep_row_hl = QHBoxLayout()
+        prep_row_hl.setContentsMargins(0, 0, 0, 0)
+        prep_row_hl.setSpacing(10)
+        prep_row_lbl = QLabel("정파준비 활성화")
+        prep_row_lbl.setObjectName("settingsRowLabel")
+        prep_row_lbl.setFixedWidth(220)
+        prep_row_hl.addWidget(prep_row_lbl)
+        prep_row_hl.addWidget(prep_combo)
+        prep_row_hl.addWidget(prep_calc_lbl, 1)
+        sl.addLayout(prep_row_hl)
         widgets["prep_minutes"] = prep_combo
 
         # 정파해제준비 활성화
@@ -1257,8 +1308,38 @@ class SettingsDialog(QDialog):
             if exit_prep_combo.itemData(i) == cur_exit_prep:
                 exit_prep_combo.setCurrentIndex(i)
                 break
-        sl.addLayout(_row("정파해제준비 활성화", exit_prep_combo,
-                          "정파 종료 X분 전에 해제준비 구간 시작 (사용 안 함 = 종료 시각에만 해제)"))
+
+        exit_calc_lbl = QLabel()
+        exit_calc_lbl.setObjectName("settingsDesc")
+
+        def _update_exit_prep_time(_, _ec=exit_prep_combo, _eh=end_h, _em=end_m, _lbl=exit_calc_lbl):
+            minutes = _ec.currentData()
+            try:
+                eh = int(_eh.text()); em = int(_em.text())
+            except ValueError:
+                _lbl.setText("정파 종료 X분 전에 해제준비 구간 시작 (사용 안 함 = 종료 시각에만 해제)")
+                return
+            if not minutes:
+                _lbl.setText("정파 종료 X분 전에 해제준비 구간 시작 (사용 안 함 = 종료 시각에만 해제)")
+                return
+            total = (eh * 60 + em - minutes) % (24 * 60)
+            _lbl.setText(f"→  {total // 60:02d}:{total % 60:02d}부터 해제준비 시작")
+
+        exit_prep_combo.currentIndexChanged.connect(_update_exit_prep_time)
+        end_h.textChanged.connect(_update_exit_prep_time)
+        end_m.textChanged.connect(_update_exit_prep_time)
+        _update_exit_prep_time(None)
+
+        exit_row_hl = QHBoxLayout()
+        exit_row_hl.setContentsMargins(0, 0, 0, 0)
+        exit_row_hl.setSpacing(10)
+        exit_row_lbl = QLabel("정파해제준비 활성화")
+        exit_row_lbl.setObjectName("settingsRowLabel")
+        exit_row_lbl.setFixedWidth(220)
+        exit_row_hl.addWidget(exit_row_lbl)
+        exit_row_hl.addWidget(exit_prep_combo)
+        exit_row_hl.addWidget(exit_calc_lbl, 1)
+        sl.addLayout(exit_row_hl)
         widgets["exit_prep_minutes"] = exit_prep_combo
 
         # 정파 진입 기준 시간 (ROI 스틸 유지 시간)
@@ -1577,11 +1658,11 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS Monitoring v2.0.0")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.0.0")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
-        lbl_meta = QLabel("날짜: 2026-04-18    제작: KBS 기술본부")
+        lbl_meta = QLabel("날짜: 2026-04-18    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
 
@@ -1806,6 +1887,7 @@ class SettingsDialog(QDialog):
             "WAV 파일 (*.wav);;모든 파일 (*)")
         if path:
             edit.setText(path)
+            self._apply_now()
 
     def _reset_alarm_sound(self):
         self._alarm_sound_edit.setText("resources/sounds/alarm.wav")
@@ -1830,7 +1912,9 @@ class SettingsDialog(QDialog):
         for w in (self._tg_token_edit, self._btn_tg_token_toggle,
                   self._tg_chat_edit, self._btn_tg_test):
             w.setEnabled(on)
-        self._tg_options_box.setEnabled(on)
+        for child in self._tg_options_box.findChildren(QWidget):
+            if child.objectName() != "settingsSectionLabel":
+                child.setEnabled(on)
 
     def _toggle_restart_widgets(self, enabled):
         """예약 재시작 활성화 체크박스 ON/OFF에 따라 하위 위젯 활성/비활성."""
@@ -1978,6 +2062,52 @@ class SettingsDialog(QDialog):
         self._so_prep_sound.setText(d.get("prep_alarm_sound", ""))
         self._so_enter_sound.setText(d.get("enter_alarm_sound", ""))
         self._so_release_sound.setText(d.get("release_alarm_sound", ""))
+
+        for idx, w in enumerate(self._so_grp):
+            grp = d.get(f"group{idx + 1}", {})
+            w["name"].setText(grp.get("name", f"{idx + 1}TV"))
+
+            start_h, start_m = grp.get("start_time", "03:00").split(":")
+            w["start_h"].setText(str(int(start_h)))
+            w["start_m"].setText(str(int(start_m)))
+
+            end_h, end_m = grp.get("end_time", "05:00").split(":")
+            w["end_h"].setText(str(int(end_h)))
+            w["end_m"].setText(str(int(end_m)))
+
+            w["end_next_day"].setChecked(grp.get("end_next_day", False))
+
+            prep_val = grp.get("prep_minutes", 150)
+            for i in range(w["prep_minutes"].count()):
+                if w["prep_minutes"].itemData(i) == prep_val:
+                    w["prep_minutes"].setCurrentIndex(i)
+                    break
+
+            exit_prep_val = grp.get("exit_prep_minutes", 30)
+            for i in range(w["exit_prep_minutes"].count()):
+                if w["exit_prep_minutes"].itemData(i) == exit_prep_val:
+                    w["exit_prep_minutes"].setCurrentIndex(i)
+                    break
+
+            w["still_trigger_sec"].setText(str(grp.get("still_trigger_sec", 60)))
+            w["exit_trigger_sec"].setText(str(grp.get("exit_trigger_sec", 5)))
+
+            default_days = set(grp.get("weekdays", list(range(7))))
+            for d_idx, cb in enumerate(w["weekdays"]):
+                cb.setChecked(d_idx in default_days)
+
+            w["_enter_roi"] = dict(grp.get("enter_roi") or {"video_label": ""})
+            w["_suppressed"] = list(grp.get("suppressed_labels", []))
+            enter_v = w["_enter_roi"].get("video_label", "") or ""
+            sup_cnt = len(w["_suppressed"])
+            lbl_widget = w["enter_label_lbl"]
+            if enter_v:
+                lbl_widget.setText(f"{enter_v} · 억제 {sup_cnt}개" if sup_cnt else enter_v)
+                lbl_widget.setStyleSheet("")
+            else:
+                lbl_widget.setText("미설정")
+                lbl_widget.setStyleSheet("color: #cc4444;")
+
         self._apply_now()
 
     def _export_config(self):
@@ -2019,6 +2149,14 @@ class SettingsDialog(QDialog):
                                     "(위젯 표시는 다이얼로그를 닫고 다시 열면 갱신됩니다.)")
         except Exception as e:
             QMessageBox.critical(self, "오류", f"불러오기 실패:\n{e}")
+
+    def closeEvent(self, event):
+        """다이얼로그 닫힐 때 텔레그램 테스트 워커 안전 정리."""
+        worker = getattr(self, "_tg_worker", None)
+        if worker is not None and worker.isRunning():
+            worker.result_ready.disconnect()
+            worker.wait(3000)
+        super().closeEvent(event)
 
     def _reset_all_settings(self):
         reply = QMessageBox.question(

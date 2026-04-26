@@ -95,6 +95,9 @@ class AutoRecorder:
 
     def stop(self):
         self._running = False
+        # 진행 중인 녹화가 있으면 완료 대기 (MP4 깨짐 방지)
+        if self._record_thread and self._record_thread.is_alive():
+            self._record_thread.join(timeout=30.0)
 
     # ── 설정 ──────────────────────────────────────────────────────────────────
 

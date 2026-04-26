@@ -1,6 +1,6 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
-> 마지막 업데이트: 2026-04-23
+> 마지막 업데이트: 2026-04-26 (파트 7 수정 완료)
 > 현재 단계: Phase 5 진행 중 (코딩 완료 / 실기 테스트 대기 중)
 
 ---
@@ -106,9 +106,12 @@
 - [x] **DIAG-IPC 섹션** 추가 (queue drop/크기, frame drop, loop jitter)
 - [x] DIAG 섹션 독립 try-except 보호
 - [x] 채널당 메모리 버퍼 상한 검증 (auto_recorder)
-- [ ] **회귀 시나리오 테스트**: 고정 테스트 영상 파일로 블랙/스틸/정파 전환 자동 검증
-- [ ] **Chaos 테스트**: Detection 랜덤 kill(10분 주기) × 2시간 → 재spawn+복원 성공률 100%
-- [ ] **24시간 연속 실행 테스트** (psutil RSS 안정성 + 프레임 drop 누적 관찰)
+- [x] **회귀 시나리오 테스트**: `tests/test_regression.py` 6/6 PASS (블랙/스틸/정파전환/억제/중복방지/동시알람)
+- [ ] **Chaos 테스트**: `tests/test_chaos.py` — `python tests/test_chaos.py --rounds 3` 로 실행 (Detection 강제 kill → 재spawn 성공률 100% 목표)
+- [ ] **24시간 연속 실행 테스트**: `tests/test_24h_monitor.py` — `python tests/test_24h_monitor.py` 로 실행 (앱 실행 중 별도 터미널에서, logs/monitor_24h_*.csv 기록)
 - [x] 로그 분리 확인 (detection/ui/watchdog 각 파일)
+- [x] **코드 검토 파트 1~5 완료** (IPC 계약·프로세스 생명주기·감지 엔진·정파 매니저·UI 브리지+알람): 총 9개 버그 수정 (P1-3 nodrop, P2-A DetectionReady 차단, P2-B AutoRecorder join, P3-A ROI update, P3-E dead var, P4-A group_id, P4-B 디버그 로그, P4-C dict 스냅샷, P5-4 잔류 AlarmTrigger 가드)
+- [x] **코드 검토 파트 6 완료** (설정 다이얼로그 7탭): 4개 버그 수정 (P6-A _browse_sound 미반영, P6-B TelegramTestWorker race, P6-D ROI 내부 리스트 직접 변이, P6-E 미설정 색상 불일치)
+- [x] **코드 검토 파트 7 완료** (텔레그램·자동녹화·DIAG): 6개 버그 수정 (P7-1 _last_sent 무한누적, P7-2 stop/ensure_worker_alive race, P7-3 429 블로킹+무한루프, P7-4+9 Watchdog tg() 블로킹→heartbeat 오판+shutdown 지연, P7-6 qsize NotImplementedError, P7-8 이중 JPEG 인코딩)
 
 **완료 기준**: 24시간 무중단. 메모리 RSS 증가 < 5%. DIAG 전 섹션 정상. Chaos 테스트 재spawn 복원률 100%.

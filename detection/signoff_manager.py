@@ -425,7 +425,8 @@ class SignoffManager:
         weekday = now.weekday()
         current_time = now.strftime("%H:%M")
 
-        for gid, group in self._groups.items():
+        groups_snapshot = dict(self._groups)  # 순회 중 set_group() 동시 수정 방지
+        for gid, group in groups_snapshot.items():
             current_state = self._states[gid]
             in_prep_window    = self._is_in_prep_window(group, current_time, weekday)
             in_signoff_window = self._is_in_signoff_window(group, current_time, weekday)
@@ -488,8 +489,8 @@ class SignoffManager:
             else:
                 elapsed = (now - self._video_enter_start[gid]
                            ) if self._video_enter_start[gid] else 0.0
-                _log.debug("PREP-DBG [%s] %s 스틸 중단→리셋 (직전 경과: %.1fs)",
-                           group.name, lbl_str, elapsed)
+                _log.debug("PREP-DBG [%s] %s 스틸 중단 (직전 경과: %.1fs, 히스테리시스: 1/%d)",
+                           group.name, lbl_str, elapsed, _SIGNOFF_HYSTERESIS_TICKS)
 
         if self._video_enter_start[gid] is not None:
             v_elapsed = now - self._video_enter_start[gid]

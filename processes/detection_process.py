@@ -254,7 +254,7 @@ def run(result_queue, cmd_queue, shutdown_event,
     _update_signoff_media_names(signoff_mgr, video_rois + audio_rois)
 
     # DetectionState 초기화
-    detector.update_roi_list(video_rois)
+    detector.update_roi_list(video_rois + audio_rois)
 
     # detection_enabled 상태 (SharedState 기준)
     detection_enabled = (
@@ -266,7 +266,6 @@ def run(result_queue, cmd_queue, shutdown_event,
     _prev_black: Dict[str, bool] = {}
     _prev_still: Dict[str, bool] = {}
     _prev_audio: Dict[str, bool] = {}
-    _embedded_was_alerting = False
 
     # 현재 프레임 캐시 (AlarmTrigger snapshot용)
     _last_frame = None
@@ -334,6 +333,10 @@ def run(result_queue, cmd_queue, shutdown_event,
         log_error(f"워커 스레드 시작 실패: {e}")
 
     # ── 5. DetectionReady 발행 ────────────────────────────────────────────────
+    if not workers_started:
+        log_error("워커 스레드 시작 실패 → Detection 종료 (Watchdog이 재spawn)")
+        return
+
     from ipc.messages import DetectionReady
     _put_nodrop(result_queue, DetectionReady(
         pid=os.getpid(),
@@ -449,7 +452,6 @@ def run(result_queue, cmd_queue, shutdown_event,
                         signoff_mgr, detector, telegram, recorder,
                         video_rois, audio_rois, snap,
                     )
-                    _embedded_was_alerting = emb_alerting
 
         except Exception as e:
             try:
@@ -557,7 +559,7 @@ def _process_commands(
                 roi_mgr._audio_rois = [ROI.from_dict(r) for r in audio_list]
                 roi_mgr._relabel_video()
                 roi_mgr._relabel_audio()
-                detector.update_roi_list(roi_mgr.video_rois)
+                detector.update_roi_list(roi_mgr.video_rois + roi_mgr.audio_rois)
                 _update_signoff_media_names(signoff_mgr,
                                             roi_mgr.video_rois + roi_mgr.audio_rois)
 
@@ -620,9 +622,19 @@ def _process_alarms(
 
     roi_media = {roi.label: roi.media_name for roi in (video_rois + audio_rois)}
 
+    # label → group_id 역매핑 (그룹별 억제 적용을 위해)
+    label_to_gid: Dict[str, int] = {}
+    for _gid, _grp in signoff_mgr.get_groups().items():
+        v_lbl = _grp.enter_roi.get("video_label", "")
+        if v_lbl:
+            label_to_gid[v_lbl] = _gid
+        for _sl in _grp.suppressed_labels:
+            label_to_gid[_sl] = _gid
+
     # 비디오 ROI: 블랙/스틸
     for lbl, res in vid_results.items():
         media = roi_media.get(lbl, lbl)
+        lbl_gid = label_to_gid.get(lbl)
 
         for det_type, alerting_key, prev_dict in (
             ("black", "black_alerting", prev_black),
@@ -631,21 +643,22 @@ def _process_alarms(
             alerting = res.get(alerting_key, False)
             was = prev_dict.get(lbl, False)
 
-            # 정파 억제 체크
-            suppressed = signoff_mgr.is_signoff_label(lbl)
+            # 정파 억제 체크 (그룹별 적용)
+            suppressed = signoff_mgr.is_signoff_label(lbl, lbl_gid)
             if det_type == "still":
                 suppressed = suppressed or signoff_mgr.is_prep_label(lbl)
 
             if alerting and not was:
                 if not suppressed:
+                    snap_jpeg = _encode_jpeg(snap)
                     _put(result_queue,
                          AlarmTrigger(label=lbl, detection_type=det_type,
                                       roi_type="video",
-                                      snapshot_jpeg=_encode_jpeg(snap)),
+                                      snapshot_jpeg=snap_jpeg),
                          ipc_counters)
                     telegram.notify(
                         "블랙" if det_type == "black" else "스틸",
-                        lbl, media, snap,
+                        lbl, media, jpeg_bytes=snap_jpeg,
                     )
                     recorder.trigger(det_type, lbl, media)
             elif not alerting and was:
@@ -666,16 +679,17 @@ def _process_alarms(
         media = roi_media.get(lbl, lbl)
         alerting = res.get("alerting", False)
         was = prev_audio.get(lbl, False)
-        suppressed = signoff_mgr.is_signoff_label(lbl)
+        suppressed = signoff_mgr.is_signoff_label(lbl, label_to_gid.get(lbl))
 
         if alerting and not was:
             if not suppressed:
+                snap_jpeg = _encode_jpeg(snap)
                 _put(result_queue,
                      AlarmTrigger(label=lbl, detection_type="audio_level",
                                   roi_type="audio",
-                                  snapshot_jpeg=_encode_jpeg(snap)),
+                                  snapshot_jpeg=snap_jpeg),
                      ipc_counters)
-                telegram.notify("오디오", lbl, media, snap)
+                telegram.notify("오디오", lbl, media, jpeg_bytes=snap_jpeg)
                 recorder.trigger("오디오", lbl, media)
         elif not alerting and was:
             _put(result_queue,
@@ -806,10 +820,14 @@ def _run_diag(
         _log.error(f"DIAG-AUDIO 실패: {e}")
 
     try:
+        try:
+            rq_size = result_queue.qsize()
+        except (NotImplementedError, Exception):
+            rq_size = -1
         emit("DIAG-IPC", {
             "result_dropped": ipc_counters[0],
             "cmd_dropped":    cmd_dropped[0],
-            "result_qsize":   result_queue.qsize() if hasattr(result_queue, "qsize") else -1,
+            "result_qsize":   rq_size,
             "cmd_qsize":      0,
         })
     except Exception as e:

@@ -98,7 +98,9 @@ class TelegramWorker:
             self._queue.put_nowait(None)
         except queue.Full:
             pass
-        self._worker_thread.join(timeout=5.0)
+        with self._worker_lock:
+            t = self._worker_thread
+        t.join(timeout=5.0)
 
     # ── 설정 ──────────────────────────────────────────────────────────────────
 
@@ -138,8 +140,12 @@ class TelegramWorker:
         media_name: str,
         frame: np.ndarray = None,
         is_recovery: bool = False,
+        jpeg_bytes: bytes = None,
     ):
-        """알림 큐에 삽입 (메인 루프에서 호출). 즉시 반환."""
+        """알림 큐에 삽입 (메인 루프에서 호출). 즉시 반환.
+
+        jpeg_bytes가 주어지면 frame 재인코딩 없이 그대로 사용 (이중 인코딩 방지).
+        """
         if not _REQUESTS_AVAILABLE:
             self._log("requests 미설치 — pip install requests", error=True)
             return
@@ -155,23 +161,22 @@ class TelegramWorker:
         if not is_recovery:
             key = f"{alarm_type}_{label}"
             now = time.time()
-            if len(self._last_sent) > 50:
-                cutoff = now - 86400
-                for k in list(self._last_sent.keys()):
-                    if self._last_sent[k] < cutoff:
-                        del self._last_sent[k]
+            cutoff = now - 86400
+            for k in list(self._last_sent.keys()):
+                if self._last_sent[k] < cutoff:
+                    del self._last_sent[k]
             if now - self._last_sent.get(key, 0.0) < self._cooldown:
                 return
             self._last_sent[key] = now
 
-        jpeg_bytes = None
-        if self._send_image and frame is not None:
-            try:
-                ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                if ok:
-                    jpeg_bytes = buf.tobytes()
-            except Exception:
-                pass
+        if self._send_image:
+            if jpeg_bytes is None and frame is not None:
+                try:
+                    ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                    if ok:
+                        jpeg_bytes = buf.tobytes()
+                except Exception:
+                    pass
 
         item = {
             "alarm_type": alarm_type,
@@ -208,7 +213,7 @@ class TelegramWorker:
             url = f"{self._API_BASE.format(token=token)}/sendMessage"
             resp = _requests.post(
                 url,
-                json={"chat_id": chat_id, "text": "[KBS Monitoring v2] 텔레그램 연결 테스트 성공"},
+                json={"chat_id": chat_id, "text": "[KBS On-Air Monitoring] 텔레그램 연결 테스트 성공"},
                 timeout=(5.0, 10.0),
             )
             if resp.status_code == 200:
@@ -284,14 +289,14 @@ class TelegramWorker:
 
         if is_recovery:
             text = (
-                f"[KBS Monitoring v2 \U00002705 복구]\n"
+                f"[KBS On-Air Monitoring \U00002705 복구]\n"
                 f"\U000023F0 시각: {now_str}\n"
                 f"\U0001F4E1 채널: {channel_str}\n"
                 f"\U00002714 복구: {alarm_type} 정상"
             )
         else:
             text = (
-                f"[KBS Monitoring v2 \U0001F6A8 알림]\n"
+                f"[KBS On-Air Monitoring \U0001F6A8 알림]\n"
                 f"\U000023F0 시각: {now_str}\n"
                 f"\U0001F4E1 채널: {channel_str}\n"
                 f"\U000026A0 감지: {alarm_type}"
@@ -325,10 +330,20 @@ class TelegramWorker:
                     return True
                 elif resp.status_code == 429:
                     try:
-                        retry_after = resp.json()["parameters"]["retry_after"]
+                        retry_after = int(resp.json()["parameters"]["retry_after"])
                     except Exception:
                         retry_after = 10
-                    time.sleep(retry_after + 1)
+                    # 최대 30초로 제한 — 긴 블로킹은 큐 손실을 유발함
+                    sleep_sec = min(retry_after + 1, 30)
+                    self._log(f"Rate Limit(429) — {sleep_sec}초 대기 후 재시도", error=True)
+                    self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
+                    time.sleep(sleep_sec)
+                    # attempt 소진 여부 체크 (무한루프 방지)
+                    if attempt >= _SEND_RETRY_COUNT:
+                        self._consecutive_failures += 1
+                        self._log_with_suppression("전송 실패 (Rate Limit 재시도 소진)")
+                        return False
+                    continue
                 else:
                     self._consecutive_failures += 1
                     self._log_with_suppression(f"전송 실패 {resp.status_code}: {resp.text[:120]}")
@@ -345,5 +360,5 @@ class TelegramWorker:
                     self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
                     return False
         self._consecutive_failures += 1
-        self._log_with_suppression("전송 실패 (Rate Limit 재시도 소진)")
+        self._log_with_suppression("전송 실패 (재시도 횟수 소진)")
         return False

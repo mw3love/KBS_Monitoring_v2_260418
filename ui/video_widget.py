@@ -30,6 +30,7 @@ class VideoWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._current_frame: Optional[np.ndarray] = None
+        self._frames_blocked = False
         self._show_rois = True
         self._video_rois: List[ROI] = []
         self._audio_rois: List[ROI] = []
@@ -68,6 +69,8 @@ class VideoWidget(QWidget):
         return img
 
     def update_frame(self, frame: np.ndarray):
+        if self._frames_blocked:
+            return
         self._current_frame = frame
         self._render()
 
@@ -91,8 +94,12 @@ class VideoWidget(QWidget):
         self._render()
 
     def clear_signal(self):
+        self._frames_blocked = True
         self._current_frame = None
         self._render()
+
+    def resume_frames(self):
+        self._frames_blocked = False
 
     def _render(self):
         frame = (self._current_frame.copy()

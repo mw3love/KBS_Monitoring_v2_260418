@@ -216,6 +216,8 @@ class MainWindow(QMainWindow):
             self._logger.info(f"[{msg.source}] {msg.message}")
 
     def _on_alarm_trigger(self, msg):
+        if not self._detection_enabled:
+            return
         self._alarm.trigger(msg.detection_type, msg.label)
         self._video_widget.set_alert_state(msg.label, True)
         self._log_widget.add_log(
@@ -425,17 +427,33 @@ class MainWindow(QMainWindow):
 
     # ── cmd_queue 발행 헬퍼 ───────────────────────────────────────
 
-    def _send_cmd(self, msg):
+    def _send_cmd(self, msg, nodrop: bool = False):
         if self._cmd_queue is None:
             return
-        try:
-            self._cmd_queue.put_nowait(msg)
-        except Exception:
+        if nodrop:
+            # drop 금지: 최대 3회 재시도 후 1개 drop 강제 삽입 (Shutdown 등)
+            import time as _t
+            for _ in range(3):
+                try:
+                    self._cmd_queue.put_nowait(msg)
+                    break
+                except Exception:
+                    _t.sleep(0.05)
+            else:
+                try:
+                    self._cmd_queue.get_nowait()
+                    self._cmd_queue.put_nowait(msg)
+                except Exception:
+                    pass
+        else:
             try:
-                self._cmd_queue.get_nowait()
                 self._cmd_queue.put_nowait(msg)
             except Exception:
-                pass
+                try:
+                    self._cmd_queue.get_nowait()
+                    self._cmd_queue.put_nowait(msg)
+                except Exception:
+                    pass
         if self._cmd_event is not None:
             self._cmd_event.set()
 
@@ -519,7 +537,7 @@ class MainWindow(QMainWindow):
 
         # Detection에 종료 신호
         from ipc.messages import Shutdown
-        self._send_cmd(Shutdown(reason="user"))
+        self._send_cmd(Shutdown(reason="user"), nodrop=True)
 
         # shutdown_event set (Watchdog/Detection 종료 트리거)
         if self._shutdown_event is not None:
