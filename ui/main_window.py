@@ -6,6 +6,7 @@ L/R 레벨미터: QTimer 33ms로 SharedStateBuffer 직접 폴링
 """
 import os
 import logging
+import datetime
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication,
@@ -40,7 +41,7 @@ class MainWindow(QMainWindow):
         self._shared_state  = shared_state
         self._cmd_event     = cmd_event
 
-        self.setWindowTitle(f"KBS Monitoring v{VERSION}")
+        self.setWindowTitle(f"KBS On-Air Monitoring v{VERSION}")
         self.setMinimumSize(1280, 720)
         self.resize(1600, 900)
 
@@ -73,7 +74,7 @@ class MainWindow(QMainWindow):
         self._start_timers()
         self._restore_ui_state()
 
-        self._logger.info(f"SYSTEM - KBS Monitoring v{VERSION} 시작")
+        self._logger.info(f"SYSTEM - KBS On-Air Monitoring v{VERSION} 시작")
 
     # ── UI 구성 ────────────────────────────────────────────────────
 
@@ -242,6 +243,7 @@ class MainWindow(QMainWindow):
 
     def _on_detection_ready(self, msg):
         self._detection_ready = True
+        self._video_widget.resume_frames()
         self._log_widget.add_log(
             f"[시스템] Detection 준비 완료 "
             f"(PID={msg.pid}, ROI={msg.roi_count})"
@@ -305,16 +307,57 @@ class MainWindow(QMainWindow):
 
     def _update_signoff_display(self):
         signoff_cfg = self._cfg.get("signoff", {})
+        auto_prep = signoff_cfg.get("auto_preparation", True)
+        now = datetime.datetime.now()
+
         for gid in (1, 2):
             state = self._signoff_states.get(gid, "IDLE")
             grp_data = signoff_cfg.get(f"group{gid}", {})
             group_name = grp_data.get("name", f"Group{gid}")
-            auto_prep = signoff_cfg.get("auto_preparation", True)
+            seconds = self._calc_signoff_seconds(state, grp_data, now)
             self._top_bar.update_signoff_state(
                 gid, state, group_name,
-                seconds=0.0,
+                seconds=seconds,
                 clock_enabled=auto_prep,
             )
+
+    def _calc_signoff_seconds(self, state: str, grp_data: dict,
+                               now: datetime.datetime) -> float:
+        """현재 정파 상태에 따라 잔여/경과 초를 계산."""
+
+        def parse_hm(t: str):
+            h, m = map(int, t.split(":"))
+            return h, m
+
+        def next_dt(h, m):
+            dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
+            if dt <= now:
+                dt += datetime.timedelta(days=1)
+            return dt
+
+        if state == "IDLE":
+            # 정파준비까지 = 정파준비시작 시각까지 잔여시간
+            start_time = grp_data.get("start_time", "00:30")
+            prep_minutes = int(grp_data.get("prep_minutes", 30))
+            sh, sm = parse_hm(start_time)
+            total_min = (sh * 60 + sm - prep_minutes) % (24 * 60)
+            prep_h, prep_m = total_min // 60, total_min % 60
+            # 가장 가까운 미래 시각 찾기 (요일 필터 생략, 대략적 표시)
+            return max(0.0, (next_dt(prep_h, prep_m) - now).total_seconds())
+
+        elif state == "PREPARATION":
+            # 정파까지 = 정파시작 시각(start_time)까지 잔여시간
+            start_time = grp_data.get("start_time", "00:30")
+            sh, sm = parse_hm(start_time)
+            return max(0.0, (next_dt(sh, sm) - now).total_seconds())
+
+        elif state == "SIGNOFF":
+            # 정파해제까지 = 정파종료 시각(end_time)까지 잔여시간
+            end_time = grp_data.get("end_time", "06:00")
+            eh, em = parse_hm(end_time)
+            return max(0.0, (next_dt(eh, em) - now).total_seconds())
+
+        return 0.0
 
     # ── 테마 ──────────────────────────────────────────────────────
 
@@ -379,7 +422,6 @@ class MainWindow(QMainWindow):
         new_video_file = new_cfg.get("video_file", "")
         if old_video_file and not new_video_file:
             self._video_widget.clear_signal()
-        self._log_widget.add_log("[시스템] 설정 저장 완료")
 
     # ── cmd_queue 발행 헬퍼 ───────────────────────────────────────
 

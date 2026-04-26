@@ -220,6 +220,11 @@ class SignoffManager:
                         if not in_prep_window:
                             self._reset_enter_timers(gid)
                             self._transition_to(gid, SignoffState.IDLE)
+                    elif current_state == SignoffState.IDLE:
+                        if in_signoff_window:
+                            self._transition_to(gid, SignoffState.SIGNOFF)
+                        elif in_prep_window:
+                            self._transition_to(gid, SignoffState.PREPARATION)
 
     def get_state(self, group_id: int) -> SignoffState:
         return self._states.get(group_id, SignoffState.IDLE)

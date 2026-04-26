@@ -528,6 +528,7 @@ def _process_commands(
                 _apply_config_to_detector(detector, cfg)
                 _apply_config_to_recorder(recorder, cfg)
                 _apply_config_to_telegram(telegram, cfg)
+                signoff_mgr.configure_from_dict(cfg.get("signoff", {}))
                 if audio_worker:
                     audio_worker.silence_threshold_db = cfg.get("detection", {}).get(
                         "embedded_silence_threshold", -50
