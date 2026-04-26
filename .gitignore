@@ -21,6 +21,16 @@ recordings/
 # 설정 (운영 설정은 버전관리 제외, default_config.json만 포함)
 config/kbs_config.json
 
+# 런타임 데이터
+data/
+
+# 개발 도구
+.claude/
+
+# 임시 파일
+fix/
+clip_*.png
+
 # 기타
 *.log
 .DS_Store

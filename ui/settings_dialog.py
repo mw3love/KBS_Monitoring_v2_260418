@@ -1255,7 +1255,7 @@ class SettingsDialog(QDialog):
         prep_combo = QComboBox()
         prep_options = [(0, "사용 안 함"), (30, "30분 전"), (60, "1시간 전"),
                         (90, "1.5시간 전"), (120, "2시간 전"), (150, "2.5시간 전"),
-                        (180, "3시간 전"), (240, "4시간 전")]
+                        (180, "3시간 전"), (210, "3.5시간 전"), (240, "4시간 전")]
         cur_prep = grp.get("prep_minutes", 150)
         for val, label in prep_options:
             prep_combo.addItem(label, val)
@@ -2158,6 +2158,29 @@ class SettingsDialog(QDialog):
             worker.wait(3000)
         super().closeEvent(event)
 
+    def _reload_all_tabs(self):
+        """현재 self._cfg 값으로 모든 탭 위젯을 다시 채운다.
+        중간 _apply_now 호출이 self._cfg를 덮어쓰지 않도록 _applying 플래그로 차단."""
+        SettingsDialog._applying = True
+        try:
+            self._reset_video_settings()
+            self._reset_sensitivity_settings()
+            self._reset_signoff_settings()
+            alm = self._cfg.get("alarm", {})
+            tg = self._cfg.get("telegram", {})
+            self._alarm_sound_edit.setText(alm.get("sound_file", "resources/sounds/alarm.wav"))
+            self._tg_enabled_cb.setChecked(tg.get("enabled", False))
+            self._tg_token_edit.setText(tg.get("bot_token", ""))
+            self._tg_chat_edit.setText(tg.get("chat_id", ""))
+            self._toggle_telegram_widgets(self._tg_enabled_cb.isChecked())
+            # ROI 탭: 테이블·오버레이 갱신 (ROIManager는 호출 전 이미 갱신됨)
+            self._refresh_roi_table("video")
+            self._refresh_roi_table("audio")
+            self._sync_overlay_canvas("video")
+            self._sync_overlay_canvas("audio")
+        finally:
+            SettingsDialog._applying = False
+
     def _reset_all_settings(self):
         reply = QMessageBox.question(
             self, "기본값으로 초기화",
@@ -2166,7 +2189,10 @@ class SettingsDialog(QDialog):
         if reply != QMessageBox.Yes:
             return
         self._cfg = copy.deepcopy(DEFAULT_CONFIG)
+        # ROIManager를 먼저 비워야 _send_cmd_apply / config_saved emit 시
+        # Detection·VideoWidget 모두 빈 ROI 리스트를 받는다.
+        self._load_rois_from_cfg()
         self._cfg_mgr.save(self._cfg)
         self._send_cmd_apply()
         self.config_saved.emit(copy.deepcopy(self._cfg))
-        self.close()
+        self._reload_all_tabs()
