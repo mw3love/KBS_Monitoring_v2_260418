@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QStackedWidget,
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtGui import QIntValidator, QDoubleValidator
 
 from core.roi_manager import ROI, ROIManager
@@ -28,6 +28,32 @@ try:
     _SD_OK = True
 except ImportError:
     _SD_OK = False
+
+
+class _TelegramTestWorker(QThread):
+    """텔레그램 연결 테스트를 백그라운드에서 실행해 UI freeze를 방지한다."""
+    result_ready = Signal(bool, str)  # (success, message)
+
+    def __init__(self, token: str, chat_id: str):
+        super().__init__()
+        self._token = token
+        self._chat_id = chat_id
+
+    def run(self):
+        try:
+            import requests
+            url = f"https://api.telegram.org/bot{self._token}/sendMessage"
+            resp = requests.post(
+                url,
+                data={"chat_id": self._chat_id, "text": "[KBS Monitoring v2] 연결 테스트"},
+                timeout=5,
+            )
+            if resp.ok:
+                self.result_ready.emit(True, "")
+            else:
+                self.result_ready.emit(False, f"전송 실패: {resp.status_code}\n{resp.text[:200]}")
+        except Exception as e:
+            self.result_ready.emit(False, f"연결 오류:\n{e}")
 
 
 # ── 공통 헬퍼 ──────────────────────────────────────────────────────────
@@ -152,8 +178,8 @@ def _hsv_row(label_text: str, slider: "DualSlider",
 
 
 def _file_row(label_text: str, edit: QLineEdit,
-              browse_cb, test_cb=None) -> QHBoxLayout:
-    """파일 경로 편집 + 찾아보기 [테스트] 버튼 행"""
+              browse_cb, test_cb=None, reset_cb=None) -> QHBoxLayout:
+    """파일 경로 편집 + 찾아보기 [초기화] [테스트] 버튼 행"""
     h = QHBoxLayout()
     h.setContentsMargins(0, 0, 0, 0)
     h.setSpacing(6)
@@ -164,6 +190,10 @@ def _file_row(label_text: str, edit: QLineEdit,
     btn_browse = QPushButton("찾아보기")
     btn_browse.clicked.connect(browse_cb)
     h.addWidget(btn_browse)
+    if reset_cb:
+        btn_reset = QPushButton("초기화")
+        btn_reset.clicked.connect(reset_cb)
+        h.addWidget(btn_reset)
     if test_cb:
         btn_test = QPushButton("테스트")
         btn_test.clicked.connect(test_cb)
@@ -1295,6 +1325,7 @@ class SettingsDialog(QDialog):
             "알림음 파일:",
             self._alarm_sound_edit,
             lambda: self._browse_sound(self._alarm_sound_edit),
+            reset_cb=self._reset_alarm_sound,
             test_cb=lambda: self._test_sound(self._alarm_sound_edit.text()),
         ))
         vl.addWidget(box1)
@@ -1305,38 +1336,50 @@ class SettingsDialog(QDialog):
         self._tg_enabled_cb.setChecked(tg.get("enabled", False))
         sl3.addWidget(self._tg_enabled_cb)
 
-        for field_label, attr, placeholder, is_password in [
-            ("Bot Token", "_tg_token_edit",
-             "BotFather에서 발급받은 토큰 (예: 123456789:AAFxxx...)", True),
-            ("Chat ID", "_tg_chat_edit",
-             "수신할 채팅/그룹/채널 ID (예: -1001234567890)", False),
-        ]:
-            field_lbl = QLabel(field_label)
-            field_lbl.setObjectName("settingsRowLabel")
-            edit = QLineEdit(tg.get(
-                "bot_token" if attr == "_tg_token_edit" else "chat_id", ""))
-            edit.setPlaceholderText(placeholder)
-            if is_password:
-                edit.setEchoMode(QLineEdit.EchoMode.Password)
-            setattr(self, attr, edit)
-            field_vl = QVBoxLayout()
-            field_vl.setContentsMargins(0, 0, 0, 0)
-            field_vl.setSpacing(3)
-            field_vl.addWidget(field_lbl)
-            field_vl.addWidget(edit)
-            sl3.addLayout(field_vl)
+        # Bot Token (패스워드 모드 + 표시/숨김 토글)
+        token_lbl = QLabel("Bot Token")
+        token_lbl.setObjectName("settingsRowLabel")
+        self._tg_token_edit = QLineEdit(tg.get("bot_token", ""))
+        self._tg_token_edit.setPlaceholderText("BotFather에서 발급받은 토큰 (예: 123456789:AAFxxx...)")
+        self._tg_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self._btn_tg_token_toggle = QPushButton("표시")
+        self._btn_tg_token_toggle.setFixedWidth(48)
+        self._btn_tg_token_toggle.clicked.connect(self._toggle_token_echo)
+        token_edit_hl = QHBoxLayout()
+        token_edit_hl.setContentsMargins(0, 0, 0, 0)
+        token_edit_hl.setSpacing(6)
+        token_edit_hl.addWidget(self._tg_token_edit, 1)
+        token_edit_hl.addWidget(self._btn_tg_token_toggle)
+        token_vl = QVBoxLayout()
+        token_vl.setContentsMargins(0, 0, 0, 0)
+        token_vl.setSpacing(3)
+        token_vl.addWidget(token_lbl)
+        token_vl.addLayout(token_edit_hl)
+        sl3.addLayout(token_vl)
+
+        # Chat ID
+        chat_lbl = QLabel("Chat ID")
+        chat_lbl.setObjectName("settingsRowLabel")
+        self._tg_chat_edit = QLineEdit(tg.get("chat_id", ""))
+        self._tg_chat_edit.setPlaceholderText("수신할 채팅/그룹/채널 ID (예: -1001234567890)")
+        chat_vl = QVBoxLayout()
+        chat_vl.setContentsMargins(0, 0, 0, 0)
+        chat_vl.setSpacing(3)
+        chat_vl.addWidget(chat_lbl)
+        chat_vl.addWidget(self._tg_chat_edit)
+        sl3.addLayout(chat_vl)
 
         tg_test_hl = QHBoxLayout()
         tg_test_hl.setContentsMargins(0, 0, 0, 0)
-        btn_tg_test = QPushButton("연결 테스트")
-        btn_tg_test.clicked.connect(self._test_telegram)
-        tg_test_hl.addWidget(btn_tg_test)
+        self._btn_tg_test = QPushButton("연결 테스트")
+        self._btn_tg_test.clicked.connect(self._test_telegram)
+        tg_test_hl.addWidget(self._btn_tg_test)
         tg_test_hl.addStretch()
         sl3.addLayout(tg_test_hl)
         vl.addWidget(box3)
 
         # 텔레그램 알림 옵션
-        box4, sl4 = _section("텔레그램 알림 옵션")
+        self._tg_options_box, sl4 = _section("텔레그램 알림 옵션")
         self._tg_image_cb = QCheckBox("알림 발생 시 스냅샷 이미지 첨부")
         self._tg_black_cb = QCheckBox("블랙 감지 알림")
         self._tg_still_cb = QCheckBox("스틸 감지 알림")
@@ -1350,13 +1393,19 @@ class SettingsDialog(QDialog):
         self._tg_emb_cb.setChecked(tg.get("notify_embedded", True))
         self._tg_system_cb.setChecked(tg.get("notify_system", True))
         for cb in (self._tg_image_cb, self._tg_black_cb, self._tg_still_cb,
-                   self._tg_audio_cb, self._tg_emb_cb, self._tg_system_cb):
+                   self._tg_audio_cb, self._tg_emb_cb):
             sl4.addWidget(cb)
+        sl4.addWidget(self._tg_system_cb)
+        system_hint = QLabel("Watchdog 감시, Detection 재시작/복구, 비정상 종료 시 텔레그램으로 시스템 상태 알림")
+        system_hint.setObjectName("settingsDesc")
+        system_hint.setWordWrap(True)
+        system_hint.setContentsMargins(20, 0, 0, 0)
+        sl4.addWidget(system_hint)
 
         self._tg_cooldown_edit = _int_edit(tg.get("cooldown", 60), 1, 3600)
         sl4.addLayout(_row("재전송 대기(초)", self._tg_cooldown_edit,
                            "동일 감지유형 연속 재전송 방지. 기본 60초"))
-        vl.addWidget(box4)
+        vl.addWidget(self._tg_options_box)
 
         # 자동 재시작
         box5, sl5 = _section("자동 재시작")
@@ -1398,6 +1447,7 @@ class SettingsDialog(QDialog):
         # 즉시 반영 연결 — 알림설정
         self._alarm_sound_edit.editingFinished.connect(self._apply_now)
         self._tg_enabled_cb.stateChanged.connect(self._apply_now)
+        self._tg_enabled_cb.stateChanged.connect(self._toggle_telegram_widgets)
         self._tg_token_edit.editingFinished.connect(self._apply_now)
         self._tg_chat_edit.editingFinished.connect(self._apply_now)
         for cb in (self._tg_image_cb, self._tg_black_cb, self._tg_still_cb,
@@ -1405,9 +1455,14 @@ class SettingsDialog(QDialog):
             cb.stateChanged.connect(self._apply_now)
         self._tg_cooldown_edit.editingFinished.connect(self._apply_now)
         self._restart_enabled_cb.stateChanged.connect(self._apply_now)
-        self._restart_base_edit.editingFinished.connect(self._apply_now)
+        self._restart_enabled_cb.stateChanged.connect(self._toggle_restart_widgets)
+        self._restart_base_edit.editingFinished.connect(self._validate_restart_time)
         self._restart_interval_combo.currentIndexChanged.connect(self._apply_now)
         self._restart_exclude_edit.editingFinished.connect(self._apply_now)
+
+        # 초기 그레이아웃 상태 적용
+        self._toggle_telegram_widgets(self._tg_enabled_cb.isChecked())
+        self._toggle_restart_widgets(self._restart_enabled_cb.isChecked())
 
         vl.addStretch()
         return _make_scroll(inner)
@@ -1699,9 +1754,49 @@ class SettingsDialog(QDialog):
         if path:
             edit.setText(path)
 
+    def _reset_alarm_sound(self):
+        self._alarm_sound_edit.setText("resources/sounds/alarm.wav")
+        self._apply_now()
+
     def _test_sound(self, path: str):
         if self._alarm is not None:
             self._alarm.play_test_sound(path)
+
+    def _toggle_token_echo(self):
+        """Bot Token 표시/숨김 토글."""
+        if self._tg_token_edit.echoMode() == QLineEdit.EchoMode.Password:
+            self._tg_token_edit.setEchoMode(QLineEdit.EchoMode.Normal)
+            self._btn_tg_token_toggle.setText("숨김")
+        else:
+            self._tg_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+            self._btn_tg_token_toggle.setText("표시")
+
+    def _toggle_telegram_widgets(self, enabled):
+        """텔레그램 활성화 체크박스 ON/OFF에 따라 하위 위젯/섹션 활성/비활성."""
+        on = bool(enabled)
+        for w in (self._tg_token_edit, self._btn_tg_token_toggle,
+                  self._tg_chat_edit, self._btn_tg_test):
+            w.setEnabled(on)
+        self._tg_options_box.setEnabled(on)
+
+    def _toggle_restart_widgets(self, enabled):
+        """예약 재시작 활성화 체크박스 ON/OFF에 따라 하위 위젯 활성/비활성."""
+        on = bool(enabled)
+        for w in (self._restart_base_edit, self._restart_interval_combo,
+                  self._restart_exclude_edit):
+            w.setEnabled(on)
+
+    def _validate_restart_time(self):
+        """기준 시각 HH:MM 형식 검증. 유효하면 즉시 반영, 아니면 빨간 테두리."""
+        import re
+        text = self._restart_base_edit.text().strip()
+        if re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", text):
+            self._restart_base_edit.setStyleSheet("")
+            self._restart_base_edit.setToolTip("")
+            self._apply_now()
+        else:
+            self._restart_base_edit.setStyleSheet("border: 1px solid #cc0000;")
+            self._restart_base_edit.setToolTip("형식 오류: HH:MM (00:00 ~ 23:59)")
 
     def _test_telegram(self):
         token = self._tg_token_edit.text().strip()
@@ -1709,19 +1804,19 @@ class SettingsDialog(QDialog):
         if not token or not chat_id:
             QMessageBox.warning(self, "오류", "Bot Token과 Chat ID를 입력하세요.")
             return
-        try:
-            import requests
-            url = f"https://api.telegram.org/bot{token}/sendMessage"
-            resp = requests.post(url, data={"chat_id": chat_id,
-                                             "text": "[KBS Monitoring v2] 연결 테스트"},
-                                  timeout=5)
-            if resp.ok:
-                QMessageBox.information(self, "성공", "텔레그램 연결 성공!")
-            else:
-                QMessageBox.warning(self, "실패",
-                                    f"전송 실패: {resp.status_code}\n{resp.text[:200]}")
-        except Exception as e:
-            QMessageBox.critical(self, "오류", f"연결 오류:\n{e}")
+        self._btn_tg_test.setEnabled(False)
+        self._btn_tg_test.setText("테스트 중...")
+        self._tg_worker = _TelegramTestWorker(token, chat_id)
+        self._tg_worker.result_ready.connect(self._on_telegram_test_result)
+        self._tg_worker.start()
+
+    def _on_telegram_test_result(self, ok: bool, msg: str):
+        self._btn_tg_test.setEnabled(True)
+        self._btn_tg_test.setText("연결 테스트")
+        if ok:
+            QMessageBox.information(self, "성공", "텔레그램 연결 성공!")
+        else:
+            QMessageBox.warning(self, "실패", msg)
 
     def _auto_detect_performance(self):
         """현재 CPU/RAM 측정 후 scale_factor / detection_interval 자동 추천."""
@@ -1834,8 +1929,11 @@ class SettingsDialog(QDialog):
 
     def _export_config(self):
         self._collect_config()
+        import os
+        default_path = os.path.join(
+            os.path.abspath(self._cfg_mgr.CONFIG_DIR), "kbs_config_backup.json")
         path, _ = QFileDialog.getSaveFileName(
-            self, "설정 저장", "kbs_config_backup.json",
+            self, "설정 저장", default_path,
             "JSON 파일 (*.json)")
         if not path:
             return
@@ -1856,17 +1954,26 @@ class SettingsDialog(QDialog):
         try:
             import json
             with open(path, "r", encoding="utf-8") as f:
-                new_cfg = json.load(f)
-            self._cfg_mgr.save(new_cfg)
-            self._cfg = new_cfg
+                raw = json.load(f)
+            merged = self._cfg_mgr._merge_defaults(raw)
+            self._cfg_mgr.save(merged)
+            self._cfg = merged
             self._load_rois_from_cfg()
-            self._apply_now()
+            self._send_cmd_apply()
+            self.config_saved.emit(copy.deepcopy(self._cfg))
             QMessageBox.information(self, "완료",
-                                    "설정을 불러왔습니다. 적용하려면 프로그램을 재시작하세요.")
+                                    "설정을 불러와 적용했습니다.\n"
+                                    "(위젯 표시는 다이얼로그를 닫고 다시 열면 갱신됩니다.)")
         except Exception as e:
             QMessageBox.critical(self, "오류", f"불러오기 실패:\n{e}")
 
     def _reset_all_settings(self):
+        reply = QMessageBox.question(
+            self, "기본값으로 초기화",
+            "모든 설정이 초기 기본값으로 돌아갑니다.\n계속하시겠습니까?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
         self._cfg = copy.deepcopy(DEFAULT_CONFIG)
         self._cfg_mgr.save(self._cfg)
         self._send_cmd_apply()

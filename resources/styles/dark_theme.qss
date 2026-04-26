@@ -403,6 +403,20 @@ QFrame#settingsSection QCheckBox::indicator:checked {
     border-color: #B85E3F;
 }
 
+QFrame#settingsSection QCheckBox:disabled {
+    color: #45464c;
+}
+
+QFrame#settingsSection QCheckBox::indicator:disabled {
+    background-color: #1e1f23;
+    border-color: #2a2b30;
+}
+
+QFrame#settingsSection QPushButton:disabled {
+    background-color: #1e1f23;
+    color: #45464c;
+}
+
 /* ── 설정창 공통 액션 버튼 ──────────────────────────────────────── */
 QPushButton#btnPrimary {
     background-color: #D97757;
