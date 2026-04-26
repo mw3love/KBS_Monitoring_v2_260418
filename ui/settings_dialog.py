@@ -1159,6 +1159,17 @@ class SettingsDialog(QDialog):
         ))
         vl.addWidget(box_sound)
 
+        # 자동 정파 활성화 체크박스 → 하위 섹션 활성/비활성 연동
+        _so_sub_boxes = [w["_box"] for w in self._so_grp] + [box_sound]
+
+        def _update_signoff_enabled(state=None):
+            enabled = self._auto_prep_cb.isChecked()
+            for _box in _so_sub_boxes:
+                _box.setEnabled(enabled)
+
+        self._auto_prep_cb.stateChanged.connect(_update_signoff_enabled)
+        _update_signoff_enabled()
+
         # 즉시 반영 연결 — 정파설정
         self._auto_prep_cb.stateChanged.connect(self._apply_now)
         for edit in (self._so_prep_sound, self._so_enter_sound, self._so_release_sound):
@@ -1187,7 +1198,7 @@ class SettingsDialog(QDialog):
         box, sl = _section(f"그룹 {gid}")
         parent_vl.addWidget(box)
 
-        widgets = {}
+        widgets = {"_box": box}
 
         # 그룹명
         name_edit = QLineEdit(grp.get("name", f"{gid}TV"))
@@ -1274,16 +1285,21 @@ class SettingsDialog(QDialog):
             cb.setChecked(d_idx in cur_days)
             day_hl.addWidget(cb)
             day_cbs.append(cb)
-        btn_all = QPushButton("전체")
-        btn_all.setObjectName("btnLink")
-        btn_all.setFixedWidth(36)
-        btn_none = QPushButton("해제")
-        btn_none.setObjectName("btnLink")
-        btn_none.setFixedWidth(36)
-        btn_all.clicked.connect(lambda _=False, cbs=day_cbs: [cb.setChecked(True) for cb in cbs])
-        btn_none.clicked.connect(lambda _=False, cbs=day_cbs: [cb.setChecked(False) for cb in cbs])
-        day_hl.addWidget(btn_all)
-        day_hl.addWidget(btn_none)
+        def _toggle_all_days(cbs=day_cbs):
+            all_checked = all(cb.isChecked() for cb in cbs)
+            for cb in cbs:
+                cb.setChecked(not all_checked)
+        btn_day_toggle = QPushButton("전체 선택")
+        btn_day_toggle.setObjectName("btnNeutral")
+        btn_day_toggle.setFixedWidth(60)
+        btn_day_toggle.clicked.connect(_toggle_all_days)
+
+        def _update_toggle_label(cbs=day_cbs, btn=btn_day_toggle):
+            btn.setText("전체 해제" if all(cb.isChecked() for cb in cbs) else "전체 선택")
+        for cb in day_cbs:
+            cb.stateChanged.connect(lambda _=0, fn=_update_toggle_label: fn())
+        _update_toggle_label()
+        day_hl.addWidget(btn_day_toggle)
         day_hl.addStretch()
         sl.addLayout(day_hl)
         widgets["weekdays"] = day_cbs
