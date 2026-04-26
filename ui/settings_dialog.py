@@ -1165,7 +1165,8 @@ class SettingsDialog(QDialog):
             edit.editingFinished.connect(self._apply_now)
         for w in self._so_grp:
             w["name"].editingFinished.connect(self._apply_now)
-            for key in ("start_h", "start_m", "end_h", "end_m", "exit_trigger_sec"):
+            for key in ("start_h", "start_m", "end_h", "end_m",
+                        "still_trigger_sec", "exit_trigger_sec"):
                 w[key].editingFinished.connect(self._apply_now)
             w["end_next_day"].stateChanged.connect(self._apply_now)
             w["prep_minutes"].currentIndexChanged.connect(self._apply_now)
@@ -1213,14 +1214,16 @@ class SettingsDialog(QDialog):
         time_hl.addWidget(end_m)
         time_hl.addWidget(end_next_cb)
         time_hl.addStretch()
-        sl.addLayout(_row("정파모드 시작 HH:MM:", time_widget))
+        sl.addLayout(_row("정파 시간 구간 (시작→종료):", time_widget,
+                          "스틸 미감지 시 시작 시각에 자동 정파 진입 (fallback)"))
         widgets.update({"start_h": start_h, "start_m": start_m,
                         "end_h": end_h, "end_m": end_m, "end_next_day": end_next_cb})
 
         # 정파준비 활성화 (X분 전)
         prep_combo = QComboBox()
-        prep_options = [(30, "30분 전"), (60, "1시간 전"), (90, "1.5시간 전"),
-                        (120, "2시간 전"), (150, "2.5시간 전"), (180, "3시간 전")]
+        prep_options = [(0, "사용 안 함"), (30, "30분 전"), (60, "1시간 전"),
+                        (90, "1.5시간 전"), (120, "2시간 전"), (150, "2.5시간 전"),
+                        (180, "3시간 전"), (240, "4시간 전")]
         cur_prep = grp.get("prep_minutes", 150)
         for val, label in prep_options:
             prep_combo.addItem(label, val)
@@ -1229,12 +1232,12 @@ class SettingsDialog(QDialog):
                 prep_combo.setCurrentIndex(i)
                 break
         sl.addLayout(_row("정파준비 활성화", prep_combo,
-                          "정파 시작 X분 전에 정파준비 모드로 전환"))
+                          "정파 시작 시각 기준 X분 전부터 ROI 스틸 감시 시작"))
         widgets["prep_minutes"] = prep_combo
 
         # 정파해제준비 활성화
         exit_prep_combo = QComboBox()
-        exit_prep_options = [(30, "30분 전"), (60, "1시간 전"),
+        exit_prep_options = [(0, "사용 안 함"), (30, "30분 전"), (60, "1시간 전"),
                              (120, "2시간 전"), (180, "3시간 전")]
         cur_exit_prep = grp.get("exit_prep_minutes", 30)
         for val, label in exit_prep_options:
@@ -1244,8 +1247,14 @@ class SettingsDialog(QDialog):
                 exit_prep_combo.setCurrentIndex(i)
                 break
         sl.addLayout(_row("정파해제준비 활성화", exit_prep_combo,
-                          "정파 종료 X분 전에 해제준비 구간 시작"))
+                          "정파 종료 X분 전에 해제준비 구간 시작 (사용 안 함 = 종료 시각에만 해제)"))
         widgets["exit_prep_minutes"] = exit_prep_combo
+
+        # 정파 진입 기준 시간 (ROI 스틸 유지 시간)
+        still_trig = _int_edit(int(grp.get("still_trigger_sec", 60)), 5, 300)
+        sl.addLayout(_row("정파 진입 기준 시간(초)", still_trig,
+                          "ROI 스틸이 이 시간 이상 지속 시 정파 진입"))
+        widgets["still_trigger_sec"] = still_trig
 
         # 조기 해제 트리거 시간
         exit_trig = _int_edit(grp.get("exit_trigger_sec", 5), 1, 300)
@@ -1265,6 +1274,16 @@ class SettingsDialog(QDialog):
             cb.setChecked(d_idx in cur_days)
             day_hl.addWidget(cb)
             day_cbs.append(cb)
+        btn_all = QPushButton("전체")
+        btn_all.setObjectName("btnLink")
+        btn_all.setFixedWidth(36)
+        btn_none = QPushButton("해제")
+        btn_none.setObjectName("btnLink")
+        btn_none.setFixedWidth(36)
+        btn_all.clicked.connect(lambda _=False, cbs=day_cbs: [cb.setChecked(True) for cb in cbs])
+        btn_none.clicked.connect(lambda _=False, cbs=day_cbs: [cb.setChecked(False) for cb in cbs])
+        day_hl.addWidget(btn_all)
+        day_hl.addWidget(btn_none)
         day_hl.addStretch()
         sl.addLayout(day_hl)
         widgets["weekdays"] = day_cbs
@@ -1276,16 +1295,27 @@ class SettingsDialog(QDialog):
         btn_roi = QPushButton("감지영역 선택...")
         btn_roi.clicked.connect(lambda: self._open_signoff_roi_dialog(gid - 1))
         roi_btn_hl.addWidget(btn_roi)
-        enter_lbl = QLabel(
-            (grp.get("enter_roi") or {}).get("video_label", "없음") or "없음")
+        _enter_roi_init = dict(grp.get("enter_roi") or {"video_label": ""})
+        _suppressed_init = list(grp.get("suppressed_labels", []))
+        enter_v = _enter_roi_init.get("video_label", "") or ""
+        sup_cnt = len(_suppressed_init)
+        if enter_v:
+            _roi_disp = f"{enter_v} · 억제 {sup_cnt}개" if sup_cnt else enter_v
+            _roi_color = ""
+        else:
+            _roi_disp = "미설정"
+            _roi_color = "color: #cc4444;"
+        enter_lbl = QLabel(_roi_disp)
+        if _roi_color:
+            enter_lbl.setStyleSheet(_roi_color)
         roi_btn_hl.addWidget(enter_lbl)
         roi_btn_hl.addStretch()
         sl.addLayout(roi_btn_hl)
         widgets["enter_label_lbl"] = enter_lbl
 
         # 억제 라벨 내부 저장 (SignoffROIDialog 결과용)
-        widgets["_enter_roi"] = dict(grp.get("enter_roi") or {"video_label": ""})
-        widgets["_suppressed"] = list(grp.get("suppressed_labels", []))
+        widgets["_enter_roi"] = _enter_roi_init
+        widgets["_suppressed"] = _suppressed_init
 
         return widgets
 
@@ -1300,8 +1330,15 @@ class SettingsDialog(QDialog):
             result = dlg.get_result()
             widgets["_enter_roi"] = result["enter_roi"]
             widgets["_suppressed"] = result["suppressed_labels"]
-            enter_label = result["enter_roi"].get("video_label", "") or "없음"
-            widgets["enter_label_lbl"].setText(enter_label)
+            enter_v = result["enter_roi"].get("video_label", "") or ""
+            sup_cnt = len(result["suppressed_labels"])
+            lbl_widget = widgets["enter_label_lbl"]
+            if enter_v:
+                lbl_widget.setText(f"{enter_v} · 억제 {sup_cnt}개" if sup_cnt else enter_v)
+                lbl_widget.setStyleSheet("")
+            else:
+                lbl_widget.setText("미설정")
+                lbl_widget.setStyleSheet("color: #cc4444;")
             self._apply_now()
 
     # ─────────────────────────────────────────────────────────────────
@@ -1622,6 +1659,7 @@ class SettingsDialog(QDialog):
             grp["end_next_day"] = w["end_next_day"].isChecked()
             grp["prep_minutes"] = w["prep_minutes"].currentData()
             grp["exit_prep_minutes"] = w["exit_prep_minutes"].currentData()
+            grp["still_trigger_sec"] = int(w["still_trigger_sec"].text() or 60)
             grp["exit_trigger_sec"] = int(w["exit_trigger_sec"].text() or 5)
             grp["weekdays"] = [d for d, cb in enumerate(w["weekdays"])
                                if cb.isChecked()]

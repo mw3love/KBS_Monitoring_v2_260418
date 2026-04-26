@@ -56,8 +56,7 @@ class SignoffGroup:
         }
 
     @classmethod
-    def from_dict(cls, d: dict, group_id: int,
-                  still_trigger_sec: float) -> "SignoffGroup":
+    def from_dict(cls, d: dict, group_id: int) -> "SignoffGroup":
         enter_roi = d.get("enter_roi", {})
         if not enter_roi:
             old_rules = d.get("roi_rules", [])
@@ -82,9 +81,10 @@ class SignoffGroup:
         every_day = d.get("every_day", len(raw_weekdays) == 7)
 
         prep_minutes = int(d.get("prep_minutes", 30))
-        prep_minutes = max(0, min(180, (prep_minutes // 30) * 30))
+        prep_minutes = max(0, min(240, (prep_minutes // 30) * 30))
         exit_prep_minutes = int(d.get("exit_prep_minutes", 0))
         exit_prep_minutes = max(0, min(180, (exit_prep_minutes // 30) * 30))
+        still_trigger_sec = max(1.0, float(d.get("still_trigger_sec", 60.0)))
         exit_trigger_sec = max(0.0, float(d.get("exit_trigger_sec", 5.0)))
 
         return cls(
@@ -227,12 +227,12 @@ class SignoffManager:
     def get_groups(self) -> Dict[int, SignoffGroup]:
         return dict(self._groups)
 
-    def configure_from_dict(self, signoff_cfg: dict, still_trigger_sec: float = 60.0):
+    def configure_from_dict(self, signoff_cfg: dict):
         self._auto_preparation = bool(signoff_cfg.get("auto_preparation", True))
         for gid in (1, 2):
             key = f"group{gid}"
             grp_data = signoff_cfg.get(key, {})
-            group = SignoffGroup.from_dict(grp_data, gid, still_trigger_sec)
+            group = SignoffGroup.from_dict(grp_data, gid)
             self.set_group(group)
 
     # ── 감지 데이터 수신 ──────────────────────────────────────────────────────

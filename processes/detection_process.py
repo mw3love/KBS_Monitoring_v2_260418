@@ -250,8 +250,7 @@ def run(result_queue, cmd_queue, shutdown_event,
     audio_rois = roi_mgr.audio_rois
 
     # SignoffManager 설정
-    still_trigger_sec = cfg.get("detection", {}).get("still_duration", 60.0)
-    signoff_mgr.configure_from_dict(cfg.get("signoff", {}), still_trigger_sec)
+    signoff_mgr.configure_from_dict(cfg.get("signoff", {}))
     _update_signoff_media_names(signoff_mgr, video_rois + audio_rois)
 
     # DetectionState 초기화

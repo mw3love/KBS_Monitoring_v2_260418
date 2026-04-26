@@ -85,6 +85,7 @@
       "end_next_day": false,
       "prep_minutes": 150,
       "exit_prep_minutes": 30,
+      "still_trigger_sec": 60,
       "exit_trigger_sec": 5,
       "weekdays": [0, 1]
     },
@@ -97,6 +98,7 @@
       "end_next_day": false,
       "prep_minutes": 90,
       "exit_prep_minutes": 30,
+      "still_trigger_sec": 60,
       "exit_trigger_sec": 5,
       "weekdays": [0, 1, 2, 3, 4, 5, 6]
     }
