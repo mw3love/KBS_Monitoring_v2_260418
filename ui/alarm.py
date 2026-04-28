@@ -127,7 +127,7 @@ class AlarmSystem(QObject):
         self._sound_enabled = enabled
         if not enabled:
             self._stop_playback()
-        elif self._active_alarms:
+        elif self._active_alarms - self._acknowledged_alarms:
             self._play_sound("default")
 
     def set_volume(self, volume: float):
