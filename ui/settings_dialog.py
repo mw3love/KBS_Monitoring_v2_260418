@@ -2124,7 +2124,7 @@ class SettingsDialog(QDialog):
             import json
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(self._cfg, f, ensure_ascii=False, indent=2)
-            QMessageBox.information(self, "저장 완료", f"저장됨:\n{path}")
+            pass
         except Exception as e:
             QMessageBox.critical(self, "오류", f"저장 실패:\n{e}")
 
@@ -2144,9 +2144,7 @@ class SettingsDialog(QDialog):
             self._load_rois_from_cfg()
             self._send_cmd_apply()
             self.config_saved.emit(copy.deepcopy(self._cfg))
-            QMessageBox.information(self, "완료",
-                                    "설정을 불러와 적용했습니다.\n"
-                                    "(위젯 표시는 다이얼로그를 닫고 다시 열면 갱신됩니다.)")
+            self._reload_all_tabs()
         except Exception as e:
             QMessageBox.critical(self, "오류", f"불러오기 실패:\n{e}")
 
