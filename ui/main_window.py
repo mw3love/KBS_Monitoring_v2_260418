@@ -65,6 +65,9 @@ class MainWindow(QMainWindow):
         # Detection 준비 여부
         self._detection_ready = False
 
+        # 감지 현황 카운트 추적: (detection_type, label) → roi_type
+        self._active_alarm_roi: dict[tuple, str] = {}
+
         # ROI 인라인 오버레이 상태
         self._roi_overlay = None
         self._roi_overlay_type: str = ""
@@ -180,6 +183,8 @@ class MainWindow(QMainWindow):
         if ui_state.get("fullscreen", False):
             QTimer.singleShot(200, self._toggle_fullscreen)
 
+        self._refresh_summary()
+
     # ── 슬롯: TopBar → cmd_queue ───────────────────────────────────
 
     def _on_detection_toggled(self, enabled: bool):
@@ -189,6 +194,8 @@ class MainWindow(QMainWindow):
         if not enabled:
             self._send_cmd(ClearAlarms())
             self._alarm.resolve_all()
+            self._active_alarm_roi.clear()
+            self._refresh_summary()
             self._top_bar.update_health(False)
 
     def _on_volume_changed(self, value: int):
@@ -218,19 +225,42 @@ class MainWindow(QMainWindow):
     def _on_alarm_trigger(self, msg):
         if not self._detection_enabled:
             return
+        self._active_alarm_roi[(msg.detection_type, msg.label)] = msg.roi_type
         self._alarm.trigger(msg.detection_type, msg.label)
         self._video_widget.set_alert_state(msg.label, True)
         self._log_widget.add_log(
             f"[알람] {msg.label} {msg.detection_type} 감지",
             log_type=self._detect_type_to_log_type(msg.detection_type),
         )
+        self._refresh_summary()
 
     def _on_alarm_resolve(self, msg):
+        self._active_alarm_roi.pop((msg.detection_type, msg.label), None)
         self._alarm.resolve(msg.detection_type, msg.label)
         self._video_widget.set_alert_state(msg.label, False)
         self._log_widget.add_log(
             f"[복구] {msg.label} {msg.detection_type} "
             f"({msg.duration_sec:.0f}초)"
+        )
+        self._refresh_summary()
+
+    def _refresh_summary(self):
+        """감지 현황(V/A/EA) 카운트를 계산해 상단바에 반영."""
+        video_labels: set = set()
+        audio_labels: set = set()
+        ea_alerting = False
+        for (det_type, label), roi_type in self._active_alarm_roi.items():
+            if roi_type == "video":
+                video_labels.add(label)
+            elif roi_type == "audio":
+                audio_labels.add(label)
+            elif roi_type == "embedded":
+                ea_alerting = True
+        embedded_enabled = self._cfg.get("performance", {}).get(
+            "embedded_detection_enabled", True
+        )
+        self._top_bar.update_summary(
+            len(video_labels), len(audio_labels), embedded_enabled, ea_alerting
         )
 
     def _on_detection_crashed(self, msg):
@@ -420,6 +450,7 @@ class MainWindow(QMainWindow):
         sound_file = alarm_cfg.get("sound_file", "") or "resources/sounds/alarm.wav"
         self._alarm.set_sound_file("default", sound_file)
         self._apply_rois_to_video_widget(new_cfg)
+        self._refresh_summary()
         # 테스트 영상 파일이 지워지면 VideoWidget도 즉시 검은 화면으로
         new_video_file = new_cfg.get("video_file", "")
         if old_video_file and not new_video_file:
