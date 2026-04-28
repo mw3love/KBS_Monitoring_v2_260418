@@ -40,36 +40,109 @@ def _find_kbs_processes():
     """
     실행 중인 KBS Monitoring 프로세스 탐색.
     반환: {role: psutil.Process} — role은 'main', 'detection', 'watchdog' 중 하나.
+
+    탐색 전략:
+    1) main 프로세스를 cmdline으로 탐색 (직접 실행 → 경로 포함)
+    2) main의 자손 프로세스 전체(recursive=True)에서 watchdog·detection 식별
+       - detection은 watchdog의 자식(손자)이므로 recursive 필수
+       - 앱이 관리자 권한으로 실행된 경우 children() AccessDenied 가능
+         → 폴백: 전체 프로세스에서 main과 같은 Python 인터프리터 + 유사 생성시각 탐색
     """
     result = {}
     if not PSUTIL_OK:
         return result
 
-    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+    # 1단계: main 프로세스 탐색
+    _root_lower = _ROOT.lower().replace("\\", "/")
+    for proc in psutil.process_iter(["pid", "name", "cmdline", "create_time"]):
         try:
             cmd = " ".join(proc.info.get("cmdline") or [])
-            if not cmd:
-                continue
-            if "main.py" in cmd and "kbs" in cmd.lower():
+            cmd_lower = cmd.lower().replace("\\", "/")
+            if "main.py" in cmd_lower and _root_lower in cmd_lower:
                 result["main"] = proc
-            elif "detection_process" in cmd or "Detection-" in cmd:
-                result["detection"] = proc
-            elif "watchdog_process" in cmd or "Watchdog-" in cmd:
-                result["watchdog"] = proc
+                break
+            if "main.py" in cmd and "kbs" in cmd_lower:
+                result["main"] = proc
+                break
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
 
-    # 프로세스 이름으로 보조 탐색 (위에서 못 찾은 경우)
-    if not result:
-        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+    if "main" not in result:
+        return result
+
+    # 2단계: main 자손 프로세스(recursive=True) → watchdog·detection 식별
+    # detection = watchdog의 자식(손자)이므로 recursive=True 필수
+    try:
+        descendants = result["main"].children(recursive=True)
+        descendants.sort(key=lambda p: p.create_time())
+        unidentified = []
+        for child in descendants:
             try:
-                cmd = " ".join(proc.info.get("cmdline") or [])
-                if "kbs_monitoring" in cmd.lower() or "KBS_Monitoring" in cmd:
-                    result.setdefault("main", proc)
+                child_cmd = " ".join(child.cmdline()).lower()
+                if "detection_process" in child_cmd:
+                    result["detection"] = child
+                elif "watchdog_process" in child_cmd:
+                    result["watchdog"] = child
+                else:
+                    unidentified.append(child)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
+                unidentified.append(child)
+        # cmdline 미식별 → 생성 시간 순으로 배정 (watchdog 먼저, detection 나중)
+        for child in unidentified:
+            if "watchdog" not in result:
+                result["watchdog"] = child
+            elif "detection" not in result:
+                result["detection"] = child
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        # 앱이 관리자 권한으로 실행된 경우 children() 자체가 AccessDenied
+        # 폴백: 전체 프로세스에서 main 생성 직후 시작된 Python 프로세스 탐색
+        _fallback_find_children(result)
 
     return result
+
+
+def _fallback_find_children(result: dict):
+    """
+    children() AccessDenied 폴백.
+    main과 동일한 Python 인터프리터 경로를 쓰고,
+    main 생성 시각 이후에 시작된 Python 프로세스를 watchdog·detection으로 추정.
+    """
+    try:
+        main_proc = result["main"]
+        main_exe  = main_proc.exe().lower()
+        main_ct   = main_proc.create_time()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return
+
+    candidates = []
+    for proc in psutil.process_iter(["pid", "exe", "create_time", "cmdline"]):
+        try:
+            if proc.pid == main_proc.pid:
+                continue
+            exe = (proc.info.get("exe") or "").lower()
+            if exe != main_exe:
+                continue
+            ct = proc.info.get("create_time", 0)
+            if ct <= main_ct:
+                continue
+            cmd = " ".join(proc.info.get("cmdline") or []).lower()
+            if "detection_process" in cmd:
+                result["detection"] = proc
+            elif "watchdog_process" in cmd:
+                result["watchdog"] = proc
+            else:
+                candidates.append((ct, proc))
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+    candidates.sort(key=lambda x: x[0])
+    for _, proc in candidates:
+        if "watchdog" not in result:
+            result["watchdog"] = proc
+        elif "detection" not in result:
+            result["detection"] = proc
+        else:
+            break
 
 
 def _rss_mb(proc) -> float:
