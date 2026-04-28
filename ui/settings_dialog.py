@@ -1658,11 +1658,11 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.0.0")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.0.1")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
-        lbl_meta = QLabel("날짜: 2026-04-18    제작: minwoo@kbs.co.kr")
+        lbl_meta = QLabel("날짜: 2026-04-28    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
 
