@@ -111,9 +111,10 @@ def _apply_config_to_detector(detector, cfg: dict):
     detector.audio_level_duration       = det.get("audio_level_duration", 20)
     detector.audio_level_alarm_duration = det.get("audio_level_alarm_duration", 60)
     detector.audio_level_recovery_seconds = det.get("audio_level_recovery_seconds", 2)
-    detector.embedded_silence_threshold = det.get("embedded_silence_threshold", -50)
-    detector.embedded_silence_duration  = det.get("embedded_silence_duration", 20)
-    detector.embedded_alarm_duration    = det.get("embedded_alarm_duration", 60)
+    detector.embedded_silence_threshold  = det.get("embedded_silence_threshold", -50)
+    detector.embedded_silence_duration   = det.get("embedded_silence_duration", 20)
+    detector.embedded_alarm_duration     = det.get("embedded_alarm_duration", 60)
+    detector.embedded_recovery_seconds   = det.get("embedded_recovery_seconds", 2.0)
 
     perf = cfg.get("performance", {})
     detector.scale_factor               = perf.get("scale_factor", 1.0)
@@ -711,7 +712,8 @@ def _process_alarms(
         telegram.notify("무음", "EA", "임베디드오디오")
     elif not emb_alerting and emb_was:
         _put(result_queue,
-             AlarmResolve(label="EA", detection_type="embedded", duration_sec=0.0),
+             AlarmResolve(label="EA", detection_type="embedded",
+                          duration_sec=detector._last_embedded_alert_duration),
              ipc_counters)
         telegram.notify("무음", "EA", "임베디드오디오", is_recovery=True)
     _process_alarms._emb_was = emb_alerting

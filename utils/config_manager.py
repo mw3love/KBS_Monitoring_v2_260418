@@ -34,6 +34,7 @@ DEFAULT_CONFIG = {
         "embedded_silence_threshold": -50,
         "embedded_silence_duration": 20,
         "embedded_alarm_duration": 60,
+        "embedded_recovery_seconds": 2,
     },
     "alarm": {
         "sound_enabled": True,

@@ -65,6 +65,9 @@ class Detector:
 
         self.embedded_alerting = False
         self._embedded_alert_start: Optional[float] = None
+        self._embedded_recovery_start: Optional[float] = None
+        self._last_embedded_alert_duration: float = 0.0
+        self.embedded_recovery_seconds: float = 2.0
         self._tone_states: Dict[str, DetectionState] = {}
 
         self._last_raw: Dict[str, dict] = {}
@@ -286,20 +289,39 @@ class Detector:
 
     def update_embedded_silence(self, silence_seconds: float) -> bool:
         if not self.embedded_detection_enabled:
+            self._embedded_alert_start = None
+            self._embedded_recovery_start = None
+            self.embedded_alerting = False
             return False
         if silence_seconds > 0:
+            self._embedded_recovery_start = None  # 복구 타이머 취소
             if self._embedded_alert_start is None:
                 self._embedded_alert_start = time.time() - silence_seconds
             elapsed = time.time() - self._embedded_alert_start
             if elapsed >= self.embedded_silence_duration and not self.embedded_alerting:
                 self.embedded_alerting = True
         else:
-            self._embedded_alert_start = None
-            self.embedded_alerting = False
+            if self.embedded_alerting:
+                # 복구 히스테리시스: recovery_seconds 연속 정상 신호 시에만 해제
+                if self._embedded_recovery_start is None:
+                    self._embedded_recovery_start = time.time()
+                elif time.time() - self._embedded_recovery_start >= self.embedded_recovery_seconds:
+                    self._last_embedded_alert_duration = (
+                        time.time() - self._embedded_alert_start
+                        if self._embedded_alert_start is not None else 0.0
+                    )
+                    self._embedded_alert_start = None
+                    self._embedded_recovery_start = None
+                    self.embedded_alerting = False
+            else:
+                self._embedded_alert_start = None
+                self._embedded_recovery_start = None
         return self.embedded_alerting
 
     def reset_embedded_silence(self):
         self._embedded_alert_start = None
+        self._embedded_recovery_start = None
+        self._last_embedded_alert_duration = 0.0
         self.embedded_alerting = False
 
     def reset_all(self):

@@ -192,13 +192,14 @@ class AudioMonitorWorker(threading.Thread):
                     avg_db = (l_db + r_db) / 2.0
                     if avg_db <= self.silence_threshold_db:
                         self._silence_duration += chunk_duration
-                        if self.on_silence_detected is not None:
-                            try:
-                                self.on_silence_detected(self._silence_duration)
-                            except Exception:
-                                pass
                     else:
                         self._silence_duration = 0.0
+
+                    if self.on_silence_detected is not None:
+                        try:
+                            self.on_silence_detected(self._silence_duration)
+                        except Exception:
+                            pass
 
                 except Exception as e:
                     consecutive_errors += 1
