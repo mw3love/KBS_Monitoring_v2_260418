@@ -200,6 +200,37 @@ class TelegramWorker:
         except queue.Full:
             pass
 
+    def notify_signoff(
+        self,
+        group_name: str,
+        is_entry: bool,
+        trigger_label: str,
+        trigger_media: str,
+        suppressed_labels: list,
+        elapsed_sec: float = 0.0,
+    ):
+        """정파 진입/해제 알림. 쿨다운 없이 즉시 발송."""
+        if not _REQUESTS_AVAILABLE or not self._enabled:
+            return
+        if not self._notify_flags.get("정파", True):
+            return
+        self.ensure_worker_alive()
+        if not self._bot_token or not self._chat_id:
+            return
+        item = {
+            "_signoff": True,
+            "group_name": group_name,
+            "is_entry": is_entry,
+            "trigger_label": trigger_label,
+            "trigger_media": trigger_media,
+            "suppressed_labels": list(suppressed_labels),
+            "elapsed_sec": elapsed_sec,
+        }
+        try:
+            self._queue.put_nowait(item)
+        except queue.Full:
+            self._log(f"알림 큐 가득참 — 정파 {'진입' if is_entry else '해제'} 손실", error=True)
+
     # ── 연결 테스트 ───────────────────────────────────────────────────────────
 
     def test_connection(self, token: str, chat_id: str) -> tuple:
@@ -263,6 +294,10 @@ class TelegramWorker:
     def _send(self, item: dict) -> bool:
         if not _REQUESTS_AVAILABLE:
             return False
+
+        # 정파 진입/해제 메시지
+        if item.get("_signoff"):
+            return self._send_signoff(item)
 
         # 시스템 메시지 (단순 텍스트)
         if item.get("_system"):
@@ -362,3 +397,67 @@ class TelegramWorker:
         self._consecutive_failures += 1
         self._log_with_suppression("전송 실패 (재시도 횟수 소진)")
         return False
+
+    def _send_signoff(self, item: dict) -> bool:
+        """정파 진입/해제 텍스트 메시지 발송."""
+        if not _REQUESTS_AVAILABLE:
+            return False
+        from ipc.messages import TelegramStatus
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        group_name = item["group_name"]
+        is_entry = item["is_entry"]
+        trigger_label = item["trigger_label"]
+        trigger_media = item.get("trigger_media", "")
+        suppressed_labels = item.get("suppressed_labels", [])
+        elapsed_sec = item.get("elapsed_sec", 0.0)
+
+        trigger_str = trigger_label
+        if trigger_media and trigger_media != trigger_label:
+            trigger_str += f" ({trigger_media})"
+
+        suppressed_str = ", ".join(suppressed_labels) if suppressed_labels else "-"
+        suppressed_count = len(suppressed_labels)
+
+        if is_entry:
+            text = (
+                f"[KBS On-Air Monitoring \U0001F534 정파]\n"
+                f"\U000023F0 시각: {now_str}\n"
+                f"\U0001F4CB 그룹: {group_name}\n"
+                f"\U0001F3AF 진입 트리거: {trigger_str}\n"
+                f"\U0001F515 알림 억제: {suppressed_str} ({suppressed_count}개 채널)"
+            )
+            log_kind = "정파 진입"
+        else:
+            minutes = int(elapsed_sec) // 60
+            seconds = int(elapsed_sec) % 60
+            text = (
+                f"[KBS On-Air Monitoring \U00002705 정파 해제]\n"
+                f"\U000023F0 시각: {now_str}\n"
+                f"\U0001F4CB 그룹: {group_name}\n"
+                f"\U0001F3AF 진입 트리거: {trigger_str}\n"
+                f"\U0001F515 알림 억제: {suppressed_str} ({suppressed_count}개 채널)\n"
+                f"\U000023F1 정파 시간: {minutes}분 {seconds:02d}초"
+            )
+            log_kind = "정파 해제"
+
+        base = self._API_BASE.format(token=self._bot_token)
+        try:
+            resp = _requests.post(
+                f"{base}/sendMessage",
+                json={"chat_id": self._chat_id, "text": text},
+                timeout=(5.0, 15.0),
+            )
+            if resp.status_code == 200:
+                self._log(f"{log_kind} 알림 전송 완료 ({group_name})")
+                self._emit(TelegramStatus(event="sent",
+                                          message=f"{log_kind} ({group_name})",
+                                          queue_size=self._queue.qsize()))
+                return True
+            else:
+                self._consecutive_failures += 1
+                self._log_with_suppression(f"{log_kind} 전송 실패 {resp.status_code}: {resp.text[:120]}")
+                return False
+        except Exception as exc:
+            self._consecutive_failures += 1
+            self._log_with_suppression(f"{log_kind} 전송 실패: {self._classify_error(exc)} — {exc}")
+            return False
