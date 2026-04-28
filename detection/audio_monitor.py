@@ -19,13 +19,6 @@ try:
 except ImportError:
     SOUNDDEVICE_AVAILABLE = False
 
-try:
-    from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-    from ctypes import cast, POINTER
-    from comtypes import CLSCTX_ALL
-    PYCAW_AVAILABLE = True
-except ImportError:
-    PYCAW_AVAILABLE = False
 
 
 class AudioMonitorWorker(threading.Thread):
@@ -285,30 +278,3 @@ class AudioMonitorWorker(threading.Thread):
                     pass
 
 
-# ── pycaw 볼륨/Mute 제어 (Detection 프로세스 전담) ────────────────────────────
-
-def set_system_volume(volume: int):
-    """시스템 볼륨 설정 (0~100). pycaw 미설치 시 무시."""
-    if not PYCAW_AVAILABLE:
-        return
-    try:
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        vol = cast(interface, POINTER(IAudioEndpointVolume))
-        scalar = max(0.0, min(1.0, volume / 100.0))
-        vol.SetMasterVolumeLevelScalar(scalar, None)
-    except Exception as e:
-        _log.error("시스템 볼륨 설정 오류: %s", e)
-
-
-def set_system_mute(muted: bool):
-    """시스템 음소거 설정. pycaw 미설치 시 무시."""
-    if not PYCAW_AVAILABLE:
-        return
-    try:
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        vol = cast(interface, POINTER(IAudioEndpointVolume))
-        vol.SetMute(int(muted), None)
-    except Exception as e:
-        _log.error("시스템 Mute 설정 오류: %s", e)

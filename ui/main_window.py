@@ -61,6 +61,8 @@ class MainWindow(QMainWindow):
         # UI 런타임 상태 (재spawn 시 재주입용)
         self._detection_enabled = self._cfg.get("ui_state", {}).get("detection_enabled", True)
         self._signoff_states = {1: "IDLE", 2: "IDLE"}
+        self._current_volume: int = self._cfg.get("alarm", {}).get("volume", 80)
+        self._embed_muted: bool = False
 
         # Detection 준비 여부
         self._detection_ready = False
@@ -122,6 +124,7 @@ class MainWindow(QMainWindow):
         self._top_bar.fullscreen_toggled.connect(self._toggle_fullscreen)
         self._top_bar.signoff_manual_release.connect(self._on_signoff_button_clicked)
         self._top_bar.settings_requested.connect(self._open_settings)
+        self._top_bar.embed_mute_toggled.connect(self._on_embed_mute_toggled)
 
         # AlarmSystem → VideoWidget/TopBar
         self._alarm.visual_blink.connect(self._video_widget.set_blink_state)
@@ -166,6 +169,7 @@ class MainWindow(QMainWindow):
     def _restore_ui_state(self):
         ui_state = self._cfg.get("ui_state", {})
         vol = self._cfg.get("alarm", {}).get("volume", 80)
+        self._current_volume = vol
         self._top_bar.set_volume_display(vol)
         self._top_bar.set_mute_state(
             self._cfg.get("alarm", {}).get("sound_enabled", True))
@@ -200,7 +204,14 @@ class MainWindow(QMainWindow):
 
     def _on_volume_changed(self, value: int):
         from ipc.messages import SetVolume
+        self._current_volume = value
+        self._cfg.setdefault("alarm", {})["volume"] = value
         self._send_cmd(SetVolume(volume=value))
+
+    def _on_embed_mute_toggled(self, muted: bool):
+        self._embed_muted = muted
+        from ipc.messages import SetMute
+        self._send_cmd(SetMute(muted=muted))
 
     def _on_signoff_button_clicked(self, group_id: int):
         from ipc.messages import SetSignoffState
@@ -310,11 +321,8 @@ class MainWindow(QMainWindow):
         )
         self._send_cmd(ApplyConfig(config=self._cfg, reason="restore"))
         self._send_cmd(SetDetectionEnabled(enabled=self._detection_enabled))
-        vol = self._cfg.get("alarm", {}).get("volume", 80)
-        self._send_cmd(SetVolume(volume=vol))
-        muted = not self._cfg.get("alarm", {}).get("sound_enabled", True)
-        from ipc.messages import SetMute
-        self._send_cmd(SetMute(muted=muted))
+        self._send_cmd(SetVolume(volume=self._current_volume))
+        self._send_cmd(SetMute(muted=self._embed_muted))
         for gid, state in self._signoff_states.items():
             self._send_cmd(SetSignoffState(group_id=gid, new_state=state))
         rois = self._cfg.get("rois", {})

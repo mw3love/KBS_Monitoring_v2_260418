@@ -213,7 +213,7 @@ def run(result_queue, cmd_queue, shutdown_event,
     from core.roi_manager import ROIManager
     from detection.detector import Detector
     from detection.video_capture import VideoCaptureWorker
-    from detection.audio_monitor import AudioMonitorWorker, set_system_volume, set_system_mute
+    from detection.audio_monitor import AudioMonitorWorker
     from detection.signoff_manager import SignoffManager
     from detection.auto_recorder import AutoRecorder
     from detection.telegram_worker import TelegramWorker
@@ -312,13 +312,10 @@ def run(result_queue, cmd_queue, shutdown_event,
         "embedded_silence_threshold", -50
     )
 
-    # 볼륨/Mute 초기값 시스템 적용
-    if shared_state:
-        try:
-            set_system_volume(shared_state.get_volume())
-            set_system_mute(shared_state.get_mute())
-        except Exception:
-            pass
+    # 볼륨/Mute 초기값 audio_worker에 적용 (pycaw 시스템 볼륨 제어 없음)
+    if shared_state and audio_worker:
+        audio_worker.set_volume(shared_state.get_volume() / 100.0)
+        audio_worker.set_muted(shared_state.get_mute())
 
     workers_started = False
     try:
@@ -392,7 +389,6 @@ def run(result_queue, cmd_queue, shutdown_event,
                 detector, recorder, telegram, signoff_mgr,
                 roi_mgr, shared_state, audio_worker, video_worker,
                 result_queue, _ipc_counters, _cmd_dropped,
-                set_system_volume, set_system_mute,
                 lambda enabled: shared_state.set_detection_enabled(enabled) if shared_state else None,
             )
         except _ShutdownSignal:
@@ -509,7 +505,7 @@ def _process_commands(
     detector, recorder, telegram, signoff_mgr,
     roi_mgr, shared_state, audio_worker, video_worker,
     result_queue, ipc_counters, cmd_dropped,
-    set_volume_fn, set_mute_fn, set_det_enabled_fn,
+    set_det_enabled_fn,
 ):
     from ipc.messages import (
         ApplyConfig, UpdateROIs, SetDetectionEnabled, SetVolume, SetMute,
@@ -570,14 +566,12 @@ def _process_commands(
             elif isinstance(msg, SetVolume):
                 if shared_state:
                     shared_state.set_volume(msg.volume)
-                set_volume_fn(msg.volume)
                 if audio_worker:
                     audio_worker.set_volume(msg.volume / 100.0)
 
             elif isinstance(msg, SetMute):
                 if shared_state:
                     shared_state.set_mute(msg.muted)
-                set_mute_fn(msg.muted)
                 if audio_worker:
                     audio_worker.set_muted(msg.muted)
 

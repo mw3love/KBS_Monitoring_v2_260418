@@ -223,6 +223,7 @@ class TopBar(QWidget):
     detection_toggled       = Signal(bool)
     sound_toggled           = Signal(bool)
     volume_changed          = Signal(int)    # debounce 100ms 적용
+    embed_mute_toggled      = Signal(bool)   # True=뮤트, False=해제
     alarm_acknowledged      = Signal()
     dark_mode_toggled       = Signal(bool)
     fullscreen_toggled      = Signal()
@@ -233,7 +234,6 @@ class TopBar(QWidget):
         self._roi_visible = True
         self._sound_enabled = True
         self._dark_mode = True
-        self._premute_volume = 80
         # debounce: 슬라이더 valueChanged → 100ms 후 volume_changed 발행
         self._volume_debounce = QTimer(self)
         self._volume_debounce.setSingleShot(True)
@@ -618,19 +618,8 @@ class TopBar(QWidget):
         self.volume_changed.emit(self._pending_volume)
 
     def _on_embed_mute_clicked(self, checked: bool):
-        if checked:
-            self._premute_volume = self._slider_volume.value()
-            self._slider_volume.blockSignals(True)
-            self._slider_volume.setValue(0)
-            self._slider_volume.blockSignals(False)
-            self.volume_changed.emit(0)
-            self._btn_embed_mute.setIcon(self._make_volume_icon(True))
-        else:
-            self._slider_volume.blockSignals(True)
-            self._slider_volume.setValue(self._premute_volume)
-            self._slider_volume.blockSignals(False)
-            self.volume_changed.emit(self._premute_volume)
-            self._btn_embed_mute.setIcon(self._make_volume_icon(False))
+        self._btn_embed_mute.setIcon(self._make_volume_icon(checked))
+        self.embed_mute_toggled.emit(checked)
 
     def _on_mute_clicked(self, checked: bool):
         self.sound_toggled.emit(not checked)
