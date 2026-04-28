@@ -245,15 +245,31 @@ class SignoffROIDialog(QDialog):
         vl.addWidget(lbl_suppress)
         suppressed = set(self._group_cfg.get("suppressed_labels", []))
         self._suppress_checks: list[tuple[str, QCheckBox]] = []
-        all_rois = self._roi_mgr.video_rois + self._roi_mgr.audio_rois
-        for roi in all_rois:
-            cb = QCheckBox(f"{roi.label} [{roi.media_name}]" if roi.media_name else roi.label)
-            cb.setChecked(roi.label in suppressed)
-            cb.setToolTip("")
-            vl.addWidget(cb)
-            self._suppress_checks.append((roi.label, cb))
 
-        if not all_rois:
+        video_rois = self._roi_mgr.video_rois
+        audio_rois = self._roi_mgr.audio_rois
+
+        if video_rois:
+            lbl_v = QLabel("▸ 비디오")
+            lbl_v.setStyleSheet("color: #888; font-size: 11px; margin-top: 4px;")
+            vl.addWidget(lbl_v)
+            for roi in video_rois:
+                cb = QCheckBox(f"  {roi.label} [{roi.media_name}]" if roi.media_name else f"  {roi.label}")
+                cb.setChecked(roi.label in suppressed)
+                vl.addWidget(cb)
+                self._suppress_checks.append((roi.label, cb))
+
+        if audio_rois:
+            lbl_a = QLabel("▸ 오디오")
+            lbl_a.setStyleSheet("color: #888; font-size: 11px; margin-top: 4px;")
+            vl.addWidget(lbl_a)
+            for roi in audio_rois:
+                cb = QCheckBox(f"  {roi.label} [{roi.media_name}]" if roi.media_name else f"  {roi.label}")
+                cb.setChecked(roi.label in suppressed)
+                vl.addWidget(cb)
+                self._suppress_checks.append((roi.label, cb))
+
+        if not video_rois and not audio_rois:
             vl.addWidget(QLabel("(감지영역 없음)"))
 
         self._enter_combo.currentIndexChanged.connect(self._sync_trigger_checkbox)
@@ -1658,7 +1674,7 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.0.1")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.0.2")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
