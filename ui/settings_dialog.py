@@ -1559,23 +1559,22 @@ class SettingsDialog(QDialog):
             day_hl.addWidget(cb)
             day_cbs.append(cb)
 
-        btn_select_all = QPushButton("전체 선택")
-        btn_select_all.setObjectName("btnNeutral")
-        btn_deselect_all = QPushButton("전체 해제")
-        btn_deselect_all.setObjectName("btnNeutral")
+        btn_day_toggle = QPushButton()
+        btn_day_toggle.setObjectName("btnNeutral")
 
-        def _select_all(cbs=day_cbs):
+        def _toggle_all_days(_checked=False, cbs=day_cbs):
+            all_checked = all(cb.isChecked() for cb in cbs)
             for cb in cbs:
-                cb.setChecked(True)
+                cb.setChecked(not all_checked)
 
-        def _deselect_all(cbs=day_cbs):
-            for cb in cbs:
-                cb.setChecked(False)
+        def _update_toggle_label(cbs=day_cbs, btn=btn_day_toggle):
+            btn.setText("전체 해제" if all(cb.isChecked() for cb in cbs) else "전체 선택")
 
-        btn_select_all.clicked.connect(_select_all)
-        btn_deselect_all.clicked.connect(_deselect_all)
-        day_hl.addWidget(btn_select_all)
-        day_hl.addWidget(btn_deselect_all)
+        btn_day_toggle.clicked.connect(_toggle_all_days)
+        for cb in day_cbs:
+            cb.stateChanged.connect(lambda _=0, fn=_update_toggle_label: fn())
+        _update_toggle_label()
+        day_hl.addWidget(btn_day_toggle)
         day_hl.addStretch()
         sl.addLayout(day_hl)
         widgets["weekdays"] = day_cbs
