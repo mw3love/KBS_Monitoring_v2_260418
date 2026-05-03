@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QStackedWidget,
 )
-from PySide6.QtCore import Qt, Signal, QThread
+from PySide6.QtCore import Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QIntValidator, QDoubleValidator
 
 from core.roi_manager import ROI, ROIManager
@@ -444,10 +444,10 @@ class SettingsDialog(QDialog):
         box1, sl1 = _section("캡처 포트")
         self._port_combo = QComboBox()
         for i in range(4):
-            self._port_combo.addItem(str(i), i)
+            self._port_combo.addItem(f"{i} (기본)" if i == 0 else str(i), i)
         self._port_combo.setCurrentIndex(self._cfg.get("port", 0))
         sl1.addLayout(_row("포트 번호 (0~3)", self._port_combo,
-                           "캡처카드 포트 번호 (0~3)"))
+                           "캡처카드 입력 포트 번호. 기본값은 0"))
         vl.addWidget(box1)
 
         # ── 파일 입력 (테스트용) ────────────────────────────────
@@ -499,7 +499,7 @@ class SettingsDialog(QDialog):
         sl3.addLayout(_row("이후 녹화 시간 (초)", self._rec_post_edit,
                            "1~60 / 기본값 15 — 알림 발생 후 추가 녹화"))
         sl3.addLayout(_row("최대 보관 기간 (일)", self._rec_keep_edit,
-                           "1~365 / 기본값 7 — 초과 파일 자동 삭제"))
+                           "1~365 / 기본값 7 — 기간 지난 녹화 파일 자동 삭제"))
         vl.addWidget(box3)
 
         # dim 처리용 위젯 목록 (자동 녹화 활성화 체크박스 연동)
@@ -539,10 +539,23 @@ class SettingsDialog(QDialog):
         self._rec_sub_widgets += [self._res_combo, self._fps_combo]
 
         # 용량 추정 정보 바
+        cap_frame = QFrame()
+        cap_frame.setStyleSheet(
+            "QFrame { background: #26272c; border: 1px solid #2a2b30; border-radius: 4px; }"
+        )
+        cap_frame_vl = QVBoxLayout(cap_frame)
+        cap_frame_vl.setContentsMargins(12, 8, 12, 8)
+        cap_frame_vl.setSpacing(3)
+        cap_header = QLabel("예상 용량 (참고값)")
+        cap_header.setStyleSheet("color: #7d7e84; font-size: 11px; background: transparent;")
+        cap_frame_vl.addWidget(cap_header)
         self._capacity_label = QLabel()
         self._capacity_label.setObjectName("capacityBar")
         self._capacity_label.setTextFormat(Qt.RichText)
-        vl.addWidget(self._capacity_label)
+        self._capacity_label.setWordWrap(True)
+        self._capacity_label.setStyleSheet("background: transparent;")
+        cap_frame_vl.addWidget(self._capacity_label)
+        vl.addWidget(cap_frame)
 
         # 즉시 반영 연결 — 영상설정
         self._port_combo.currentIndexChanged.connect(self._apply_now)
@@ -1640,21 +1653,28 @@ class SettingsDialog(QDialog):
         vl.setContentsMargins(16, 16, 16, 16)
         vl.setSpacing(12)
 
-        for icon, title, desc, btn_text, obj_name, slot in [
+        card_data = [
             ("💾", "현재 설정 저장",
              "현재 설정을 JSON 파일로 내보냅니다.",
-             "저장...", "btnOutlineOrange", self._export_config),
+             "저장...", "btnOutlineOrange", self._export_config, "_export_status_lbl"),
             ("📂", "설정 파일 불러오기",
              "저장된 JSON 파일을 불러와 적용합니다.",
-             "불러오기...", "btnOutlineOrange", self._import_config),
+             "불러오기...", "btnOutlineOrange", self._import_config, "_import_status_lbl"),
             ("⚠", "기본값으로 초기화",
              "모든 설정을 초기 기본값으로 되돌립니다.",
-             "초기화", "btnOutlineDanger", self._reset_all_settings),
-        ]:
+             "공장 초기화 (되돌릴 수 없음)", "btnOutlineDanger", self._reset_all_settings,
+             "_reset_status_lbl"),
+        ]
+
+        for icon, title, desc, btn_text, obj_name, slot, lbl_attr in card_data:
             card = QFrame()
             card.setObjectName("saveActionCard")
-            card_h = QHBoxLayout(card)
-            card_h.setContentsMargins(16, 14, 16, 14)
+            card_outer_vl = QVBoxLayout(card)
+            card_outer_vl.setContentsMargins(16, 14, 16, 12)
+            card_outer_vl.setSpacing(4)
+
+            card_h = QHBoxLayout()
+            card_h.setContentsMargins(0, 0, 0, 0)
             card_h.setSpacing(14)
 
             lbl_icon = QLabel(icon)
@@ -1679,9 +1699,24 @@ class SettingsDialog(QDialog):
             btn.clicked.connect(slot)
             card_h.addWidget(btn)
 
+            card_outer_vl.addLayout(card_h)
+
+            status_lbl = QLabel()
+            status_lbl.setStyleSheet("font-size: 11px; padding-left: 46px; background: transparent;")
+            status_lbl.hide()
+            card_outer_vl.addWidget(status_lbl)
+            setattr(self, lbl_attr, status_lbl)
+
             vl.addWidget(card)
 
         # About 카드
+        import sys
+        try:
+            from PySide6 import __version__ as _pyside_ver
+        except Exception:
+            _pyside_ver = "?"
+        _py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
         about_card = QFrame()
         about_card.setObjectName("aboutCard")
         about_vl = QVBoxLayout(about_card)
@@ -1695,6 +1730,10 @@ class SettingsDialog(QDialog):
         lbl_meta = QLabel("날짜: 2026-04-29    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
+
+        lbl_env = QLabel(f"Python {_py_ver}  ·  PySide6 {_pyside_ver}")
+        lbl_env.setObjectName("aboutCardMeta")
+        about_vl.addWidget(lbl_env)
 
         vl.addStretch()
         vl.addWidget(about_card)
@@ -2142,6 +2181,16 @@ class SettingsDialog(QDialog):
 
         self._apply_now()
 
+    def _show_save_status(self, lbl: QLabel, msg: str, ok: bool):
+        """탭 7 상태 라벨에 결과 메시지를 표시하고 4초 후 자동으로 숨긴다."""
+        color = "#b8b9bd" if ok else "#e03131"
+        lbl.setStyleSheet(
+            f"font-size: 11px; padding-left: 46px; color: {color}; background: transparent;"
+        )
+        lbl.setText(msg)
+        lbl.show()
+        QTimer.singleShot(4000, lbl.hide)
+
     def _export_config(self):
         self._collect_config()
         import os
@@ -2156,8 +2205,10 @@ class SettingsDialog(QDialog):
             import json
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(self._cfg, f, ensure_ascii=False, indent=2)
-            pass
+            self._show_save_status(self._export_status_lbl,
+                                   f"저장 완료: {os.path.basename(path)}", True)
         except Exception as e:
+            self._show_save_status(self._export_status_lbl, f"저장 실패: {e}", False)
             QMessageBox.critical(self, "오류", f"저장 실패:\n{e}")
 
     def _import_config(self):
@@ -2177,7 +2228,10 @@ class SettingsDialog(QDialog):
             self._send_cmd_apply()
             self.config_saved.emit(copy.deepcopy(self._cfg))
             self._reload_all_tabs()
+            self._show_save_status(self._import_status_lbl,
+                                   f"불러오기 완료: {os.path.basename(path)}", True)
         except Exception as e:
+            self._show_save_status(self._import_status_lbl, f"불러오기 실패: {e}", False)
             QMessageBox.critical(self, "오류", f"불러오기 실패:\n{e}")
 
     def closeEvent(self, event):
@@ -2226,3 +2280,5 @@ class SettingsDialog(QDialog):
         self._send_cmd_apply()
         self.config_saved.emit(copy.deepcopy(self._cfg))
         self._reload_all_tabs()
+        self._show_save_status(self._reset_status_lbl,
+                               "초기화 완료 — 모든 설정이 기본값으로 되돌아갔습니다.", True)
