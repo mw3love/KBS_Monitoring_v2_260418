@@ -614,10 +614,23 @@ class SettingsDialog(QDialog):
         else:
             self._btn_edit_audio = btn_edit
 
-        # 단축키 안내
+        # 단축키 안내 — --bg-2 배경 + --border 테두리 인라인 카드
+        shortcut_card = QFrame()
+        shortcut_card.setObjectName("roiShortcutCard")
+        shortcut_card.setStyleSheet(
+            "QFrame#roiShortcutCard {"
+            "  background-color: #1e1f23;"
+            "  border: 1px solid #2a2b30;"
+            "  border-radius: 6px;"
+            "  padding: 0px;"
+            "}"
+        )
+        sc_layout = QVBoxLayout(shortcut_card)
+        sc_layout.setContentsMargins(10, 8, 10, 8)
+        sc_layout.setSpacing(0)
         shortcut_lbl = QLabel(
-            "<b>편집 중 단축키</b><br>"
-            "<table cellspacing='4'>"
+            "<b style='color:#D97757;'>편집 중 단축키</b><br>"
+            "<table cellspacing='4' style='margin-top:4px;'>"
             "<tr><td>↑↓←→</td><td>이동 10px</td></tr>"
             "<tr><td>Shift+↑↓←→</td><td>이동 1px</td></tr>"
             "<tr><td>Ctrl+↑↓←→</td><td>크기 10px</td></tr>"
@@ -631,12 +644,12 @@ class SettingsDialog(QDialog):
         )
         shortcut_lbl.setObjectName("roiShortcutLabel")
         shortcut_lbl.setTextFormat(Qt.RichText)
-        vl.addWidget(shortcut_lbl)
+        sc_layout.addWidget(shortcut_lbl)
+        vl.addWidget(shortcut_card)
 
         # ROI 개수 카운터 라벨
         count_lbl = QLabel()
         count_lbl.setObjectName("roiCountLabel")
-        count_lbl.setStyleSheet("color: #888; font-size: 11px;")
         if roi_type == "video":
             self._video_roi_count_lbl = count_lbl
         else:
@@ -649,6 +662,9 @@ class SettingsDialog(QDialog):
         table.setColumnCount(6)
         table.setHorizontalHeaderLabels(["라벨", "매체명", "X", "Y", "W", "H"])
         hdr = table.horizontalHeader()
+        table.horizontalHeaderItem(1).setToolTip(
+            "화면에 표시되는 채널 이름 (예: KBS1, KBS2)"
+        )
         hdr.setSectionResizeMode(0, QHeaderView.Fixed)
         table.setColumnWidth(0, 48)
         hdr.setSectionResizeMode(1, QHeaderView.Stretch)
@@ -723,11 +739,11 @@ class SettingsDialog(QDialog):
                      else self._audio_roi_count_lbl)
         n = len(rois)
         if n == 0:
-            count_lbl.setText("감지영역  0개 (등록된 영역 없음)")
-            count_lbl.setStyleSheet("color: #666; font-size: 11px;")
+            count_lbl.setText("등록된 영역 없음 — 감지 불가")
+            count_lbl.setStyleSheet("color: #e03131; font-size: 11px; font-weight: 600;")
         else:
             count_lbl.setText(f"감지영역  {n}개 등록됨")
-            count_lbl.setStyleSheet("color: #aaa; font-size: 11px;")
+            count_lbl.setStyleSheet("color: #aaa; font-size: 11px; font-weight: normal;")
 
     def _toggle_roi_editor(self, roi_type: str, checked: bool, btn: QPushButton):
         """편집 버튼 토글: ON→오버레이 열기, OFF→오버레이 닫기."""
@@ -747,7 +763,19 @@ class SettingsDialog(QDialog):
             # 편집 시작 전 테이블의 매체명·좌표를 ROIManager에 먼저 반영
             table = self._video_roi_table if roi_type == "video" else self._audio_roi_table
             self._sync_table_to_rois(roi_type, table)
-            btn.setText("■ 편집 종료 (클릭하여 완료)")
+            btn.setText("■ 편집 종료")
+            btn.setStyleSheet(
+                "QPushButton {"
+                "  background-color: #D97757;"
+                "  color: #1a1a1a;"
+                "  font-weight: 600;"
+                "  border: none;"
+                "  border-radius: 4px;"
+                "  padding: 6px 14px;"
+                "}"
+                "QPushButton:hover { background-color: #E89B7F; }"
+                "QPushButton:pressed { background-color: #B85E3F; }"
+            )
             mw.start_roi_overlay(
                 roi_type,
                 self._roi_mgr,
@@ -763,6 +791,7 @@ class SettingsDialog(QDialog):
         btn = self._btn_edit_video if roi_type == "video" else self._btn_edit_audio
         btn.setChecked(False)
         btn.setText(f"▶ {kind_name} 감지영역 편집")
+        btn.setStyleSheet("")  # QSS #btnPrimary 규칙으로 복원
         self._refresh_roi_table(roi_type)
         self._apply_now()
 
@@ -868,6 +897,19 @@ class SettingsDialog(QDialog):
         self._apply_now()
 
     def _roi_table_clear(self, roi_type: str, table: QTableWidget):
+        kind_name = "비디오" if roi_type == "video" else "오디오 레벨미터"
+        rois = self._roi_mgr.video_rois if roi_type == "video" else self._roi_mgr.audio_rois
+        if not rois:
+            return
+        reply = QMessageBox.question(
+            self,
+            "전체 지우기",
+            f"{kind_name} 감지영역 {len(rois)}개를 모두 삭제하시겠습니까?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
         if roi_type == "video":
             self._roi_mgr.replace_video_rois([])
         else:
