@@ -1267,9 +1267,13 @@ class SettingsDialog(QDialog):
 
         # 정파 알림음
         box_sound, sl_sound = _section("정파 알림음")
+        _sound_hint = "(미설정 = 알림음 없음)"
         self._so_prep_sound = QLineEdit(so.get("prep_alarm_sound", ""))
+        self._so_prep_sound.setPlaceholderText(_sound_hint)
         self._so_enter_sound = QLineEdit(so.get("enter_alarm_sound", ""))
+        self._so_enter_sound.setPlaceholderText(_sound_hint)
         self._so_release_sound = QLineEdit(so.get("release_alarm_sound", ""))
+        self._so_release_sound.setPlaceholderText(_sound_hint)
         sl_sound.addLayout(_file_row(
             "정파준비 시작:",   self._so_prep_sound,
             lambda: self._browse_sound(self._so_prep_sound),
@@ -1290,11 +1294,13 @@ class SettingsDialog(QDialog):
         # 자동 정파 활성화 체크박스 → 하위 섹션 활성/비활성 연동
         _so_sub_boxes = [w["_box"] for w in self._so_grp] + [box_sound]
 
+        _always_enabled_names = {"settingsSectionLabel", "signoffGroupNameEdit"}
+
         def _update_signoff_enabled(state=None):
             enabled = self._auto_prep_cb.isChecked()
             for _box in _so_sub_boxes:
                 for child in _box.findChildren(QWidget):
-                    if child.objectName() != "settingsSectionLabel":
+                    if child.objectName() not in _always_enabled_names:
                         child.setEnabled(enabled)
 
         self._auto_prep_cb.stateChanged.connect(_update_signoff_enabled)
@@ -1325,40 +1331,112 @@ class SettingsDialog(QDialog):
 
     def _build_signoff_group_section(self, parent_vl: QVBoxLayout,
                                      gid: int, grp: dict) -> dict:
-        box, sl = _section(f"그룹 {gid}")
+        # 섹션 박스 (헤더를 커스텀으로 직접 구성)
+        box = QFrame()
+        box.setObjectName("settingsSection")
+        box_vl = QVBoxLayout(box)
+        box_vl.setContentsMargins(14, 10, 14, 12)
+        box_vl.setSpacing(0)
         parent_vl.addWidget(box)
 
-        widgets = {"_box": box}
+        # ── 헤더: "그룹 N" 고정 텍스트 + 그룹명 QLineEdit 인라인 + 우측 요약 라벨 ──
+        header_hl = QHBoxLayout()
+        header_hl.setContentsMargins(0, 0, 0, 0)
+        header_hl.setSpacing(8)
 
-        # 그룹명
+        grp_prefix_lbl = QLabel(f"그룹 {gid} —")
+        grp_prefix_lbl.setObjectName("settingsSectionLabel")
+        header_hl.addWidget(grp_prefix_lbl)
+
         name_edit = QLineEdit(grp.get("name", f"{gid}TV"))
-        sl.addLayout(_row(f"그룹{gid} 이름", name_edit))
-        widgets["name"] = name_edit
+        name_edit.setFixedWidth(90)
+        name_edit.setPlaceholderText(f"{gid}TV")
+        name_edit.setObjectName("signoffGroupNameEdit")
+        header_hl.addWidget(name_edit)
+
+        header_hl.addStretch(1)
+
+        summary_lbl = QLabel()
+        summary_lbl.setObjectName("settingsDesc")
+        summary_lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        header_hl.addWidget(summary_lbl)
+
+        box_vl.addLayout(header_hl)
+
+        sl = QVBoxLayout()
+        sl.setContentsMargins(0, 8, 0, 0)
+        sl.setSpacing(8)
+        box_vl.addLayout(sl)
+
+        widgets = {"_box": box, "name": name_edit, "_summary_lbl": summary_lbl}
 
         # 정파 시작/종료 시각
-        start_h = _int_edit(int(grp.get("start_time", "03:00").split(":")[0]), 0, 23, 50)
-        start_m = _int_edit(int(grp.get("start_time", "03:00").split(":")[1]), 0, 59, 50)
-        end_h = _int_edit(int(grp.get("end_time", "05:00").split(":")[0]), 0, 23, 50)
-        end_m = _int_edit(int(grp.get("end_time", "05:00").split(":")[1]), 0, 59, 50)
+        start_h = _int_edit(int(grp.get("start_time", "03:00").split(":")[0]), 0, 23, 36)
+        start_m = _int_edit(int(grp.get("start_time", "03:00").split(":")[1]), 0, 59, 36)
+        end_h = _int_edit(int(grp.get("end_time", "05:00").split(":")[0]), 0, 23, 36)
+        end_m = _int_edit(int(grp.get("end_time", "05:00").split(":")[1]), 0, 59, 36)
+        for _e in (start_h, start_m, end_h, end_m):
+            _e.setAlignment(Qt.AlignCenter)
         end_next_cb = QCheckBox("익일")
         end_next_cb.setChecked(grp.get("end_next_day", False))
+
         time_widget = QWidget()
         time_hl = QHBoxLayout(time_widget)
         time_hl.setContentsMargins(0, 0, 0, 0)
         time_hl.setSpacing(4)
+        _lbl_start = QLabel("시작")
+        _lbl_start.setObjectName("settingsDesc")
+        time_hl.addWidget(_lbl_start)
         time_hl.addWidget(start_h)
         time_hl.addWidget(QLabel(":"))
         time_hl.addWidget(start_m)
-        time_hl.addWidget(QLabel("  종료:"))
+        time_hl.addSpacing(12)
+        _lbl_end = QLabel("종료")
+        _lbl_end.setObjectName("settingsDesc")
+        time_hl.addWidget(_lbl_end)
         time_hl.addWidget(end_h)
         time_hl.addWidget(QLabel(":"))
         time_hl.addWidget(end_m)
         time_hl.addWidget(end_next_cb)
         time_hl.addStretch()
-        sl.addLayout(_row("정파 시간 구간 (시작→종료):", time_widget,
+        sl.addLayout(_row("정파 시간 구간:", time_widget,
                           "스틸 미감지 시 시작 시각에 자동 정파 진입 (fallback)"))
         widgets.update({"start_h": start_h, "start_m": start_m,
                         "end_h": end_h, "end_m": end_m, "end_next_day": end_next_cb})
+
+        # 요약 라벨 업데이트 함수
+        day_names_ko = ["월", "화", "수", "목", "금", "토", "일"]
+
+        def _update_summary(_=None,
+                            _sh=start_h, _sm=start_m, _eh=end_h, _em=end_m,
+                            _lbl=summary_lbl):
+            try:
+                sh = int(_sh.text()); sm = int(_sm.text())
+                eh = int(_eh.text()); em = int(_em.text())
+            except ValueError:
+                _lbl.setText("")
+                return
+            try:
+                checked = [day_names_ko[i] for i, cb in enumerate(widgets["weekdays"])
+                           if cb.isChecked()]
+            except KeyError:
+                checked = []
+            if checked:
+                if checked == day_names_ko:
+                    day_str = "매일"
+                elif checked == day_names_ko[:5]:
+                    day_str = "월~금"
+                elif checked == day_names_ko[5:]:
+                    day_str = "주말"
+                else:
+                    day_str = "".join(checked)
+                _lbl.setText(f"{sh:02d}:{sm:02d} ~ {eh:02d}:{em:02d}  ({day_str})")
+            else:
+                _lbl.setText(f"{sh:02d}:{sm:02d} ~ {eh:02d}:{em:02d}")
+
+        widgets["_update_summary"] = _update_summary
+        for _e in (start_h, start_m, end_h, end_m):
+            _e.textChanged.connect(_update_summary)
 
         # 정파준비 활성화 (X분 전)
         prep_combo = QComboBox()
@@ -1381,13 +1459,16 @@ class SettingsDialog(QDialog):
             try:
                 sh = int(_sh.text()); sm = int(_sm.text())
             except ValueError:
-                _lbl.setText("정파 시작 시각 기준 X분 전부터 ROI 스틸 감시 시작")
+                _lbl.setText("준비 없음")
+                _lbl.setObjectName("settingsDesc")
+                _lbl.style().unpolish(_lbl)
+                _lbl.style().polish(_lbl)
                 return
             if not minutes:
-                _lbl.setText("정파 시작 시각 기준 X분 전부터 ROI 스틸 감시 시작")
+                _lbl.setText("준비 없음")
                 return
             total = (sh * 60 + sm - minutes) % (24 * 60)
-            _lbl.setText(f"→  {total // 60:02d}:{total % 60:02d}부터 준비 시작")
+            _lbl.setText(f"▶  {total // 60:02d}:{total % 60:02d} 부터")
 
         prep_combo.currentIndexChanged.connect(_update_prep_time)
         start_h.textChanged.connect(_update_prep_time)
@@ -1426,13 +1507,13 @@ class SettingsDialog(QDialog):
             try:
                 eh = int(_eh.text()); em = int(_em.text())
             except ValueError:
-                _lbl.setText("정파 종료 X분 전에 해제준비 구간 시작 (사용 안 함 = 종료 시각에만 해제)")
+                _lbl.setText("준비 없음")
                 return
             if not minutes:
-                _lbl.setText("정파 종료 X분 전에 해제준비 구간 시작 (사용 안 함 = 종료 시각에만 해제)")
+                _lbl.setText("준비 없음")
                 return
             total = (eh * 60 + em - minutes) % (24 * 60)
-            _lbl.setText(f"→  {total // 60:02d}:{total % 60:02d}부터 해제준비 시작")
+            _lbl.setText(f"▶  {total // 60:02d}:{total % 60:02d} 부터")
 
         exit_prep_combo.currentIndexChanged.connect(_update_exit_prep_time)
         end_h.textChanged.connect(_update_exit_prep_time)
@@ -1466,37 +1547,51 @@ class SettingsDialog(QDialog):
         # 요일 선택
         day_hl = QHBoxLayout()
         day_hl.setContentsMargins(0, 0, 0, 0)
-        day_hl.addWidget(QLabel("적용 요일:"))
-        day_names = ["월", "화", "수", "목", "금", "토", "일"]
+        day_row_lbl = QLabel("적용 요일:")
+        day_row_lbl.setObjectName("settingsRowLabel")
+        day_row_lbl.setFixedWidth(220)
+        day_hl.addWidget(day_row_lbl)
         cur_days = set(grp.get("weekdays", list(range(7))))
         day_cbs = []
-        for d_idx, d_name in enumerate(day_names):
+        for d_idx, d_name in enumerate(day_names_ko):
             cb = QCheckBox(d_name)
             cb.setChecked(d_idx in cur_days)
             day_hl.addWidget(cb)
             day_cbs.append(cb)
-        def _toggle_all_days(checked=False, cbs=day_cbs):
-            all_checked = all(cb.isChecked() for cb in cbs)
-            for cb in cbs:
-                cb.setChecked(not all_checked)
-        btn_day_toggle = QPushButton("전체 선택")
-        btn_day_toggle.setObjectName("btnNeutral")
-        btn_day_toggle.clicked.connect(_toggle_all_days)
 
-        def _update_toggle_label(cbs=day_cbs, btn=btn_day_toggle):
-            btn.setText("전체 해제" if all(cb.isChecked() for cb in cbs) else "전체 선택")
-        for cb in day_cbs:
-            cb.stateChanged.connect(lambda _=0, fn=_update_toggle_label: fn())
-        _update_toggle_label()
-        day_hl.addWidget(btn_day_toggle)
+        btn_select_all = QPushButton("전체 선택")
+        btn_select_all.setObjectName("btnNeutral")
+        btn_deselect_all = QPushButton("전체 해제")
+        btn_deselect_all.setObjectName("btnNeutral")
+
+        def _select_all(cbs=day_cbs):
+            for cb in cbs:
+                cb.setChecked(True)
+
+        def _deselect_all(cbs=day_cbs):
+            for cb in cbs:
+                cb.setChecked(False)
+
+        btn_select_all.clicked.connect(_select_all)
+        btn_deselect_all.clicked.connect(_deselect_all)
+        day_hl.addWidget(btn_select_all)
+        day_hl.addWidget(btn_deselect_all)
         day_hl.addStretch()
         sl.addLayout(day_hl)
         widgets["weekdays"] = day_cbs
 
+        # 요일 변경 시 요약 라벨도 갱신
+        for cb in day_cbs:
+            cb.stateChanged.connect(_update_summary)
+        _update_summary()
+
         # 감지영역 선택 버튼
         roi_btn_hl = QHBoxLayout()
         roi_btn_hl.setContentsMargins(0, 0, 0, 0)
-        roi_btn_hl.addWidget(QLabel("정파 감지영역:"))
+        roi_row_lbl = QLabel("정파 감지영역:")
+        roi_row_lbl.setObjectName("settingsRowLabel")
+        roi_row_lbl.setFixedWidth(220)
+        roi_btn_hl.addWidget(roi_row_lbl)
         btn_roi = QPushButton("감지영역 선택...")
         btn_roi.clicked.connect(lambda: self._open_signoff_roi_dialog(gid - 1))
         roi_btn_hl.addWidget(btn_roi)
@@ -1506,13 +1601,13 @@ class SettingsDialog(QDialog):
         sup_cnt = len(_suppressed_init)
         if enter_v:
             _roi_disp = f"{enter_v} · 억제 {sup_cnt}개" if sup_cnt else enter_v
-            _roi_color = ""
+            _roi_obj = ""
         else:
             _roi_disp = "미설정"
-            _roi_color = "color: #cc4444;"
+            _roi_obj = "settingsDesc"
         enter_lbl = QLabel(_roi_disp)
-        if _roi_color:
-            enter_lbl.setStyleSheet(_roi_color)
+        if _roi_obj:
+            enter_lbl.setObjectName(_roi_obj)
         roi_btn_hl.addWidget(enter_lbl)
         roi_btn_hl.addStretch()
         sl.addLayout(roi_btn_hl)
@@ -1540,10 +1635,14 @@ class SettingsDialog(QDialog):
             lbl_widget = widgets["enter_label_lbl"]
             if enter_v:
                 lbl_widget.setText(f"{enter_v} · 억제 {sup_cnt}개" if sup_cnt else enter_v)
+                lbl_widget.setObjectName("")
                 lbl_widget.setStyleSheet("")
             else:
                 lbl_widget.setText("미설정")
-                lbl_widget.setStyleSheet("color: #cc4444;")
+                lbl_widget.setObjectName("settingsDesc")
+                lbl_widget.setStyleSheet("")
+            lbl_widget.style().unpolish(lbl_widget)
+            lbl_widget.style().polish(lbl_widget)
             self._apply_now()
 
     # ─────────────────────────────────────────────────────────────────
