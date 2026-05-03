@@ -227,7 +227,7 @@ class MainWindow(QMainWindow):
         level_map = {"debug": "debug", "error": "error", "still": "still",
                      "audio": "audio", "embedded": "embedded"}
         log_type = level_map.get(msg.level, "info")
-        self._log_widget.add_log(f"[{msg.source}] {msg.message}", log_type)
+        self._log_widget.add_log(msg.message, log_type, source=msg.source)
         if msg.level == "error":
             self._logger.error(f"[{msg.source}] {msg.message}")
         else:
@@ -240,8 +240,9 @@ class MainWindow(QMainWindow):
         self._alarm.trigger(msg.detection_type, msg.label)
         self._video_widget.set_alert_state(msg.label, True)
         self._log_widget.add_log(
-            f"[알람] {msg.label} {msg.detection_type} 감지",
+            f"{msg.label} {msg.detection_type} 감지",
             log_type=self._detect_type_to_log_type(msg.detection_type),
+            source="알람",
         )
         self._refresh_summary()
 
@@ -250,8 +251,8 @@ class MainWindow(QMainWindow):
         self._alarm.resolve(msg.detection_type, msg.label)
         self._video_widget.set_alert_state(msg.label, False)
         self._log_widget.add_log(
-            f"[복구] {msg.label} {msg.detection_type} "
-            f"({msg.duration_sec:.0f}초)"
+            f"{msg.label} {msg.detection_type} ({msg.duration_sec:.0f}초)",
+            source="복구",
         )
         self._refresh_summary()
 
@@ -276,20 +277,20 @@ class MainWindow(QMainWindow):
 
     def _on_detection_crashed(self, msg):
         reason_kr = "heartbeat 무응답" if msg.reason == "heartbeat_stale" else "프로세스 종료"
-        log_msg = f"[시스템] Detection 비정상 종료 (PID={msg.dead_pid}, 원인={reason_kr})"
+        log_msg = f"Detection 비정상 종료 (PID={msg.dead_pid}, 원인={reason_kr})"
         if msg.stale_sec > 0:
             log_msg += f", stale={msg.stale_sec:.0f}초"
         log_msg += " → 재spawn 중"
         self._logger.error(log_msg)
-        self._log_widget.add_error(log_msg)
+        self._log_widget.add_log(log_msg, log_type="error", source="시스템")
         self._top_bar.show_detection_crashed(msg.reason, msg.stale_sec)
 
     def _on_detection_ready(self, msg):
         self._detection_ready = True
         self._video_widget.resume_frames()
         self._log_widget.add_log(
-            f"[시스템] Detection 준비 완료 "
-            f"(PID={msg.pid}, ROI={msg.roi_count})"
+            f"Detection 준비 완료 (PID={msg.pid}, ROI={msg.roi_count})",
+            source="시스템",
         )
         self._top_bar.update_health(False)
         # 런타임 상태 재주입 (재spawn 복원)
@@ -298,12 +299,15 @@ class MainWindow(QMainWindow):
     def _on_signoff_state_changed(self, msg):
         self._signoff_states[msg.group_id] = msg.new_state
         self._log_widget.add_log(
-            f"[정파] 그룹{msg.group_id}: {msg.prev_state} → {msg.new_state}"
+            f"그룹{msg.group_id}: {msg.prev_state} → {msg.new_state}",
+            source="정파",
         )
 
     def _on_stream_error(self, msg):
-        self._log_widget.add_error(
-            f"[{msg.source}] {msg.message} (재연결 {msg.retry_count}회)"
+        self._log_widget.add_log(
+            f"{msg.message} (재연결 {msg.retry_count}회)",
+            log_type="error",
+            source=msg.source,
         )
 
     def _on_diag_snapshot(self, msg):

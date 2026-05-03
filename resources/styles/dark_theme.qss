@@ -87,8 +87,8 @@ QPushButton#btnSignoff {
 
 QPushButton#btnSignoff[signoff_state="IDLE"] {
     background-color: #26272c;
-    color: #7d7e84;
-    border-color: #3a3b42;
+    color: #a0a2aa;
+    border-color: #52545e;
 }
 
 QPushButton#btnSignoff[signoff_state="PREPARATION"] {
@@ -165,30 +165,123 @@ QLabel#logHeader {
     letter-spacing: 1px;
 }
 
-QTextEdit#logList {
+QListWidget#logList {
     background-color: #17181b;
-    color: #ececec;
     border: none;
+    outline: none;
     font-family: "JetBrains Mono", "Consolas", monospace;
     font-size: 11px;
-    padding: 2px 4px;
 }
 
+QListWidget#logList::item {
+    padding: 0px;
+    border: none;
+}
+
+QListWidget#logList::item:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* 타입 필터 행 */
+QWidget#logFilterArea {
+    background-color: #13141a;
+    border-bottom: 1px solid #2a2b30;
+}
+
+/* 검색 행 */
+QWidget#logSearchArea {
+    background-color: #13141a;
+    border-bottom: 1px solid #2a2b30;
+}
+
+QLineEdit#logSearchInput {
+    background-color: #1e1f23;
+    color: #ececec;
+    border: 1px solid #3a3b42;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 11px;
+}
+
+QLineEdit#logSearchInput:focus {
+    border-color: #D97757;
+}
+
+/* count badge */
+QLabel#logCountBadge {
+    color: #7d7e84;
+    background-color: #26272c;
+    border: 1px solid #3a3b42;
+    border-radius: 8px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+}
+
+/* 타입 필터 버튼 */
+QPushButton#btnLogFilter {
+    background-color: transparent;
+    color: #555565;
+    border: 1px solid #3a3b42;
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-weight: bold;
+    min-width: 36px;
+}
+
+QPushButton#btnLogFilter:hover {
+    border-color: #D97757;
+    color: #D97757;
+    background-color: rgba(217, 119, 87, 0.06);
+}
+
+/* 자동 스크롤 재개 버튼 */
+QPushButton#btnScrollResume {
+    background-color: rgba(217, 119, 87, 0.12);
+    color: #D97757;
+    border: 1px solid rgba(217, 119, 87, 0.5);
+    border-radius: 10px;
+    padding: 1px 10px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+QPushButton#btnScrollResume:hover {
+    background-color: #D97757;
+    color: #0f0f10;
+}
+
+/* 검색 / DEBUG / 헤더 버튼 */
 QPushButton#btnLogClear,
-QPushButton#btnLogFolder {
+QPushButton#btnLogFolder,
+QPushButton#btnLogDebug,
+QPushButton#btnLogSearch,
+QPushButton#btnLogSearchClose {
     background-color: transparent;
     color: #7d7e84;
     border: 1px solid #3a3b42;
     border-radius: 4px;
-    padding: 2px 8px;
+    padding: 2px 6px;
     font-size: 11px;
 }
 
 QPushButton#btnLogClear:hover,
-QPushButton#btnLogFolder:hover {
+QPushButton#btnLogFolder:hover,
+QPushButton#btnLogDebug:hover,
+QPushButton#btnLogSearch:hover,
+QPushButton#btnLogSearchClose:hover {
     border-color: #D97757;
     color: #D97757;
     background-color: rgba(217, 119, 87, 0.08);
+}
+
+QPushButton#btnLogDebug:checked,
+QPushButton#btnLogSearch:checked {
+    background-color: rgba(217, 119, 87, 0.15);
+    color: #D97757;
+    border-color: #D97757;
 }
 
 /* ── 스플리터 ────────────────────────────────────────────────────── */
@@ -223,9 +316,9 @@ QScrollBar::sub-line:vertical {
     height: 0;
 }
 
-/* ── 정파 시간 레이블 ────────────────────────────────────────────── */
+/* ── 정파 시간 레이블 — 상태별 색은 top_bar.py에서 setStyleSheet로 지정 */
 QLabel#lblSignoffTime {
-    color: #7d7e84;
+    color: #a0a2aa;
     font-size: 10px;
 }
 

@@ -28,6 +28,20 @@ from PySide6.QtCore import Qt, QTimer, Signal, QSize
 from PySide6.QtGui import QFont, QColor, QPainter, QPixmap, QImage, QIcon
 
 
+_SIGNOFF_LABEL_COLORS = {
+    "dark": {
+        "IDLE":        "color: #a0a2aa;",
+        "PREPARATION": "color: #e8a730;",
+        "SIGNOFF":     "color: #ff8080;",
+    },
+    "light": {
+        "IDLE":        "color: #666666;",
+        "PREPARATION": "color: #856404;",
+        "SIGNOFF":     "color: #842029;",
+    },
+}
+
+
 def _fmt_dhms(secs: float) -> str:
     s = int(abs(secs))
     d, s = divmod(s, 86400)
@@ -641,7 +655,19 @@ class TopBar(QWidget):
         self._btn_fullscreen.setIcon(
             self._make_fullscreen_icon(self._btn_fullscreen.isChecked()))
         self._btn_settings.setIcon(self._make_gear_icon())
+        for gid in (1, 2):
+            btn = self._btn_signoff.get(gid)
+            if btn:
+                state = btn.property("signoff_state") or "IDLE"
+                self._apply_signoff_lbl_color(gid, state)
         self.dark_mode_toggled.emit(checked)
+
+    def _apply_signoff_lbl_color(self, gid: int, state: str):
+        lbl = self._lbl_signoff_time.get(gid)
+        if lbl is None:
+            return
+        theme = "dark" if self._dark_mode else "light"
+        lbl.setStyleSheet(_SIGNOFF_LABEL_COLORS[theme].get(state, ""))
 
     # ── 외부 호출 메서드 ───────────────────────────────────────────
 
@@ -721,23 +747,28 @@ class TopBar(QWidget):
         if not clock_enabled:
             lbl.setVisible(True)
             lbl.setText("")
-            btn.setProperty("signoff_state",
-                            state if state in ("IDLE", "PREPARATION", "SIGNOFF") else "IDLE")
+            resolved = state if state in ("IDLE", "PREPARATION", "SIGNOFF") else "IDLE"
+            btn.setProperty("signoff_state", resolved)
+            self._apply_signoff_lbl_color(group_id, resolved)
         elif state == "IDLE":
             lbl.setVisible(True)
             lbl.setText(f"정파준비까지 {_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "IDLE")
+            self._apply_signoff_lbl_color(group_id, "IDLE")
         elif state == "PREPARATION":
             lbl.setVisible(True)
             lbl.setText(f"정파까지 {_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "PREPARATION")
+            self._apply_signoff_lbl_color(group_id, "PREPARATION")
         elif state == "SIGNOFF":
             lbl.setVisible(True)
             lbl.setText(f"정파해제까지 {_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "SIGNOFF")
+            self._apply_signoff_lbl_color(group_id, "SIGNOFF")
         else:
             lbl.setVisible(True)
             btn.setProperty("signoff_state", "IDLE")
+            self._apply_signoff_lbl_color(group_id, "IDLE")
 
         btn.style().unpolish(btn)
         btn.style().polish(btn)
