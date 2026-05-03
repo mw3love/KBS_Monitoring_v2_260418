@@ -8,6 +8,7 @@ import threading
 import queue
 import time
 import datetime
+import html as _html
 
 import cv2
 import numpy as np
@@ -36,6 +37,7 @@ class TelegramWorker:
         self._enabled: bool = False
         self._bot_token: str = ""
         self._chat_id: str = ""
+        self._system_chat_id: str = ""
         self._send_image: bool = True
         self._cooldown: float = 60.0
         self._notify_flags: dict = {
@@ -116,10 +118,12 @@ class TelegramWorker:
         notify_audio_level: bool = True,
         notify_embedded: bool = True,
         notify_signoff: bool = True,
+        system_chat_id: str = "",
     ):
         self._enabled = enabled
         self._bot_token = bot_token.strip()
         self._chat_id = chat_id.strip()
+        self._system_chat_id = system_chat_id.strip()
         self._send_image = send_image
         self._cooldown = max(0.0, cooldown)
         self._notify_flags = {
@@ -141,6 +145,7 @@ class TelegramWorker:
         frame: np.ndarray = None,
         is_recovery: bool = False,
         jpeg_bytes: bytes = None,
+        duration_sec: float = 0.0,
     ):
         """알림 큐에 삽입 (메인 루프에서 호출). 즉시 반환.
 
@@ -184,6 +189,7 @@ class TelegramWorker:
             "media_name": media_name or label,
             "jpeg_bytes": jpeg_bytes,
             "is_recovery": is_recovery,
+            "duration_sec": duration_sec,
         }
         try:
             self._queue.put_nowait(item)
@@ -299,13 +305,15 @@ class TelegramWorker:
         if item.get("_signoff"):
             return self._send_signoff(item)
 
-        # 시스템 메시지 (단순 텍스트)
+        # 시스템 메시지
         if item.get("_system"):
+            chat_id = self._system_chat_id or self._chat_id
+            text = f"<b>[SYSTEM]</b> {_html.escape(item['message'])}"
             base = self._API_BASE.format(token=self._bot_token)
             try:
                 resp = _requests.post(
                     f"{base}/sendMessage",
-                    json={"chat_id": self._chat_id, "text": item["message"]},
+                    json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
                     timeout=(5.0, 15.0),
                 )
                 return resp.status_code == 200
@@ -317,24 +325,34 @@ class TelegramWorker:
         label = item["label"]
         media_name = item["media_name"]
         is_recovery = item.get("is_recovery", False)
+        duration_sec = item.get("duration_sec", 0.0)
 
-        channel_str = f"{label}"
+        channel_str = _html.escape(label)
         if media_name != label:
-            channel_str += f" ({media_name})"
+            channel_str += f" ({_html.escape(media_name)})"
+
+        if duration_sec > 0:
+            dur_min = int(duration_sec) // 60
+            dur_sec_val = int(duration_sec) % 60
+            dur_str = f"{dur_min}분 {dur_sec_val:02d}초" if dur_min > 0 else f"{dur_sec_val}초"
+        else:
+            dur_str = ""
 
         if is_recovery:
             text = (
-                f"[KBS On-Air Monitoring \U00002705 복구]\n"
-                f"\U000023F0 시각: {now_str}\n"
-                f"\U0001F4E1 채널: {channel_str}\n"
-                f"\U00002714 복구: {alarm_type} 정상"
+                f"<b>[KBS On-Air Monitoring \U00002705 복구]</b>\n"
+                f"\U000023F0 시각: <code>{now_str}</code>\n"
+                f"\U0001F4E1 채널: <b>{channel_str}</b>\n"
+                f"\U00002714 복구: <b>{_html.escape(alarm_type)}</b> 정상"
+                + (f" ({dur_str} 지속)" if dur_str else "")
             )
         else:
             text = (
-                f"[KBS On-Air Monitoring \U0001F6A8 알림]\n"
-                f"\U000023F0 시각: {now_str}\n"
-                f"\U0001F4E1 채널: {channel_str}\n"
-                f"\U000026A0 감지: {alarm_type}"
+                f"<b>[KBS On-Air Monitoring \U0001F6A8 알림]</b>\n"
+                f"\U000023F0 시각: <code>{now_str}</code>\n"
+                f"\U0001F4E1 채널: <b>{channel_str}</b>\n"
+                f"\U000026A0 감지: <b>{_html.escape(alarm_type)}</b>"
+                + (f" ({dur_str} 경과)" if dur_str else "")
             )
 
         base = self._API_BASE.format(token=self._bot_token)
@@ -346,14 +364,14 @@ class TelegramWorker:
                 if item.get("jpeg_bytes"):
                     resp = _requests.post(
                         f"{base}/sendPhoto",
-                        data={"chat_id": self._chat_id, "caption": text},
+                        data={"chat_id": self._chat_id, "caption": text, "parse_mode": "HTML"},
                         files={"photo": ("snapshot.jpg", item["jpeg_bytes"], "image/jpeg")},
                         timeout=timeout,
                     )
                 else:
                     resp = _requests.post(
                         f"{base}/sendMessage",
-                        json={"chat_id": self._chat_id, "text": text},
+                        json={"chat_id": self._chat_id, "text": text, "parse_mode": "HTML"},
                         timeout=timeout,
                     )
                 if resp.status_code == 200:
@@ -418,24 +436,28 @@ class TelegramWorker:
         suppressed_str = ", ".join(suppressed_labels) if suppressed_labels else "-"
         suppressed_count = len(suppressed_labels)
 
+        group_esc = _html.escape(group_name)
+        trigger_esc = _html.escape(trigger_str)
+        suppressed_esc = _html.escape(suppressed_str)
+
         if is_entry:
             text = (
-                f"[KBS On-Air Monitoring \U0001F534 정파]\n"
-                f"\U000023F0 시각: {now_str}\n"
-                f"\U0001F4CB 그룹: {group_name}\n"
-                f"\U0001F3AF 진입 트리거: {trigger_str}\n"
-                f"\U0001F515 알림 억제: {suppressed_str} ({suppressed_count}개 채널)"
+                f"<b>[KBS On-Air Monitoring \U0001F534 정파]</b>\n"
+                f"\U000023F0 시각: <code>{now_str}</code>\n"
+                f"\U0001F4CB 그룹: <b>{group_esc}</b>\n"
+                f"\U0001F3AF 진입 트리거: <b>{trigger_esc}</b>\n"
+                f"\U0001F515 알림 억제: {suppressed_esc} ({suppressed_count}개 채널)"
             )
             log_kind = "정파 진입"
         else:
             minutes = int(elapsed_sec) // 60
             seconds = int(elapsed_sec) % 60
             text = (
-                f"[KBS On-Air Monitoring \U00002705 정파 해제]\n"
-                f"\U000023F0 시각: {now_str}\n"
-                f"\U0001F4CB 그룹: {group_name}\n"
-                f"\U0001F3AF 진입 트리거: {trigger_str}\n"
-                f"\U0001F515 알림 억제: {suppressed_str} ({suppressed_count}개 채널)\n"
+                f"<b>[KBS On-Air Monitoring \U00002705 정파 해제]</b>\n"
+                f"\U000023F0 시각: <code>{now_str}</code>\n"
+                f"\U0001F4CB 그룹: <b>{group_esc}</b>\n"
+                f"\U0001F3AF 진입 트리거: <b>{trigger_esc}</b>\n"
+                f"\U0001F515 알림 억제: {suppressed_esc} ({suppressed_count}개 채널)\n"
                 f"\U000023F1 정파 시간: {minutes}분 {seconds:02d}초"
             )
             log_kind = "정파 해제"
@@ -444,7 +466,7 @@ class TelegramWorker:
         try:
             resp = _requests.post(
                 f"{base}/sendMessage",
-                json={"chat_id": self._chat_id, "text": text},
+                json={"chat_id": self._chat_id, "text": text, "parse_mode": "HTML"},
                 timeout=(5.0, 15.0),
             )
             if resp.status_code == 200:

@@ -508,10 +508,9 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 | notify_still | True | - | - |
 | notify_audio_level | True | - | - |
 | notify_embedded | True | - | - |
-| notify_signoff | True | - | - |
+| notify_signoff | True | - | 정파 진입/해제 알림 발송 여부 |
 | notify_system | True | - | `[SYSTEM]` prefix 알림(프로세스 생존/재spawn/크래시) 발송 여부 |
-
-> **주의**: `notify_signoff`는 config에 존재하지만 알림설정 탭 UI에는 표시되지 않음 (내부 동작용)
+| system_chat_id | "" | - | 시스템 알림 전용 Chat ID. 비어있으면 기본 chat_id로 fallback |
 
 ### 녹화(Recording)
 

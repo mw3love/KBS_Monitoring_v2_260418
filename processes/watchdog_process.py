@@ -72,16 +72,16 @@ def _send_system_telegram(message: str, logger=None) -> bool:
     if not tg.get("notify_system", True):
         return False
     token = tg.get("bot_token", "").strip()
-    chat_id = tg.get("chat_id", "").strip()
+    chat_id = (tg.get("system_chat_id", "") or tg.get("chat_id", "")).strip()
     if not token or not chat_id:
         return False
 
-    text = f"[SYSTEM] {message}"
+    text = f"<b>[SYSTEM]</b> {message}"
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
         resp = _requests.post(
             url,
-            json={"chat_id": chat_id, "text": text},
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
             timeout=(5.0, 15.0),
         )
         success = resp.status_code == 200

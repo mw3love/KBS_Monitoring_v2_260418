@@ -46,13 +46,14 @@ def _send_system_telegram_main(message: str):
     if not tg.get("notify_system", True):
         return
     token = tg.get("bot_token", "").strip()
-    chat_id = tg.get("chat_id", "").strip()
+    chat_id = (tg.get("system_chat_id", "") or tg.get("chat_id", "")).strip()
     if not token or not chat_id:
         return
     try:
         _req.post(
             f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat_id, "text": f"[SYSTEM] {message}"},
+            json={"chat_id": chat_id, "text": f"<b>[SYSTEM]</b> {message}",
+                  "parse_mode": "HTML"},
             timeout=(5.0, 15.0),
         )
     except Exception:

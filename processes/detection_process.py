@@ -151,6 +151,7 @@ def _apply_config_to_telegram(telegram, cfg: dict):
         notify_audio_level = tg.get("notify_audio_level", True),
         notify_embedded  = tg.get("notify_embedded", True),
         notify_signoff   = tg.get("notify_signoff", True),
+        system_chat_id   = tg.get("system_chat_id", ""),
     )
 
 
@@ -721,6 +722,7 @@ def _process_alarms(
                     telegram.notify(
                         "블랙" if det_type == "black" else "스틸",
                         lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg,
+                        duration_sec=duration,
                     )
 
             prev_dict[lbl] = alerting
@@ -748,7 +750,8 @@ def _process_alarms(
                  AlarmResolve(label=lbl, detection_type="audio_level",
                               duration_sec=res.get("last_duration", 0.0)),
                  ipc_counters)
-            telegram.notify("오디오", lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg)
+            telegram.notify("오디오", lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg,
+                            duration_sec=res.get("last_duration", 0.0))
 
         prev_audio[lbl] = alerting
 
@@ -766,7 +769,8 @@ def _process_alarms(
              AlarmResolve(label="EA", detection_type="embedded",
                           duration_sec=detector._last_embedded_alert_duration),
              ipc_counters)
-        telegram.notify("무음", "EA", "임베디드오디오", is_recovery=True)
+        telegram.notify("무음", "EA", "임베디드오디오", is_recovery=True,
+                        duration_sec=detector._last_embedded_alert_duration)
     _process_alarms._emb_was = emb_alerting
 
 

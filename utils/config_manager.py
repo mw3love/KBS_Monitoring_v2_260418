@@ -57,6 +57,7 @@ DEFAULT_CONFIG = {
         "enabled": False,
         "bot_token": "",
         "chat_id": "",
+        "system_chat_id": "",
         "send_image": True,
         "cooldown": 60,
         "notify_black": True,
