@@ -68,6 +68,12 @@ class AutoRecorder:
         self._audio_record_queue: deque = deque()
         self._record_thread: Optional[threading.Thread] = None
 
+        self._contributing_labels: list = []
+        self._rec_ts: str = ""
+        self._rec_first_label: str = ""
+        self._rec_media: str = ""
+        self._rec_type: str = ""
+
         self._running: bool = False
         self._cleanup_thread = threading.Thread(
             target=self._cleanup_loop, daemon=True, name="RecorderCleanup"
@@ -198,6 +204,8 @@ class AutoRecorder:
         from ipc.messages import RecordingEvent
 
         if self._recording:
+            if label not in self._contributing_labels:
+                self._contributing_labels.append(label)
             if new_end > self._record_end:
                 self._record_end = new_end
                 self._emit(RecordingEvent(event="extend", label=label))
@@ -224,6 +232,11 @@ class AutoRecorder:
         safe_media = (media_name.replace("/", "_").replace("\\", "_")
                       if media_name else "")
         safe_type = alarm_type.replace("/", "_")
+        self._rec_ts = ts
+        self._rec_first_label = safe_label
+        self._rec_media = safe_media
+        self._rec_type = safe_type
+        self._contributing_labels = [label]
         if safe_media:
             filename = f"{ts}_{safe_label}_{safe_media}_{safe_type}.mp4"
         else:
@@ -241,6 +254,18 @@ class AutoRecorder:
         self._record_thread.start()
 
     # ── 녹화 워커 ─────────────────────────────────────────────────────────────
+
+    def _build_final_filepath(self) -> str:
+        """기여 ROI 수를 반영한 최종 파일 경로 반환."""
+        extra = len(self._contributing_labels) - 1
+        label_part = self._rec_first_label
+        if extra > 0:
+            label_part = f"{self._rec_first_label}외{extra}개"
+        if self._rec_media:
+            fname = f"{self._rec_ts}_{label_part}_{self._rec_media}_{self._rec_type}.mp4"
+        else:
+            fname = f"{self._rec_ts}_{label_part}_{self._rec_type}.mp4"
+        return os.path.join(self._save_dir, fname)
 
     def _record_worker(self, pre_frames: list, pre_audio: list,
                        filepath: str, label: str):
@@ -328,6 +353,14 @@ class AutoRecorder:
                     os.remove(atmp)
             except Exception:
                 pass
+
+            final_filepath = self._build_final_filepath()
+            if final_filepath != filepath and os.path.exists(filepath):
+                try:
+                    os.rename(filepath, final_filepath)
+                    filepath = final_filepath
+                except Exception as e:
+                    _log.warning("최종 파일명 변경 실패: %s", e)
 
             from ipc.messages import RecordingEvent
             self._emit(RecordingEvent(event="end", label=label, filepath=filepath))
