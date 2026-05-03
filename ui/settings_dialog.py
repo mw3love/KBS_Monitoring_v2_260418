@@ -967,7 +967,7 @@ class SettingsDialog(QDialog):
         sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
                            "50~100% / 이 비율 이상이면 블랙 판정 (기본값: 98%)"))
         sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준", self._black_suppress,
-                           "프레임 간 변화 비율이 이 값 이상이면 블랙을 무시합니다 (화면 전환 오검지 방지)"))
+                           "프레임 간 변화 비율이 이 값 이상이면 블랙을 무시합니다 (화면 전환 오감지 방지)"))
         sl1.addLayout(_row("알림 발생 기준(초)", self._black_dur,
                            "1~300 / 블랙이 이 시간(초) 이상 지속되면 알림"))
         sl1.addLayout(_row("알림음 지속(초)", self._black_alarm_dur,
@@ -993,7 +993,7 @@ class SettingsDialog(QDialog):
         sl2.addLayout(_row("블록 변화 비율(%)", self._still_changed,
                            "전체 블록 중 변화된 비율이 이 값 미만이면 스틸로 판정합니다"))
         sl2.addLayout(_row("연속 정상 프레임 수", self._still_reset,
-                           "이 수 이상 정상 프레임이 연속되어야 스틸 해제 (순간 글리치 방지)"))
+                           "이 수 이상 정상 프레임이 연속되어야 스틸 해제 (일시적 화면 흔들림 오감지 방지)"))
         sl2.addLayout(_row("알림 발생 기준(초)", self._still_dur,
                            "1~300 / 정지화면이 이 시간(초) 이상 지속되면 알림"))
         sl2.addLayout(_row("알림음 지속(초)", self._still_alarm_dur,
@@ -1395,7 +1395,7 @@ class SettingsDialog(QDialog):
         time_hl.addWidget(end_next_cb)
         time_hl.addStretch()
         sl.addLayout(_row("정파 시간 구간:", time_widget,
-                          "스틸 미감지 시 시작 시각에 자동 정파 진입 (fallback)"))
+                          "스틸 미감지 시 시작 시각에 자동으로 정파 진입 (보조 수단)"))
         widgets.update({"start_h": start_h, "start_m": start_m,
                         "end_h": end_h, "end_m": end_m, "end_next_day": end_next_cb})
 
@@ -1871,13 +1871,6 @@ class SettingsDialog(QDialog):
             vl.addWidget(card)
 
         # About 카드
-        import sys
-        try:
-            from PySide6 import __version__ as _pyside_ver
-        except Exception:
-            _pyside_ver = "?"
-        _py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-
         about_card = QFrame()
         about_card.setObjectName("aboutCard")
         about_vl = QVBoxLayout(about_card)
@@ -1891,10 +1884,6 @@ class SettingsDialog(QDialog):
         lbl_meta = QLabel("날짜: 2026-04-29    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
-
-        lbl_env = QLabel(f"Python {_py_ver}  ·  PySide6 {_pyside_ver}")
-        lbl_env.setObjectName("aboutCardMeta")
-        about_vl.addWidget(lbl_env)
 
         vl.addStretch()
         vl.addWidget(about_card)
