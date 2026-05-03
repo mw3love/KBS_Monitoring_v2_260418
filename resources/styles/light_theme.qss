@@ -77,11 +77,28 @@ QPushButton#btnSignoff[signoff_state="SIGNOFF"] {
     border-color: #e03131;
 }
 
-/* 정파 시간 레이블 — 상태별 색은 top_bar.py에서 setStyleSheet로 지정 */
+/* 정파 시간 레이블 */
 QLabel#lblSignoffTime {
     color: #666666;
     font-size: 10px;
 }
+
+/* 섹션 소제목 */
+QLabel#lblSectionTitle {
+    font-size: 10px;
+    font-weight: 600;
+    color: #888888;
+    letter-spacing: 1px;
+    background: transparent;
+}
+
+/* 볼륨 수치 레이블 */
+QLabel#lblVolumeVal {
+    font-size: 10px;
+    color: #666666;
+    background: transparent;
+}
+
 
 QSlider::groove:horizontal {
     background-color: #dddddd;
@@ -374,8 +391,71 @@ QGroupBox::title {
 
 QLabel#lblTime {
     color: #B85E3F;
-    font-size: 14px;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 18px;
+    letter-spacing: 2px;
+}
+
+/* ── 감지현황 배지 ──────────────────────────────────────────────── */
+QFrame#detBadge {
+    background-color: #efefef;
+    border: 1px solid #cccccc;
+    border-radius: 3px;
+    min-width: 32px;
+}
+
+QLabel#detBadgeKey {
+    color: #888888;
+    font-size: 9px;
+    background-color: transparent;
+}
+
+QLabel#detBadgeVal {
+    color: #1a1a1a;
     font-weight: bold;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 11px;
+    background-color: transparent;
+}
+
+QFrame#detBadge[alert="true"] {
+    background-color: #fde8e8;
+    border-color: #e03131;
+}
+
+QFrame#detBadge[alert="true"] QLabel#detBadgeVal {
+    color: #cc0000;
+}
+
+QFrame#detBadge[ea_state="alert"] {
+    background-color: #fde8e8;
+    border-color: #e03131;
+}
+
+QFrame#detBadge[ea_state="alert"] QLabel#detBadgeVal {
+    color: #cc0000;
+}
+
+QFrame#detBadge[ea_state="disabled"] QLabel#detBadgeVal {
+    color: #aaaaaa;
+}
+
+/* 알림확인 버튼 alarm_active */
+QPushButton#btnAlarmAck[alarm_active="true"] {
+    background-color: #cc0000;
+    color: #ffffff;
+    border-color: #aa0000;
+}
+
+/* 감지 버튼 health state */
+QPushButton#btnDetection[health_state="stale"] {
+    border: 2px solid #cc0000;
+    color: #cc0000;
+}
+
+QPushButton#btnDetection[health_state="crashed"] {
+    border: 2px solid #D97757;
+    color: #D97757;
 }
 
 /* ================================================================

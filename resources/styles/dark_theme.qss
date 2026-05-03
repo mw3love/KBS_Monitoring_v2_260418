@@ -74,9 +74,26 @@ QPushButton#btnDetection:!checked {
     color: #7d7e84;
 }
 
-/* 알림확인 버튼 — 알람 중에는 main_window에서 직접 스타일 주입 */
+/* 알림확인 버튼 */
 QPushButton#btnAlarmAck {
     font-weight: bold;
+}
+
+QPushButton#btnAlarmAck[alarm_active="true"] {
+    background-color: #cc0000;
+    color: #ffffff;
+    border-color: #aa0000;
+}
+
+/* 감지 버튼 health state */
+QPushButton#btnDetection[health_state="stale"] {
+    border: 2px solid #cc0000;
+    color: #cc0000;
+}
+
+QPushButton#btnDetection[health_state="crashed"] {
+    border: 2px solid #D97757;
+    color: #D97757;
 }
 
 /* 정파 버튼 — signoff_state property 기반 */
@@ -316,16 +333,71 @@ QScrollBar::sub-line:vertical {
     height: 0;
 }
 
-/* ── 정파 시간 레이블 — 상태별 색은 top_bar.py에서 setStyleSheet로 지정 */
+/* ── 정파 시간 레이블 */
 QLabel#lblSignoffTime {
     color: #a0a2aa;
     font-size: 10px;
 }
 
-/* ── 감지현황 ────────────────────────────────────────────────────── */
-QLabel#lblSummaryItem {
+/* ── 섹션 소제목 */
+QLabel#lblSectionTitle {
+    font-size: 10px;
+    font-weight: 600;
+    color: #7d7e84;
+    letter-spacing: 1px;
+    background: transparent;
+}
+
+/* ── 볼륨 수치 레이블 */
+QLabel#lblVolumeVal {
+    font-size: 10px;
+    color: #a0a2aa;
+    background: transparent;
+}
+
+
+/* ── 감지현황 배지 ──────────────────────────────────────────────── */
+QFrame#detBadge {
+    background-color: #26272c;
+    border: 1px solid #3a3b42;
+    border-radius: 3px;
+    min-width: 32px;
+}
+
+QLabel#detBadgeKey {
+    color: #7d7e84;
+    font-size: 9px;
+    background-color: transparent;
+}
+
+QLabel#detBadgeVal {
     color: #ececec;
     font-weight: bold;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 11px;
+    background-color: transparent;
+}
+
+QFrame#detBadge[alert="true"] {
+    background-color: #5a1515;
+    border-color: #e03131;
+}
+
+QFrame#detBadge[alert="true"] QLabel#detBadgeVal {
+    color: #ff6060;
+}
+
+QFrame#detBadge[ea_state="alert"] {
+    background-color: #5a1515;
+    border-color: #e03131;
+}
+
+QFrame#detBadge[ea_state="alert"] QLabel#detBadgeVal {
+    color: #ff6060;
+}
+
+QFrame#detBadge[ea_state="disabled"] QLabel#detBadgeVal {
+    color: #55565c;
 }
 
 /* ── 탭 위젯 (설정 다이얼로그용) ────────────────────────────────── */
@@ -431,8 +503,9 @@ QLabel {
 
 QLabel#lblTime {
     color: #D97757;
-    font-size: 14px;
-    font-weight: bold;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 18px;
+    letter-spacing: 2px;
 }
 
 /* ── 설정 다이얼로그 섹션 박스 ─────────────────────────────────── */

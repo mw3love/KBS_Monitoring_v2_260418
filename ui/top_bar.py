@@ -22,10 +22,10 @@ except ImportError:
 
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel,
-    QPushButton, QSlider, QFrame, QStyle,
+    QPushButton, QSlider, QFrame,
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QSize
-from PySide6.QtGui import QFont, QColor, QPainter, QPixmap, QImage, QIcon
+from PySide6.QtGui import QFont, QColor, QPainter, QPixmap, QIcon, QPen
 
 
 _SIGNOFF_LABEL_COLORS = {
@@ -48,12 +48,8 @@ def _fmt_dhms(secs: float) -> str:
     h, s = divmod(s, 3600)
     m, s = divmod(s, 60)
     if d > 0:
-        return f"{d}D - [ {h}H : {m}M : {s}S ]"
-    elif h > 0:
-        return f"[ {h}H : {m}M : {s}S ]"
-    elif m > 0:
-        return f"[ {m}M : {s}S ]"
-    return f"[ {s}S ]"
+        return f"{d}D {h:02d}:{m:02d}:{s:02d}"
+    return f"{h:02d}:{m:02d}:{s:02d}"
 
 
 def _fmt_elapsed(secs: float) -> str:
@@ -63,6 +59,12 @@ def _fmt_elapsed(secs: float) -> str:
     if h > 0:
         return f"{h}h {m}m {s:02d}s"
     return f"{m}m {s:02d}s"
+
+
+def _refresh_property(widget: QWidget):
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+    widget.update()
 
 
 class LevelMeterBar(QWidget):
@@ -75,11 +77,22 @@ class LevelMeterBar(QWidget):
         super().__init__(parent)
         self._channel = channel
         self._level_db = -60.0
+        self._bg_color = QColor("#111122")
+        self._seg_off_color = QColor("#1e1e1e")
         self.setFixedWidth(20)
         self.setMinimumHeight(44)
 
     def set_level(self, db: float):
         self._level_db = max(-60.0, min(0.0, db))
+        self.update()
+
+    def set_theme(self, is_dark: bool):
+        if is_dark:
+            self._bg_color = QColor("#111122")
+            self._seg_off_color = QColor("#1e1e1e")
+        else:
+            self._bg_color = QColor("#e0e0e8")
+            self._seg_off_color = QColor("#cccccc")
         self.update()
 
     def paintEvent(self, event):
@@ -92,7 +105,7 @@ class LevelMeterBar(QWidget):
         gap = self.SEGMENT_GAP
         seg_h = max(2, (bar_area_h - gap * (n - 1)) // n)
 
-        painter.fillRect(0, 0, w, h, QColor("#111122"))
+        painter.fillRect(0, 0, w, h, self._bg_color)
         ratio = (self._level_db + 60.0) / 60.0
         lit_count = round(ratio * n)
 
@@ -100,15 +113,15 @@ class LevelMeterBar(QWidget):
             y_top = i * (seg_h + gap)
             from_bottom = n - 1 - i
             if from_bottom < lit_count:
-                if i <= 1:       # top 2 — 피크/위험
+                if i <= 1:
                     color = QColor("#ff3333")
-                elif i <= 3:     # 3~4번째 — 경계
+                elif i <= 3:
                     color = QColor("#e8a730")
-                else:            # 하단 6칸 — 정상
+                else:
                     color = QColor("#2f9e44")
                 painter.fillRect(2, y_top, w - 4, seg_h, color)
             else:
-                painter.fillRect(2, y_top, w - 4, seg_h, QColor("#1e1e1e"))
+                painter.fillRect(2, y_top, w - 4, seg_h, self._seg_off_color)
 
         painter.setPen(QColor("#aaaacc"))
         painter.setFont(QFont("Segoe UI", 7, QFont.Bold))
@@ -138,10 +151,9 @@ class SysMonitorWidget(QWidget):
         layout.setContentsMargins(6, 0, 6, 0)
         layout.setSpacing(6)
 
-        title = QLabel("시스템 성능")
-        title.setObjectName("lblSysMonTitle")
+        title = QLabel("시스템 성능".upper())
+        title.setObjectName("lblSectionTitle")
         title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont("Segoe UI", 11, QFont.Bold))
         layout.addWidget(title)
 
         stats_widget = QWidget()
@@ -262,7 +274,7 @@ class TopBar(QWidget):
         self.setFixedHeight(68)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 6, 10, 4)
+        layout.setContentsMargins(10, 4, 10, 4)
         layout.setSpacing(10)
         layout.setAlignment(Qt.AlignTop)
 
@@ -271,20 +283,21 @@ class TopBar(QWidget):
 
         layout.addWidget(self._make_separator())
 
+        # 현재시간 영역
         time_container = QWidget()
         time_vbox = QVBoxLayout(time_container)
         time_vbox.setContentsMargins(4, 0, 4, 0)
-        time_vbox.setSpacing(15)
+        time_vbox.setSpacing(4)
 
-        lbl_time_title = QLabel("현재시간")
+        lbl_time_title = QLabel("현재시간".upper())
+        lbl_time_title.setObjectName("lblSectionTitle")
         lbl_time_title.setAlignment(Qt.AlignCenter)
-        lbl_time_title.setFont(QFont("Segoe UI", 11, QFont.Bold))
         time_vbox.addWidget(lbl_time_title)
 
         self._lbl_time = QLabel("00:00:00")
         self._lbl_time.setObjectName("lblTime")
         self._lbl_time.setAlignment(Qt.AlignCenter)
-        self._lbl_time.setFont(QFont("Segoe UI", 13, QFont.Bold))
+        self._lbl_time.setFont(QFont("JetBrains Mono", 18))
         time_vbox.addWidget(self._lbl_time)
 
         layout.addWidget(time_container, alignment=Qt.AlignTop)
@@ -292,14 +305,14 @@ class TopBar(QWidget):
 
         # Embedded Audio 영역
         embed_container = QWidget()
-        embed_container.setMaximumWidth(175)
+        embed_container.setMaximumWidth(205)
         embed_vbox = QVBoxLayout(embed_container)
         embed_vbox.setContentsMargins(4, 0, 4, 0)
         embed_vbox.setSpacing(2)
 
-        lbl_embed_title = QLabel("Embedded Audio")
+        lbl_embed_title = QLabel("Embedded Audio".upper())
+        lbl_embed_title.setObjectName("lblSectionTitle")
         lbl_embed_title.setAlignment(Qt.AlignCenter)
-        lbl_embed_title.setFont(QFont("Segoe UI", 11, QFont.Bold))
         embed_vbox.addWidget(lbl_embed_title)
 
         embed_content = QWidget()
@@ -321,10 +334,16 @@ class TopBar(QWidget):
         self._slider_volume.setObjectName("sliderVolume")
         self._slider_volume.setRange(0, 100)
         self._slider_volume.setValue(80)
-        self._slider_volume.setFixedWidth(60)
+        self._slider_volume.setFixedWidth(58)
         self._slider_volume.setToolTip("임베디드 오디오 볼륨")
         self._slider_volume.valueChanged.connect(self._on_volume_changed_raw)
         embed_hbox.addWidget(self._slider_volume, 0, Qt.AlignVCenter)
+
+        self._lbl_volume_val = QLabel("80%")
+        self._lbl_volume_val.setObjectName("lblVolumeVal")
+        self._lbl_volume_val.setFixedWidth(30)
+        self._lbl_volume_val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        embed_hbox.addWidget(self._lbl_volume_val, 0, Qt.AlignVCenter)
 
         self._meter_l = LevelMeterBar("L")
         self._meter_r = LevelMeterBar("R")
@@ -338,39 +357,39 @@ class TopBar(QWidget):
         layout.addWidget(self._create_summary_widget(), alignment=Qt.AlignTop)
         layout.addWidget(self._make_separator())
 
-        self._btn_detection = QPushButton("감지 ON")
+        self._btn_detection = QPushButton("감지 ON\n감시중")
         self._btn_detection.setObjectName("btnDetection")
         self._btn_detection.setCheckable(True)
         self._btn_detection.setChecked(True)
-        self._btn_detection.setFixedSize(90, 36)
-        self._btn_detection.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        self._btn_detection.setFixedSize(90, 46)
+        self._btn_detection.setFont(QFont("Segoe UI", 9, QFont.Bold))
         self._btn_detection.clicked.connect(self._on_detection_clicked)
         layout.addWidget(self._btn_detection)
 
-        self._btn_roi = QPushButton("감지영역 ON")
+        self._btn_roi = QPushButton("영역 표시\nON")
         self._btn_roi.setObjectName("btnRoi")
         self._btn_roi.setCheckable(True)
         self._btn_roi.setChecked(True)
-        self._btn_roi.setFixedSize(100, 36)
-        self._btn_roi.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        self._btn_roi.setFixedSize(90, 46)
+        self._btn_roi.setFont(QFont("Segoe UI", 9, QFont.Bold))
         self._btn_roi.clicked.connect(self._on_roi_clicked)
         layout.addWidget(self._btn_roi)
 
-        self._btn_mute = QPushButton("Mute")
+        self._btn_mute = QPushButton("알림음\n켜짐")
         self._btn_mute.setObjectName("btnMuteText")
         self._btn_mute.setCheckable(True)
-        self._btn_mute.setFixedSize(80, 36)
-        self._btn_mute.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        self._btn_mute.setFixedSize(80, 46)
+        self._btn_mute.setFont(QFont("Segoe UI", 9, QFont.Bold))
         self._btn_mute.setToolTip("알림음 음소거")
         self._btn_mute.clicked.connect(self._on_mute_clicked)
         layout.addWidget(self._btn_mute)
 
         layout.addWidget(self._make_separator())
 
-        self._btn_ack = QPushButton("알림확인")
+        self._btn_ack = QPushButton("알림 확인\nACK")
         self._btn_ack.setObjectName("btnAlarmAck")
-        self._btn_ack.setFixedSize(90, 36)
-        self._btn_ack.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        self._btn_ack.setFixedSize(90, 46)
+        self._btn_ack.setFont(QFont("Segoe UI", 9, QFont.Bold))
         self._btn_ack.setToolTip("알림확인 — 소리 및 깜빡임 해제")
         self._btn_ack.clicked.connect(self.alarm_acknowledged)
         layout.addWidget(self._btn_ack)
@@ -381,7 +400,7 @@ class TopBar(QWidget):
         self._lbl_signoff_time: dict = {}
         for gid in (1, 2):
             grp_widget = QWidget()
-            grp_widget.setFixedWidth(210)
+            grp_widget.setFixedWidth(160)
             grp_vbox = QVBoxLayout(grp_widget)
             grp_vbox.setContentsMargins(2, 0, 2, 0)
             grp_vbox.setSpacing(2)
@@ -390,13 +409,13 @@ class TopBar(QWidget):
             btn.setObjectName("btnSignoff")
             btn.setCheckable(False)
             btn.setProperty("signoff_state", "IDLE")
-            btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
+            btn.setFont(QFont("Segoe UI", 9, QFont.Bold))
             btn.clicked.connect(lambda _, g=gid: self.signoff_manual_release.emit(g))
             grp_vbox.addWidget(btn)
 
             lbl = QLabel("")
             lbl.setObjectName("lblSignoffTime")
-            lbl.setFont(QFont("Segoe UI", 9))
+            lbl.setFont(QFont("JetBrains Mono", 9))
             lbl.setAlignment(Qt.AlignCenter)
             lbl.setFixedHeight(18)
             grp_vbox.addWidget(lbl)
@@ -440,58 +459,64 @@ class TopBar(QWidget):
     def _create_summary_widget(self) -> QWidget:
         container = QWidget()
         container.setObjectName("summaryContainer")
-        container.setMaximumWidth(90)
         vbox = QVBoxLayout(container)
-        vbox.setContentsMargins(2, 0, 2, 0)
-        vbox.setSpacing(4)
+        vbox.setContentsMargins(6, 0, 6, 0)
+        vbox.setSpacing(5)
 
-        title = QLabel("감지 현황")
-        title.setObjectName("lblSummaryTitle")
+        title = QLabel("감지 현황".upper())
+        title.setObjectName("lblSectionTitle")
         title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont("Segoe UI", 11, QFont.Bold))
         vbox.addWidget(title)
 
-        items_widget = QWidget()
-        hbox = QHBoxLayout(items_widget)
+        badges_widget = QWidget()
+        hbox = QHBoxLayout(badges_widget)
         hbox.setContentsMargins(0, 0, 0, 0)
-        hbox.setSpacing(4)
+        hbox.setSpacing(6)
         hbox.setAlignment(Qt.AlignHCenter)
 
-        item_font = QFont("Segoe UI", 10, QFont.Bold)
-        self._lbl_v  = QLabel("V\n0")
-        self._lbl_v.setObjectName("lblSummaryItem")
-        self._lbl_v.setAlignment(Qt.AlignCenter)
-        self._lbl_v.setFont(item_font)
-        self._lbl_a  = QLabel("A\n0")
-        self._lbl_a.setObjectName("lblSummaryItem")
-        self._lbl_a.setAlignment(Qt.AlignCenter)
-        self._lbl_a.setFont(item_font)
-        self._lbl_ea = QLabel("EA\n-")
-        self._lbl_ea.setObjectName("lblSummaryItem")
-        self._lbl_ea.setAlignment(Qt.AlignCenter)
-        self._lbl_ea.setFont(item_font)
+        self._det_badges: dict = {}
+        self._det_val_labels: dict = {}
 
-        hbox.addStretch()
-        hbox.addWidget(self._lbl_v)
-        hbox.addWidget(self._lbl_a)
-        hbox.addWidget(self._lbl_ea)
-        hbox.addStretch()
-        vbox.addWidget(items_widget)
+        for key, display in [("V", "V"), ("A", "A"), ("EA", "EA")]:
+            badge = QFrame()
+            badge.setObjectName("detBadge")
+            badge_layout = QVBoxLayout(badge)
+            badge_layout.setContentsMargins(8, 3, 8, 3)
+            badge_layout.setSpacing(0)
+
+            lbl_key = QLabel(display)
+            lbl_key.setObjectName("detBadgeKey")
+            lbl_key.setAlignment(Qt.AlignCenter)
+            lbl_key.setFont(QFont("Segoe UI", 8))
+
+            init_val = "-" if key == "EA" else "0"
+            lbl_val = QLabel(init_val)
+            lbl_val.setObjectName("detBadgeVal")
+            lbl_val.setAlignment(Qt.AlignCenter)
+            lbl_val.setFont(QFont("JetBrains Mono", 11, QFont.Bold))
+
+            badge_layout.addWidget(lbl_key)
+            badge_layout.addWidget(lbl_val)
+
+            hbox.addWidget(badge)
+            self._det_badges[key] = badge
+            self._det_val_labels[key] = lbl_val
+
+        # 기존 코드와의 호환성 유지
+        self._lbl_v  = self._det_val_labels["V"]
+        self._lbl_a  = self._det_val_labels["A"]
+        self._lbl_ea = self._det_val_labels["EA"]
+
+        vbox.addWidget(badges_widget)
         return container
 
     def update_health(self, detect_stale: bool):
         """감지 루프 stale 여부 → 감지 ON 버튼 테두리로 표현."""
-        if detect_stale:
-            self._btn_detection.setStyleSheet(
-                "QPushButton#btnDetection {"
-                "  border: 2px solid #cc0000;"
-                "  color: #cc0000;"
-                "}"
-            )
-            self._btn_detection.setToolTip("감지 중단 — 루프 응답 없음")
-        else:
-            self._btn_detection.setStyleSheet("")
-            self._btn_detection.setToolTip("")
+        state = "stale" if detect_stale else "ok"
+        self._btn_detection.setProperty("health_state", state)
+        _refresh_property(self._btn_detection)
+        tip = "감지 중단 — 루프 응답 없음" if detect_stale else ""
+        self._btn_detection.setToolTip(tip)
 
     def show_detection_crashed(self, reason: str, stale_sec: float = 0.0):
         """Detection 비정상 종료 — 재spawn 진행 중임을 버튼 테두리로 표현."""
@@ -499,12 +524,8 @@ class TopBar(QWidget):
             tip = f"재시작 중 (HB {stale_sec:.0f}초 무응답)"
         else:
             tip = "재시작 중"
-        self._btn_detection.setStyleSheet(
-            "QPushButton#btnDetection {"
-            "  border: 2px solid #D97757;"
-            "  color: #D97757;"
-            "}"
-        )
+        self._btn_detection.setProperty("health_state", "crashed")
+        _refresh_property(self._btn_detection)
         self._btn_detection.setToolTip(tip)
 
     def _make_separator(self) -> QFrame:
@@ -524,13 +545,40 @@ class TopBar(QWidget):
         self._lbl_time.setText(datetime.datetime.now().strftime("%H:%M:%S"))
 
     def _make_fullscreen_icon(self, is_fullscreen: bool) -> QIcon:
-        icon_type = (QStyle.SP_TitleBarNormalButton if is_fullscreen
-                     else QStyle.SP_TitleBarMaxButton)
-        px = self.style().standardIcon(icon_type).pixmap(QSize(20, 20))
-        if self._dark_mode:
-            img = px.toImage().convertedTo(QImage.Format_ARGB32)
-            img.invertPixels(QImage.InvertRgb)
-            px = QPixmap.fromImage(img)
+        size = 22
+        px = QPixmap(size, size)
+        px.fill(Qt.transparent)
+        painter = QPainter(px)
+        painter.setRenderHint(QPainter.Antialiasing)
+        fg = QColor("#dddddd") if self._dark_mode else QColor("#404040")
+        pen = QPen(fg)
+        pen.setWidth(2)
+        pen.setCapStyle(Qt.SquareCap)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+        m, a = 4, 5
+        if not is_fullscreen:
+            for sx, sy, dx, dy in [
+                (m, m, m + a, m), (m, m, m, m + a),
+                (size - m, m, size - m - a, m), (size - m, m, size - m, m + a),
+                (m, size - m, m + a, size - m), (m, size - m, m, size - m - a),
+                (size - m, size - m, size - m - a, size - m),
+                (size - m, size - m, size - m, size - m - a),
+            ]:
+                painter.drawLine(sx, sy, dx, dy)
+        else:
+            c = size // 2
+            for sx, sy, dx, dy in [
+                (m + a, m + a, m, m + a), (m, m + a, m + a, m + a),
+                (size - m - a, m + a, size - m, m + a),
+                (size - m, m + a, size - m - a, m + a),
+                (m + a, size - m - a, m, size - m - a),
+                (m, size - m - a, m + a, size - m - a),
+                (size - m - a, size - m - a, size - m, size - m - a),
+                (size - m, size - m - a, size - m - a, size - m - a),
+            ]:
+                painter.drawLine(sx, sy, dx, dy)
+        painter.end()
         return QIcon(px)
 
     def _make_darkmode_icon(self, is_dark: bool) -> QIcon:
@@ -612,13 +660,40 @@ class TopBar(QWidget):
         return QIcon(px)
 
     def _make_volume_icon(self, muted: bool) -> QIcon:
-        icon_type = (QStyle.SP_MediaVolumeMuted if muted
-                     else QStyle.SP_MediaVolume)
-        px = self.style().standardIcon(icon_type).pixmap(QSize(16, 16))
-        if self._dark_mode:
-            img = px.toImage().convertedTo(QImage.Format_ARGB32)
-            img.invertPixels(QImage.InvertRgb)
-            px = QPixmap.fromImage(img)
+        size = 18
+        px = QPixmap(size, size)
+        px.fill(Qt.transparent)
+        painter = QPainter(px)
+        painter.setRenderHint(QPainter.Antialiasing)
+        fg = QColor("#dddddd") if self._dark_mode else QColor("#404040")
+        painter.setBrush(fg)
+        painter.setPen(Qt.NoPen)
+        # 스피커 몸체
+        body_pts = [
+            (2, 6), (6, 6), (11, 2), (11, 16), (6, 12), (2, 12),
+        ]
+        from PySide6.QtGui import QPainterPath
+        body = QPainterPath()
+        body.moveTo(*body_pts[0])
+        for pt in body_pts[1:]:
+            body.lineTo(*pt)
+        body.closeSubpath()
+        painter.drawPath(body)
+        if muted:
+            pen = QPen(QColor("#e03131"))
+            pen.setWidth(2)
+            pen.setCapStyle(Qt.RoundCap)
+            painter.setPen(pen)
+            painter.drawLine(13, 5, 17, 13)
+            painter.drawLine(17, 5, 13, 13)
+        else:
+            pen = QPen(fg)
+            pen.setWidth(2)
+            pen.setCapStyle(Qt.RoundCap)
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawArc(11, 4, 6, 10, -60 * 16, 120 * 16)
+        painter.end()
         return QIcon(px)
 
     # ── 이벤트 핸들러 ──────────────────────────────────────────────
@@ -626,6 +701,7 @@ class TopBar(QWidget):
     def _on_volume_changed_raw(self, value: int):
         """슬라이더 변경 시 debounce 타이머 재시작."""
         self._pending_volume = value
+        self._lbl_volume_val.setText(f"{value}%")
         self._volume_debounce.start()
 
     def _emit_volume(self):
@@ -636,15 +712,16 @@ class TopBar(QWidget):
         self.embed_mute_toggled.emit(checked)
 
     def _on_mute_clicked(self, checked: bool):
+        self._btn_mute.setText("알림음\nMUTE" if checked else "알림음\n켜짐")
         self.sound_toggled.emit(not checked)
 
     def _on_detection_clicked(self, checked: bool):
-        self._btn_detection.setText("감지 ON" if checked else "감지 OFF")
+        self._btn_detection.setText("감지 ON\n감시중" if checked else "감지 OFF\n중지됨")
         self.detection_toggled.emit(checked)
 
     def _on_roi_clicked(self, checked: bool):
         self._roi_visible = checked
-        self._btn_roi.setText("감지영역 ON" if checked else "감지영역 OFF")
+        self._btn_roi.setText("영역 표시\nON" if checked else "영역 표시\nOFF")
         self.roi_visibility_changed.emit(checked)
 
     def _on_dark_mode_clicked(self, checked: bool):
@@ -655,6 +732,8 @@ class TopBar(QWidget):
         self._btn_fullscreen.setIcon(
             self._make_fullscreen_icon(self._btn_fullscreen.isChecked()))
         self._btn_settings.setIcon(self._make_gear_icon())
+        self._meter_l.set_theme(checked)
+        self._meter_r.set_theme(checked)
         for gid in (1, 2):
             btn = self._btn_signoff.get(gid)
             if btn:
@@ -677,38 +756,53 @@ class TopBar(QWidget):
 
     def update_summary(self, video_count: int, audio_count: int,
                        embedded_enabled: bool, embedded_alerting: bool = False):
-        self._lbl_v.setText(f"V\n{video_count}")
-        self._lbl_a.setText(f"A\n{audio_count}")
-        ea_val = "1" if embedded_enabled else "-"
-        self._lbl_ea.setText(f"EA\n{ea_val}")
+        self._det_val_labels["V"].setText(str(video_count))
+        self._det_val_labels["A"].setText(str(audio_count))
+        self._det_val_labels["EA"].setText("1" if embedded_enabled else "-")
+
+        v_badge = self._det_badges["V"]
+        v_badge.setProperty("alert", "true" if video_count > 0 else "false")
+        _refresh_property(v_badge)
+
+        a_badge = self._det_badges["A"]
+        a_badge.setProperty("alert", "true" if audio_count > 0 else "false")
+        _refresh_property(a_badge)
+
+        ea_badge = self._det_badges["EA"]
         if embedded_alerting:
-            self._lbl_ea.setStyleSheet("color: #cc0000; font-weight: bold;")
-        elif embedded_enabled:
-            self._lbl_ea.setStyleSheet("")
+            ea_badge.setProperty("ea_state", "alert")
+        elif not embedded_enabled:
+            ea_badge.setProperty("ea_state", "disabled")
         else:
-            self._lbl_ea.setStyleSheet("color: gray;")
+            ea_badge.setProperty("ea_state", "ok")
+        _refresh_property(ea_badge)
 
     def set_detection_state(self, enabled: bool):
         self._btn_detection.blockSignals(True)
         self._btn_detection.setChecked(enabled)
-        self._btn_detection.setText("감지 ON" if enabled else "감지 OFF")
+        self._btn_detection.setText("감지 ON\n감시중" if enabled else "감지 OFF\n중지됨")
         self._btn_detection.blockSignals(False)
 
     def set_roi_visible_state(self, visible: bool):
         self._roi_visible = visible
         self._btn_roi.blockSignals(True)
         self._btn_roi.setChecked(visible)
-        self._btn_roi.setText("감지영역 ON" if visible else "감지영역 OFF")
+        self._btn_roi.setText("영역 표시\nON" if visible else "영역 표시\nOFF")
         self._btn_roi.blockSignals(False)
 
     def set_volume_display(self, value: int):
+        v = max(0, min(100, value))
         self._slider_volume.blockSignals(True)
-        self._slider_volume.setValue(max(0, min(100, value)))
+        self._slider_volume.setValue(v)
+        self._lbl_volume_val.setText(f"{v}%")
         self._slider_volume.blockSignals(False)
 
     def set_mute_state(self, enabled: bool):
+        """enabled=True: 소리 켜짐(뮤트 아님), False: 뮤트"""
         self._btn_mute.blockSignals(True)
-        self._btn_mute.setChecked(not enabled)
+        muted = not enabled
+        self._btn_mute.setChecked(muted)
+        self._btn_mute.setText("알림음\nMUTE" if muted else "알림음\n켜짐")
         self._btn_mute.blockSignals(False)
 
     def set_signoff_buttons_enabled(self, enabled: bool):
@@ -727,12 +821,8 @@ class TopBar(QWidget):
         self._btn_fullscreen.blockSignals(False)
 
     def set_alarm_blink_state(self, active: bool):
-        if active:
-            self._btn_ack.setStyleSheet(
-                "QPushButton#btnAlarmAck { background-color: #cc0000; color: white; }"
-            )
-        else:
-            self._btn_ack.setStyleSheet("")
+        self._btn_ack.setProperty("alarm_active", "true" if active else "false")
+        _refresh_property(self._btn_ack)
 
     def update_signoff_state(self, group_id: int, state: str,
                               group_name: str, seconds: float = 0.0,
@@ -752,17 +842,17 @@ class TopBar(QWidget):
             self._apply_signoff_lbl_color(group_id, resolved)
         elif state == "IDLE":
             lbl.setVisible(True)
-            lbl.setText(f"정파준비까지 {_fmt_dhms(seconds)}")
+            lbl.setText(f"준비 {_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "IDLE")
             self._apply_signoff_lbl_color(group_id, "IDLE")
         elif state == "PREPARATION":
             lbl.setVisible(True)
-            lbl.setText(f"정파까지 {_fmt_dhms(seconds)}")
+            lbl.setText(f"정파 {_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "PREPARATION")
             self._apply_signoff_lbl_color(group_id, "PREPARATION")
         elif state == "SIGNOFF":
             lbl.setVisible(True)
-            lbl.setText(f"정파해제까지 {_fmt_dhms(seconds)}")
+            lbl.setText(f"해제 {_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "SIGNOFF")
             self._apply_signoff_lbl_color(group_id, "SIGNOFF")
         else:
