@@ -107,7 +107,7 @@ def run(
     frame_shm_name: str,
     state_shm_name: str,
     parent_pid: int,
-    version: str = "2.0",
+    version: str = "2.1",
     cmd_event=None,
 ):
     """
