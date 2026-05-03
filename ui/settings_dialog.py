@@ -925,12 +925,13 @@ class SettingsDialog(QDialog):
         sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
                            "50~100% / 이 비율 이상이면 블랙 판정 (기본값: 98%)"))
         sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준", self._black_suppress,
-                           "0~5.0 / 움직임 비율이 이 이상이면 블랙 억제"))
+                           "프레임 간 변화 비율이 이 값 이상이면 블랙을 무시합니다 (화면 전환 오검지 방지)"))
         sl1.addLayout(_row("알림 발생 기준(초)", self._black_dur,
                            "1~300 / 블랙이 이 시간(초) 이상 지속되면 알림"))
         sl1.addLayout(_row("알림음 지속(초)", self._black_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생"))
         vl.addWidget(box1)
+        self._black_section_lbl = box1.findChild(QLabel, "settingsSectionLabel")
         self._black_section_widgets = (
             self._black_thresh, self._black_ratio, self._black_suppress,
             self._black_dur, self._black_alarm_dur,
@@ -948,14 +949,15 @@ class SettingsDialog(QDialog):
         sl2.addLayout(_row("픽셀 차이 임계값", self._still_thresh,
                            "0~255 / 프레임 차이 기준 (기본값: 4)"))
         sl2.addLayout(_row("블록 변화 비율(%)", self._still_changed,
-                           "0~100% / 이 비율 미만이면 스틸로 판정 (기본값: 10%)"))
+                           "전체 블록 중 변화된 비율이 이 값 미만이면 스틸로 판정합니다"))
         sl2.addLayout(_row("연속 정상 프레임 수", self._still_reset,
-                           "1~10 / 연속 정상 프레임 수 (글리치 방지)"))
+                           "이 수 이상 정상 프레임이 연속되어야 스틸 해제 (순간 글리치 방지)"))
         sl2.addLayout(_row("알림 발생 기준(초)", self._still_dur,
                            "1~300 / 정지화면이 이 시간(초) 이상 지속되면 알림"))
         sl2.addLayout(_row("알림음 지속(초)", self._still_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생"))
         vl.addWidget(box2)
+        self._still_section_lbl = box2.findChild(QLabel, "settingsSectionLabel")
         self._still_section_widgets = (
             self._still_thresh, self._still_changed, self._still_reset,
             self._still_dur, self._still_alarm_dur,
@@ -965,18 +967,6 @@ class SettingsDialog(QDialog):
 
         # ── 오디오 레벨미터 감지 (HSV) ───────────────────
         box3, sl3 = _section("오디오 레벨미터 감지 (HSV)", enable_cb=self._audio_enabled_cb)
-
-        preset_hl = QHBoxLayout()
-        preset_hl.setContentsMargins(0, 0, 0, 4)
-        preset_hl.setSpacing(6)
-        btn_preset_std = QPushButton("표준 녹색")
-        btn_preset_wide = QPushButton("넓은 범위")
-        for _btn in (btn_preset_std, btn_preset_wide):
-            _btn.setObjectName("btnSecondary")
-            _btn.setFixedHeight(26)
-            preset_hl.addWidget(_btn)
-        preset_hl.addStretch()
-        sl3.addLayout(preset_hl)
 
         self._hsv_h = DualSlider(0, 179, "hue")
         self._hsv_h.set_range(det.get("audio_hsv_h_min", 40),
@@ -992,17 +982,49 @@ class SettingsDialog(QDialog):
         self._audio_level_alarm_dur = _int_edit(
             det.get("audio_level_alarm_duration", 60), 1, 300)
         self._audio_recovery = _float_edit(det.get("audio_level_recovery_seconds", 2.0))
-        _row_h, self._hsv_h_min, self._hsv_h_max = _hsv_row(
-            "H 범위 (색조, 0~179)", self._hsv_h, "초록=40~95 / 기본값 유지 권장")
+
+        # H 슬라이더 행 — 프리셋 버튼 인라인 배치
+        btn_preset_std = QPushButton("표준 녹색")
+        btn_preset_wide = QPushButton("넓은 범위")
+        for _btn in (btn_preset_std, btn_preset_wide):
+            _btn.setObjectName("btnSecondary")
+            _btn.setFixedHeight(26)
+        row_h = QHBoxLayout()
+        row_h.setContentsMargins(0, 0, 0, 0)
+        row_h.setSpacing(8)
+        lbl_h = QLabel("H 범위 (색조, 0~179)")
+        lbl_h.setObjectName("settingsRowLabel")
+        lbl_h.setFixedWidth(180)
+        row_h.addWidget(lbl_h)
+        row_h.addWidget(self._hsv_h, 2)
+        lo_h, hi_h = self._hsv_h.get_range()
+        self._hsv_h_min = QLineEdit(str(lo_h))
+        self._hsv_h_min.setFixedWidth(44)
+        self._hsv_h_min.setAlignment(Qt.AlignCenter)
+        self._hsv_h_min.setObjectName("hsvValueEdit")
+        sep_h = QLabel("~")
+        sep_h.setFixedWidth(10)
+        sep_h.setAlignment(Qt.AlignCenter)
+        self._hsv_h_max = QLineEdit(str(hi_h))
+        self._hsv_h_max.setFixedWidth(44)
+        self._hsv_h_max.setAlignment(Qt.AlignCenter)
+        self._hsv_h_max.setObjectName("hsvValueEdit")
+        row_h.addWidget(self._hsv_h_min)
+        row_h.addWidget(sep_h)
+        row_h.addWidget(self._hsv_h_max)
+        row_h.addWidget(btn_preset_std)
+        row_h.addWidget(btn_preset_wide)
+        row_h.addStretch(1)
+
         _row_s, self._hsv_s_min, self._hsv_s_max = _hsv_row(
             "S 범위 (채도, 0~255)", self._hsv_s, "기본값 80~255")
         _row_v, self._hsv_v_min, self._hsv_v_max = _hsv_row(
             "V 범위 (명도, 0~255)", self._hsv_v, "기본값 60~255")
-        sl3.addLayout(_row_h)
+        sl3.addLayout(row_h)
         sl3.addLayout(_row_s)
         sl3.addLayout(_row_v)
         sl3.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
-                           "1~50% / 감지영역 내 해당 색상 픽셀이 이 값 이상이면 활성"))
+                           "감지영역 내에서 설정 색상 범위에 해당하는 픽셀 비율이 이 값 이하면 오디오 레벨 미검출로 판정"))
         sl3.addLayout(_row("알림 발생 기준(초)", self._audio_level_dur,
                            "1~300 / 레벨 이상이 이 시간(초) 이상 지속되면 알림"))
         sl3.addLayout(_row("알림음 지속(초)", self._audio_level_alarm_dur,
@@ -1010,6 +1032,7 @@ class SettingsDialog(QDialog):
         sl3.addLayout(_row("복구 대기(초)", self._audio_recovery,
                            "0~30 / 정상 복귀 후 이 시간이 지나야 알림 해제. 기본값 2"))
         vl.addWidget(box3)
+        self._audio_section_lbl = box3.findChild(QLabel, "settingsSectionLabel")
         self._audio_section_widgets = (
             btn_preset_std, btn_preset_wide,
             self._hsv_h, self._hsv_s, self._hsv_v,
@@ -1034,6 +1057,7 @@ class SettingsDialog(QDialog):
         sl4.addLayout(_row("알림음 지속(초)", self._emb_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생"))
         vl.addWidget(box4)
+        self._emb_section_lbl = box4.findChild(QLabel, "settingsSectionLabel")
         self._emb_section_widgets = (
             self._emb_thresh, self._emb_dur, self._emb_alarm_dur,
         )
@@ -1051,7 +1075,7 @@ class SettingsDialog(QDialog):
                 self._detect_interval_combo.setCurrentIndex(i)
                 break
         sl5.addLayout(_row("감지 주기", self._detect_interval_combo,
-                           "짧을수록 반응 빠름, CPU 부담 증가"))
+                           "낮을수록 빠르지만 CPU 부하 증가"))
 
         self._scale_combo = QComboBox()
         for label, val in [("원본 (1.0×)", 1.0), ("0.5× 해상도", 0.5),
@@ -1063,7 +1087,7 @@ class SettingsDialog(QDialog):
                 self._scale_combo.setCurrentIndex(i)
                 break
         sl5.addLayout(_row("감지 해상도 스케일", self._scale_combo,
-                           "50% 시 CPU 부담 약 50% 절감"))
+                           "낮출수록 CPU 절감, 정밀도 감소"))
 
         perf_btn_hl = QHBoxLayout()
         perf_btn_hl.setContentsMargins(0, 0, 0, 0)
@@ -1073,6 +1097,11 @@ class SettingsDialog(QDialog):
         perf_btn_hl.addWidget(btn_auto_perf)
         perf_btn_hl.addStretch()
         sl5.addLayout(perf_btn_hl)
+
+        self._perf_result_lbl = QLabel("")
+        self._perf_result_lbl.setObjectName("settingsDesc")
+        self._perf_result_lbl.setVisible(False)
+        sl5.addWidget(self._perf_result_lbl)
         vl.addWidget(box5)
 
         # 즉시 반영 연결 — 감도설정
@@ -1143,24 +1172,33 @@ class SettingsDialog(QDialog):
         for w in widgets:
             w.setEnabled(enabled)
 
+    @staticmethod
+    def _dim_section_label(lbl, enabled: bool):
+        if lbl:
+            lbl.setStyleSheet("" if enabled else "color: #4a4b52;")
+
     def _on_black_enabled_changed(self, _state):
-        self._toggle_section_widgets(self._black_section_widgets,
-                                     self._black_enabled_cb.isChecked())
+        enabled = self._black_enabled_cb.isChecked()
+        self._toggle_section_widgets(self._black_section_widgets, enabled)
+        self._dim_section_label(self._black_section_lbl, enabled)
         self._apply_now()
 
     def _on_still_enabled_changed(self, _state):
-        self._toggle_section_widgets(self._still_section_widgets,
-                                     self._still_enabled_cb.isChecked())
+        enabled = self._still_enabled_cb.isChecked()
+        self._toggle_section_widgets(self._still_section_widgets, enabled)
+        self._dim_section_label(self._still_section_lbl, enabled)
         self._apply_now()
 
     def _on_audio_enabled_changed(self, _state):
-        self._toggle_section_widgets(self._audio_section_widgets,
-                                     self._audio_enabled_cb.isChecked())
+        enabled = self._audio_enabled_cb.isChecked()
+        self._toggle_section_widgets(self._audio_section_widgets, enabled)
+        self._dim_section_label(self._audio_section_lbl, enabled)
         self._apply_now()
 
     def _on_emb_enabled_changed(self, _state):
-        self._toggle_section_widgets(self._emb_section_widgets,
-                                     self._emb_enabled_cb.isChecked())
+        enabled = self._emb_enabled_cb.isChecked()
+        self._toggle_section_widgets(self._emb_section_widgets, enabled)
+        self._dim_section_label(self._emb_section_lbl, enabled)
         self._apply_now()
 
     # ─────────────────────────────────────────────────────────────────
@@ -2063,15 +2101,19 @@ class SettingsDialog(QDialog):
             cpu = psutil.cpu_percent(interval=1.0)
             ram = psutil.virtual_memory().percent
         except ImportError:
-            QMessageBox.warning(self, "오류", "psutil이 설치되어 있지 않습니다.")
+            self._perf_result_lbl.setText("psutil 미설치 — 수동 설정 필요")
+            self._perf_result_lbl.setVisible(True)
             return
 
         if cpu < 40 and ram < 60:
-            interval, scale, msg = 200, 1.0, "성능 여유 충분 — 기본값 (200ms / 원본)"
+            interval, scale = 200, 1.0
+            scale_label = "원본"
         elif cpu < 65:
-            interval, scale, msg = 500, 1.0, "CPU 중간 — 감지 주기 500ms 권장"
+            interval, scale = 500, 1.0
+            scale_label = "원본"
         else:
-            interval, scale, msg = 500, 0.5, "CPU 부하 높음 — 500ms + 0.5× 해상도 권장"
+            interval, scale = 500, 0.5
+            scale_label = "0.5×"
 
         for i in range(self._detect_interval_combo.count()):
             if self._detect_interval_combo.itemData(i) == interval:
@@ -2081,9 +2123,10 @@ class SettingsDialog(QDialog):
             if abs(self._scale_combo.itemData(i) - scale) < 0.01:
                 self._scale_combo.setCurrentIndex(i)
                 break
-        QMessageBox.information(
-            self, "자동 성능 감지 결과",
-            f"CPU: {cpu:.1f}%  RAM: {ram:.1f}%\n\n{msg}")
+
+        self._perf_result_lbl.setText(
+            f"CPU {cpu:.0f}% / RAM {ram:.0f}% → {interval}ms / {scale_label} 권장")
+        self._perf_result_lbl.setVisible(True)
 
     def _reset_video_settings(self):
         d = DEFAULT_CONFIG
