@@ -1356,11 +1356,6 @@ class SettingsDialog(QDialog):
 
         header_hl.addStretch(1)
 
-        summary_lbl = QLabel()
-        summary_lbl.setObjectName("settingsDesc")
-        summary_lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        header_hl.addWidget(summary_lbl)
-
         box_vl.addLayout(header_hl)
 
         sl = QVBoxLayout()
@@ -1368,7 +1363,7 @@ class SettingsDialog(QDialog):
         sl.setSpacing(8)
         box_vl.addLayout(sl)
 
-        widgets = {"_box": box, "name": name_edit, "_summary_lbl": summary_lbl}
+        widgets = {"_box": box, "name": name_edit}
 
         # 정파 시작/종료 시각
         start_h = _int_edit(int(grp.get("start_time", "03:00").split(":")[0]), 0, 23, 36)
@@ -1404,39 +1399,7 @@ class SettingsDialog(QDialog):
         widgets.update({"start_h": start_h, "start_m": start_m,
                         "end_h": end_h, "end_m": end_m, "end_next_day": end_next_cb})
 
-        # 요약 라벨 업데이트 함수
         day_names_ko = ["월", "화", "수", "목", "금", "토", "일"]
-
-        def _update_summary(_=None,
-                            _sh=start_h, _sm=start_m, _eh=end_h, _em=end_m,
-                            _lbl=summary_lbl):
-            try:
-                sh = int(_sh.text()); sm = int(_sm.text())
-                eh = int(_eh.text()); em = int(_em.text())
-            except ValueError:
-                _lbl.setText("")
-                return
-            try:
-                checked = [day_names_ko[i] for i, cb in enumerate(widgets["weekdays"])
-                           if cb.isChecked()]
-            except KeyError:
-                checked = []
-            if checked:
-                if checked == day_names_ko:
-                    day_str = "매일"
-                elif checked == day_names_ko[:5]:
-                    day_str = "월~금"
-                elif checked == day_names_ko[5:]:
-                    day_str = "주말"
-                else:
-                    day_str = "".join(checked)
-                _lbl.setText(f"{sh:02d}:{sm:02d} ~ {eh:02d}:{em:02d}  ({day_str})")
-            else:
-                _lbl.setText(f"{sh:02d}:{sm:02d} ~ {eh:02d}:{em:02d}")
-
-        widgets["_update_summary"] = _update_summary
-        for _e in (start_h, start_m, end_h, end_m):
-            _e.textChanged.connect(_update_summary)
 
         # 정파준비 활성화 (X분 전)
         prep_combo = QComboBox()
@@ -1578,11 +1541,6 @@ class SettingsDialog(QDialog):
         day_hl.addStretch()
         sl.addLayout(day_hl)
         widgets["weekdays"] = day_cbs
-
-        # 요일 변경 시 요약 라벨도 갱신
-        for cb in day_cbs:
-            cb.stateChanged.connect(_update_summary)
-        _update_summary()
 
         # 감지영역 선택 버튼
         roi_btn_hl = QHBoxLayout()
