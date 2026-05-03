@@ -113,5 +113,7 @@
 - [x] **코드 검토 파트 1~5 완료** (IPC 계약·프로세스 생명주기·감지 엔진·정파 매니저·UI 브리지+알람): 총 9개 버그 수정 (P1-3 nodrop, P2-A DetectionReady 차단, P2-B AutoRecorder join, P3-A ROI update, P3-E dead var, P4-A group_id, P4-B 디버그 로그, P4-C dict 스냅샷, P5-4 잔류 AlarmTrigger 가드)
 - [x] **코드 검토 파트 6 완료** (설정 다이얼로그 7탭): 4개 버그 수정 (P6-A _browse_sound 미반영, P6-B TelegramTestWorker race, P6-D ROI 내부 리스트 직접 변이, P6-E 미설정 색상 불일치)
 - [x] **코드 검토 파트 7 완료** (텔레그램·자동녹화·DIAG): 6개 버그 수정 (P7-1 _last_sent 무한누적, P7-2 stop/ensure_worker_alive race, P7-3 429 블로킹+무한루프, P7-4+9 Watchdog tg() 블로킹→heartbeat 오판+shutdown 지연, P7-6 qsize NotImplementedError, P7-8 이중 JPEG 인코딩)
+- [x] **설정 다이얼로그 UI/UX 개선 1단계** (탭1 영상설정·탭7 저장불러오기): commit d91e469
+- [x] **설정 다이얼로그 UI/UX 개선 2단계** (탭6 알림설정): 시스템 알림 Chat ID (선택) 컬러 표기, 텔레그램 테스트 인라인 상태 라벨, 알림 옵션 2그룹 시각 구분, 제외 시간대 힌트 개선, 재시작 주기 사람 언어 표기
 
 **완료 기준**: 24시간 무중단. 메모리 RSS 증가 < 5%. DIAG 전 섹션 정상. Chaos 테스트 재spawn 복원률 100%.

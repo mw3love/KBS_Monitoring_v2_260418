@@ -1532,8 +1532,9 @@ class SettingsDialog(QDialog):
         sl3.addLayout(chat_vl)
 
         # 시스템 알림 Chat ID (선택)
-        sys_chat_lbl = QLabel("시스템 알림 Chat ID (선택)")
+        sys_chat_lbl = QLabel("시스템 알림 Chat ID <span style='color:#7d7e84;'>(선택)</span>")
         sys_chat_lbl.setObjectName("settingsRowLabel")
+        sys_chat_lbl.setTextFormat(Qt.RichText)
         self._tg_sys_chat_edit = QLineEdit(tg.get("system_chat_id", ""))
         self._tg_sys_chat_edit.setPlaceholderText("비워두면 기본 Chat ID로 발송 (Watchdog·재spawn 알림 전용)")
         sys_chat_vl = QVBoxLayout()
@@ -1545,9 +1546,13 @@ class SettingsDialog(QDialog):
 
         tg_test_hl = QHBoxLayout()
         tg_test_hl.setContentsMargins(0, 0, 0, 0)
+        tg_test_hl.setSpacing(10)
         self._btn_tg_test = QPushButton("연결 테스트")
         self._btn_tg_test.clicked.connect(self._test_telegram)
+        self._tg_test_status_lbl = QLabel()
+        self._tg_test_status_lbl.setObjectName("settingsDesc")
         tg_test_hl.addWidget(self._btn_tg_test)
+        tg_test_hl.addWidget(self._tg_test_status_lbl)
         tg_test_hl.addStretch()
         sl3.addLayout(tg_test_hl)
         vl.addWidget(box3)
@@ -1568,9 +1573,29 @@ class SettingsDialog(QDialog):
         self._tg_emb_cb.setChecked(tg.get("notify_embedded", True))
         self._tg_signoff_cb.setChecked(tg.get("notify_signoff", True))
         self._tg_system_cb.setChecked(tg.get("notify_system", True))
-        for cb in (self._tg_image_cb, self._tg_black_cb, self._tg_still_cb,
+
+        # 이미지 첨부 옵션 (그룹 공통)
+        sl4.addWidget(self._tg_image_cb)
+
+        # 감지 이벤트 그룹
+        detect_grp_lbl = QLabel("감지 이벤트")
+        detect_grp_lbl.setStyleSheet(
+            "color: #D97757; font-size: 11px; font-weight: 600;"
+            " margin-top: 6px; margin-bottom: 2px;"
+        )
+        sl4.addWidget(detect_grp_lbl)
+        for cb in (self._tg_black_cb, self._tg_still_cb,
                    self._tg_audio_cb, self._tg_emb_cb, self._tg_signoff_cb):
             sl4.addWidget(cb)
+
+        # 시스템 이벤트 그룹
+        sl4.addWidget(_sep())
+        system_grp_lbl = QLabel("시스템 이벤트")
+        system_grp_lbl.setStyleSheet(
+            "color: #D97757; font-size: 11px; font-weight: 600;"
+            " margin-top: 2px; margin-bottom: 2px;"
+        )
+        sl4.addWidget(system_grp_lbl)
         sl4.addWidget(self._tg_system_cb)
         system_hint = QLabel("Watchdog 감시, Detection 재시작/복구, 비정상 종료 시 텔레그램으로 시스템 상태 알림")
         system_hint.setObjectName("settingsDesc")
@@ -1597,12 +1622,12 @@ class SettingsDialog(QDialog):
                            "재시작 주기의 기준이 되는 시각 (예: 03:00)"))
 
         _INTERVAL_OPTIONS = [
-            ("매일 (24시간)", 24),
-            ("2일 (48시간)", 48),
-            ("3일 (72시간)", 72),
-            ("1주 (168시간)", 168),
-            ("2주 (336시간)", 336),
-            ("1달 (720시간)", 720),
+            ("매일 (24h)", 24),
+            ("2일마다 (48h)", 48),
+            ("3일마다 (72h)", 72),
+            ("주 1회 (168h)", 168),
+            ("2주 1회 (336h)", 336),
+            ("월 1회 (720h)", 720),
         ]
         self._restart_interval_combo = QComboBox()
         for label, _ in _INTERVAL_OPTIONS:
@@ -1614,9 +1639,9 @@ class SettingsDialog(QDialog):
         sl5.addLayout(_row("재시작 주기", self._restart_interval_combo, ""))
 
         self._restart_exclude_edit = QLineEdit(sys_cfg.get("scheduled_restart_exclude", ""))
-        self._restart_exclude_edit.setPlaceholderText("예: 10:00-11:30, 21:00-21:30")
+        self._restart_exclude_edit.setPlaceholderText("HH:MM-HH:MM 형식, 콤마로 구분. 예: 10:00-11:30, 21:00-21:30")
         sl5.addLayout(_row("제외 시간대", self._restart_exclude_edit,
-                           "재시작하지 않을 시간대. 쉼표로 여러 개 입력 가능"))
+                           "재시작하지 않을 시간대. HH:MM-HH:MM 형식, 콤마로 구분"))
 
         vl.addWidget(box5)
 
@@ -1981,7 +2006,8 @@ class SettingsDialog(QDialog):
         """텔레그램 활성화 체크박스 ON/OFF에 따라 하위 위젯/섹션 활성/비활성."""
         on = bool(enabled)
         for w in (self._tg_token_edit, self._btn_tg_token_toggle,
-                  self._tg_chat_edit, self._btn_tg_test):
+                  self._tg_chat_edit, self._tg_sys_chat_edit,
+                  self._btn_tg_test, self._tg_test_status_lbl):
             w.setEnabled(on)
         for child in self._tg_options_box.findChildren(QWidget):
             if child.objectName() != "settingsSectionLabel":
@@ -2010,21 +2036,25 @@ class SettingsDialog(QDialog):
         token = self._tg_token_edit.text().strip()
         chat_id = self._tg_chat_edit.text().strip()
         if not token or not chat_id:
-            QMessageBox.warning(self, "오류", "Bot Token과 Chat ID를 입력하세요.")
+            self._tg_test_status_lbl.setText("● Bot Token과 Chat ID를 입력하세요")
+            self._tg_test_status_lbl.setStyleSheet("color: #cc0000; font-size: 11px;")
             return
         self._btn_tg_test.setEnabled(False)
-        self._btn_tg_test.setText("테스트 중...")
+        self._tg_test_status_lbl.setText("● 테스트 중…")
+        self._tg_test_status_lbl.setStyleSheet("color: #7d7e84; font-size: 11px;")
         self._tg_worker = _TelegramTestWorker(token, chat_id)
         self._tg_worker.result_ready.connect(self._on_telegram_test_result)
         self._tg_worker.start()
 
     def _on_telegram_test_result(self, ok: bool, msg: str):
         self._btn_tg_test.setEnabled(True)
-        self._btn_tg_test.setText("연결 테스트")
         if ok:
-            QMessageBox.information(self, "성공", "텔레그램 연결 성공!")
+            self._tg_test_status_lbl.setText("● 성공")
+            self._tg_test_status_lbl.setStyleSheet("color: #D97757; font-size: 11px;")
         else:
-            QMessageBox.warning(self, "실패", msg)
+            self._tg_test_status_lbl.setText(f"● 실패: {msg.splitlines()[0]}")
+            self._tg_test_status_lbl.setToolTip(msg)
+            self._tg_test_status_lbl.setStyleSheet("color: #cc0000; font-size: 11px;")
 
     def _auto_detect_performance(self):
         """현재 CPU/RAM 측정 후 scale_factor / detection_interval 자동 추천."""
