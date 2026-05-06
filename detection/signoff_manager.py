@@ -261,7 +261,7 @@ class SignoffManager:
         if current == SignoffState.IDLE:
             self._manual_override[group_id] = True
             self._reset_enter_timers(group_id)
-            self._transition_to(group_id, SignoffState.PREPARATION)
+            self._transition_to(group_id, SignoffState.PREPARATION, source="manual")
         elif current == SignoffState.PREPARATION:
             now = datetime.datetime.now()
             group = self._groups.get(group_id)
@@ -272,18 +272,29 @@ class SignoffManager:
             if in_signoff:
                 self._manual_override[group_id] = True
                 self._reset_enter_timers(group_id)
-                self._transition_to(group_id, SignoffState.SIGNOFF)
+                self._transition_to(group_id, SignoffState.SIGNOFF, source="manual")
             else:
                 self._reset_enter_timers(group_id)
                 self._manual_override[group_id] = False
-                self._transition_to(group_id, SignoffState.IDLE)
+                self._transition_to(group_id, SignoffState.IDLE, source="manual")
         elif current == SignoffState.SIGNOFF:
             self._signoff_entered_at[group_id] = None
             self._manual_override[group_id] = False
-            self._transition_to(group_id, SignoffState.IDLE)
+            self._transition_to(group_id, SignoffState.IDLE, source="manual")
 
-    def set_state_direct(self, group_id: int, new_state: str):
-        """cmd_queue SetSignoffState 수신 시 직접 상태 설정."""
+    def set_state_direct(
+        self,
+        group_id: int,
+        new_state: str,
+        source: str = "manual",
+        entered_at: float = 0.0,
+    ):
+        """cmd_queue SetSignoffState 수신 시 직접 상태 설정.
+
+        source="restore"는 재spawn 후 UI 재주입을 의미. detection_process의
+        _signoff_emit_safe가 source 값으로 텔레그램 발송 중복을 회피한다.
+        entered_at>0 이면 SIGNOFF 진입 시각을 복원해 elapsed_sec 정확도를 유지.
+        """
         try:
             target = SignoffState(new_state)
         except ValueError:
@@ -295,7 +306,7 @@ class SignoffManager:
             self._manual_override[group_id] = True
         elif target == SignoffState.IDLE:
             self._manual_override[group_id] = False
-        self._transition_to(group_id, target)
+        self._transition_to(group_id, target, source=source, entered_at=entered_at)
 
     # ── 알림 차단 판단 ────────────────────────────────────────────────────────
 
@@ -590,7 +601,18 @@ class SignoffManager:
                 return False
             return start <= current_time < end
 
-    def _transition_to(self, group_id: int, new_state: SignoffState):
+    def _transition_to(
+        self,
+        group_id: int,
+        new_state: SignoffState,
+        source: str = "auto",
+        entered_at: float = 0.0,
+    ):
+        """
+        entered_at>0 이면 SIGNOFF 진입 시각을 그 값으로 설정(restore 경로용).
+        그 외에는 time.time(). _emit 직전에 확정되므로 _signoff_emit_safe가
+        signoff_mgr._signoff_entered_at[gid]를 안전하게 읽을 수 있다.
+        """
         from ipc.messages import SignoffStateChange, LogEntry
         old_state = self._states.get(group_id)
         if old_state == new_state:
@@ -608,7 +630,9 @@ class SignoffManager:
             self._dbg_prev_still[group_id] = None
 
         if new_state == SignoffState.SIGNOFF:
-            self._signoff_entered_at[group_id] = time.time()
+            self._signoff_entered_at[group_id] = (
+                entered_at if entered_at > 0 else time.time()
+            )
             self._preparation_entered_at[group_id] = None
             self._reset_exit_timers(group_id)    # SIGNOFF 진입 시 퇴출 타이머 초기화
             self._dbg_prev_exit_still[group_id] = None
@@ -630,7 +654,7 @@ class SignoffManager:
             group_id=group_id,
             prev_state=prev_str,
             new_state=new_state.value,
-            source="auto",
+            source=source,
         ))
         self._emit(LogEntry(level="info", source="signoff", message=msg))
         _log.info("SignoffManager [%s] %s → %s", group.name, prev_str, new_state.value)

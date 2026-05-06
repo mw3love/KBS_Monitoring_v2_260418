@@ -40,7 +40,7 @@ CMD_CONTRACT = {
     "SetDetectionEnabled":   {"enabled"},
     "SetVolume":             {"volume"},
     "SetMute":               {"muted"},
-    "SetSignoffState":       {"group_id", "new_state"},
+    "SetSignoffState":       {"group_id", "new_state", "source", "entered_at"},
     "PauseForRoiEdit":       {"paused"},
     "ClearAlarms":           set(),
     "RequestAutoPerf":       {"duration_sec"},

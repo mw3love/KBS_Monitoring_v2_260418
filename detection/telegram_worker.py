@@ -237,7 +237,21 @@ class TelegramWorker:
         try:
             self._queue.put_nowait(item)
         except queue.Full:
-            self._log(f"알림 큐 가득참 — 정파 {'진입' if is_entry else '해제'} 손실", error=True)
+            # 정파 알림은 critical — 가장 오래된 일반 항목 1개 drop 후 강제 삽입.
+            try:
+                dropped = self._queue.get_nowait()
+                self._queue.put_nowait(item)
+                kind = "진입" if is_entry else "해제"
+                dropped_kind = "정파" if dropped.get("_signoff") else (
+                    "시스템" if dropped.get("_system") else
+                    f"{dropped.get('alarm_type', '?')} {dropped.get('label', '')}"
+                )
+                self._log(
+                    f"큐 가득참 — {dropped_kind} 알림 1개 drop 후 정파 {kind} 우선 삽입",
+                    error=True,
+                )
+            except Exception:
+                self._log(f"알림 큐 가득참 — 정파 {'진입' if is_entry else '해제'} 손실", error=True)
 
     # ── 연결 테스트 ───────────────────────────────────────────────────────────
 
@@ -467,33 +481,62 @@ class TelegramWorker:
         base = self._API_BASE.format(token=self._bot_token)
         jpeg = item.get("jpeg_bytes")
         use_photo = bool(jpeg) and self._send_image
-        try:
-            if use_photo:
-                # Telegram caption 한도(HTML 1024자)
-                caption = text if len(text) <= 1024 else (text[:1020] + "…")
-                resp = _requests.post(
-                    f"{base}/sendPhoto",
-                    data={"chat_id": self._chat_id, "caption": caption, "parse_mode": "HTML"},
-                    files={"photo": ("snapshot.jpg", jpeg, "image/jpeg")},
-                    timeout=(5.0, 15.0),
-                )
-            else:
-                resp = _requests.post(
-                    f"{base}/sendMessage",
-                    json={"chat_id": self._chat_id, "text": text, "parse_mode": "HTML"},
-                    timeout=(5.0, 15.0),
-                )
-            if resp.status_code == 200:
-                self._log(f"{log_kind} 알림 전송 완료 ({group_name})")
-                self._emit(TelegramStatus(event="sent",
-                                          message=f"{log_kind} ({group_name})",
-                                          queue_size=self._queue.qsize()))
-                return True
-            else:
-                self._consecutive_failures += 1
-                self._log_with_suppression(f"{log_kind} 전송 실패 {resp.status_code}: {resp.text[:120]}")
-                return False
-        except Exception as exc:
-            self._consecutive_failures += 1
-            self._log_with_suppression(f"{log_kind} 전송 실패: {self._classify_error(exc)} — {exc}")
-            return False
+        timeout = (5.0, 15.0)
+        # Telegram caption 한도(HTML 1024자)
+        caption = text if len(text) <= 1024 else (text[:1020] + "…")
+
+        for attempt in range(1 + _SEND_RETRY_COUNT):
+            try:
+                if use_photo:
+                    resp = _requests.post(
+                        f"{base}/sendPhoto",
+                        data={"chat_id": self._chat_id, "caption": caption, "parse_mode": "HTML"},
+                        files={"photo": ("snapshot.jpg", jpeg, "image/jpeg")},
+                        timeout=timeout,
+                    )
+                else:
+                    resp = _requests.post(
+                        f"{base}/sendMessage",
+                        json={"chat_id": self._chat_id, "text": text, "parse_mode": "HTML"},
+                        timeout=timeout,
+                    )
+                if resp.status_code == 200:
+                    self._log(f"{log_kind} 알림 전송 완료 ({group_name})")
+                    self._emit(TelegramStatus(event="sent",
+                                              message=f"{log_kind} ({group_name})",
+                                              queue_size=self._queue.qsize()))
+                    return True
+                elif resp.status_code == 429:
+                    try:
+                        retry_after = int(resp.json()["parameters"]["retry_after"])
+                    except Exception:
+                        retry_after = 10
+                    sleep_sec = min(retry_after + 1, 30)
+                    self._log(f"{log_kind} Rate Limit(429) — {sleep_sec}초 대기 후 재시도", error=True)
+                    self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
+                    time.sleep(sleep_sec)
+                    if attempt >= _SEND_RETRY_COUNT:
+                        self._consecutive_failures += 1
+                        self._log_with_suppression(f"{log_kind} 전송 실패 (Rate Limit 재시도 소진)")
+                        return False
+                    continue
+                else:
+                    self._consecutive_failures += 1
+                    self._log_with_suppression(
+                        f"{log_kind} 전송 실패 {resp.status_code}: {resp.text[:120]}")
+                    self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
+                    return False
+            except Exception as exc:
+                error_desc = self._classify_error(exc)
+                if attempt < _SEND_RETRY_COUNT:
+                    self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
+                    time.sleep(_SEND_RETRY_DELAY)
+                else:
+                    self._consecutive_failures += 1
+                    self._log_with_suppression(
+                        f"{log_kind} 전송 실패 (재시도 소진): {error_desc} — {exc}")
+                    self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
+                    return False
+        self._consecutive_failures += 1
+        self._log_with_suppression(f"{log_kind} 전송 실패 (재시도 횟수 소진)")
+        return False

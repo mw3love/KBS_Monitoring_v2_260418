@@ -144,6 +144,8 @@ class SetMute(BaseMsg):
 class SetSignoffState(BaseMsg):
     group_id: int = 1
     new_state: str = ""
+    source: str = "manual"      # 'manual' | 'restore' — restore는 재spawn 후 UI 재주입 (텔레그램 미발송)
+    entered_at: float = 0.0     # SIGNOFF 진입 시각(time.time()). restore 시 elapsed_sec 정확도 복원용. 0이면 미설정.
 
 
 @dataclass

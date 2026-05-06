@@ -241,6 +241,16 @@ def run(result_queue, cmd_queue, shutdown_event,
         from detection.signoff_manager import SignoffState
         if isinstance(msg, SignoffStateChange):
             _put_nodrop(result_queue, msg)
+            # source="restore"는 재spawn 후 UI 재주입 — 텔레그램 중복 발송 방지.
+            # 진입 시각은 set_state_direct에서 이미 복원됨. 로컬 추적 dict만 동기화.
+            if msg.source == "restore":
+                if msg.new_state == SignoffState.SIGNOFF.value:
+                    entered = signoff_mgr._signoff_entered_at.get(msg.group_id)
+                    if entered:
+                        _signoff_entry_time[msg.group_id] = entered
+                elif msg.new_state == SignoffState.IDLE.value:
+                    _signoff_entry_time.pop(msg.group_id, None)
+                return
             # SIGNOFF 진입 시 텔레그램 발송 + 진입 시각 기록
             if msg.new_state == SignoffState.SIGNOFF.value:
                 _signoff_entry_time[msg.group_id] = time.time()
@@ -629,7 +639,12 @@ def _process_commands(
                     audio_worker.set_muted(msg.muted)
 
             elif isinstance(msg, SetSignoffState):
-                signoff_mgr.set_state_direct(msg.group_id, msg.new_state)
+                signoff_mgr.set_state_direct(
+                    msg.group_id,
+                    msg.new_state,
+                    source=msg.source or "manual",
+                    entered_at=msg.entered_at,
+                )
 
             elif isinstance(msg, ClearAlarms):
                 detector.reset_all()

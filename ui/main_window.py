@@ -5,6 +5,7 @@ UIBridge(result_queue → Signal) + SharedFramePoller(SharedMemory → VideoWidg
 L/R 레벨미터: QTimer 33ms로 SharedStateBuffer 직접 폴링
 """
 import os
+import time
 import logging
 import datetime
 
@@ -61,6 +62,8 @@ class MainWindow(QMainWindow):
         # UI 런타임 상태 (재spawn 시 재주입용)
         self._detection_enabled = self._cfg.get("ui_state", {}).get("detection_enabled", True)
         self._signoff_states = {1: "IDLE", 2: "IDLE"}
+        # SIGNOFF 진입 시각(time.time()) — 재spawn 후 elapsed_sec 정확도 복원용. 0이면 미진입.
+        self._signoff_entered_at: dict[int, float] = {1: 0.0, 2: 0.0}
         self._current_volume: int = self._cfg.get("alarm", {}).get("volume", 80)
         self._embed_muted: bool = False
 
@@ -298,6 +301,13 @@ class MainWindow(QMainWindow):
 
     def _on_signoff_state_changed(self, msg):
         self._signoff_states[msg.group_id] = msg.new_state
+        # SIGNOFF 진입 시각 추적 — 재spawn 후 재주입 시 elapsed_sec 복원에 사용.
+        # source="restore"는 재주입 직후 SignoffStateChange이므로 시각 갱신 금지(원본 보존).
+        if msg.source != "restore":
+            if msg.new_state == "SIGNOFF" and msg.prev_state != "SIGNOFF":
+                self._signoff_entered_at[msg.group_id] = time.time()
+            elif msg.new_state != "SIGNOFF":
+                self._signoff_entered_at[msg.group_id] = 0.0
         self._log_widget.add_log(
             f"그룹{msg.group_id}: {msg.prev_state} → {msg.new_state}",
             source="정파",
@@ -328,7 +338,12 @@ class MainWindow(QMainWindow):
         self._send_cmd(SetVolume(volume=self._current_volume))
         self._send_cmd(SetMute(muted=self._embed_muted))
         for gid, state in self._signoff_states.items():
-            self._send_cmd(SetSignoffState(group_id=gid, new_state=state))
+            self._send_cmd(SetSignoffState(
+                group_id=gid,
+                new_state=state,
+                source="restore",
+                entered_at=self._signoff_entered_at.get(gid, 0.0),
+            ))
         rois = self._cfg.get("rois", {})
         roi_list = (
             [dict(r, roi_type="video") for r in rois.get("video", [])] +

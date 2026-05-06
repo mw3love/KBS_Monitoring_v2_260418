@@ -109,7 +109,7 @@ class BaseMsg:
 | `SetDetectionEnabled` | `enabled:bool` | 감지 ON/OFF 버튼 |
 | `SetVolume` | `volume:int(0-100)` | 볼륨 슬라이더 (debounce 100ms) |
 | `SetMute` | `muted:bool` | Mute 버튼 |
-| `SetSignoffState` | `group_id:int`, `new_state:str` | 수동 정파 순환 버튼 |
+| `SetSignoffState` | `group_id:int`, `new_state:str`, `source:str='manual'\|'restore'`, `entered_at:float=0.0` | 수동 정파 순환 버튼 / 재spawn 후 UI 재주입(`source='restore'`, `entered_at`=원본 SIGNOFF 진입 시각). `source='restore'`인 경우 Detection은 텔레그램 발송을 생략하고 `entered_at`>0이면 SIGNOFF 진입 시각을 복원해 elapsed_sec 정확도를 유지 |
 | `PauseForRoiEdit` | `paused:bool` | ROI 편집 모드 진입/종료 (detection skip, heartbeat 유지) |
 | `ClearAlarms` | — | 감지 OFF 전환 시 남은 알람 강제 resolve |
 | `RequestAutoPerf` | `duration_sec:float` | 설정 탭 "자동 성능 감지" 버튼 |
