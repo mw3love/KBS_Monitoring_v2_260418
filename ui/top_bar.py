@@ -755,17 +755,18 @@ class TopBar(QWidget):
         self._meter_r.set_level(r_db)
 
     def update_summary(self, video_count: int, audio_count: int,
-                       embedded_enabled: bool, embedded_alerting: bool = False):
+                       embedded_enabled: bool, embedded_alerting: bool = False,
+                       video_alerting: bool = False, audio_alerting: bool = False):
         self._det_val_labels["V"].setText(str(video_count))
         self._det_val_labels["A"].setText(str(audio_count))
         self._det_val_labels["EA"].setText("1" if embedded_enabled else "-")
 
         v_badge = self._det_badges["V"]
-        v_badge.setProperty("alert", "true" if video_count > 0 else "false")
+        v_badge.setProperty("alert", "true" if video_alerting else "false")
         _refresh_property(v_badge)
 
         a_badge = self._det_badges["A"]
-        a_badge.setProperty("alert", "true" if audio_count > 0 else "false")
+        a_badge.setProperty("alert", "true" if audio_alerting else "false")
         _refresh_property(a_badge)
 
         ea_badge = self._det_badges["EA"]

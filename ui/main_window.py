@@ -260,22 +260,28 @@ class MainWindow(QMainWindow):
         self._refresh_summary()
 
     def _refresh_summary(self):
-        """감지 현황(V/A/EA) 카운트를 계산해 상단바에 반영."""
-        video_labels: set = set()
-        audio_labels: set = set()
+        """감지 현황(V/A/EA): V/A는 설정된 ROI 개수, 배지 색상은 알림 여부로 판정."""
+        rois_cfg = self._cfg.get("rois", {})
+        video_count = len(rois_cfg.get("video", []))
+        audio_count = len(rois_cfg.get("audio", []))
+
+        video_alerting = False
+        audio_alerting = False
         ea_alerting = False
         for (det_type, label), roi_type in self._active_alarm_roi.items():
             if roi_type == "video":
-                video_labels.add(label)
+                video_alerting = True
             elif roi_type == "audio":
-                audio_labels.add(label)
+                audio_alerting = True
             elif roi_type == "embedded":
                 ea_alerting = True
+
         embedded_enabled = self._cfg.get("performance", {}).get(
             "embedded_detection_enabled", True
         )
         self._top_bar.update_summary(
-            len(video_labels), len(audio_labels), embedded_enabled, ea_alerting
+            video_count, audio_count, embedded_enabled, ea_alerting,
+            video_alerting=video_alerting, audio_alerting=audio_alerting,
         )
 
     def _on_detection_crashed(self, msg):
