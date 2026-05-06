@@ -105,7 +105,7 @@ def main():
             result_queue, cmd_queue, shutdown_event,
             state_lock, FRAME_SHM, STATE_SHM,
             os.getpid(),
-            "2.1",
+            "2.2",
             cmd_event,
         ),
         daemon=False,

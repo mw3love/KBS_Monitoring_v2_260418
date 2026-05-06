@@ -161,7 +161,7 @@ def _apply_config_to_telegram(telegram, cfg: dict):
 
 def run(result_queue, cmd_queue, shutdown_event,
         state_lock, frame_shm_name: str, state_shm_name: str,
-        version: str = "2.1", cmd_event=None):
+        version: str = "2.2", cmd_event=None):
     """
     Watchdog이 spawn하는 Detection 프로세스 메인 함수.
     종료 조건: shutdown_event set 또는 Shutdown 메시지 수신.
