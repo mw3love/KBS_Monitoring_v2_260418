@@ -214,6 +214,7 @@ class TelegramWorker:
         trigger_media: str,
         suppressed_labels: list,
         elapsed_sec: float = 0.0,
+        jpeg_bytes: bytes = None,
     ):
         """정파 진입/해제 알림. 쿨다운 없이 즉시 발송."""
         if not _REQUESTS_AVAILABLE or not self._enabled:
@@ -231,6 +232,7 @@ class TelegramWorker:
             "trigger_media": trigger_media,
             "suppressed_labels": list(suppressed_labels),
             "elapsed_sec": elapsed_sec,
+            "jpeg_bytes": jpeg_bytes,
         }
         try:
             self._queue.put_nowait(item)
@@ -463,12 +465,24 @@ class TelegramWorker:
             log_kind = "정파 해제"
 
         base = self._API_BASE.format(token=self._bot_token)
+        jpeg = item.get("jpeg_bytes")
+        use_photo = bool(jpeg) and self._send_image
         try:
-            resp = _requests.post(
-                f"{base}/sendMessage",
-                json={"chat_id": self._chat_id, "text": text, "parse_mode": "HTML"},
-                timeout=(5.0, 15.0),
-            )
+            if use_photo:
+                # Telegram caption 한도(HTML 1024자)
+                caption = text if len(text) <= 1024 else (text[:1020] + "…")
+                resp = _requests.post(
+                    f"{base}/sendPhoto",
+                    data={"chat_id": self._chat_id, "caption": caption, "parse_mode": "HTML"},
+                    files={"photo": ("snapshot.jpg", jpeg, "image/jpeg")},
+                    timeout=(5.0, 15.0),
+                )
+            else:
+                resp = _requests.post(
+                    f"{base}/sendMessage",
+                    json={"chat_id": self._chat_id, "text": text, "parse_mode": "HTML"},
+                    timeout=(5.0, 15.0),
+                )
             if resp.status_code == 200:
                 self._log(f"{log_kind} 알림 전송 완료 ({group_name})")
                 self._emit(TelegramStatus(event="sent",
