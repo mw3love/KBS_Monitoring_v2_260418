@@ -230,9 +230,9 @@ def run(result_queue, cmd_queue, shutdown_event,
     # drop 금지 메시지(SignoffStateChange)는 _put_nodrop으로 래핑 필요.
     # 여기서는 SignoffManager의 _emit을 오버라이드하여 drop-safe 버전 주입.
 
-    # 정파 해제 후 억제 채널 스틸 복구 스팸 방지용 타이머 (label → 해제 시각)
-    _signoff_released_at: Dict[str, float] = {}
-    _SIGNOFF_RELEASE_SUPPRESS_SEC = 10.0
+    # 정파 해제 후 그룹 라벨의 다음 1회 복구 알림을 텔레그램에서 차단
+    # (정파 진입 동안 억제되었던 ROI들이 차례로 정상화되며 발생하는 알림 폭주 방지)
+    _signoff_recovery_suppress: set = set()
     # SIGNOFF 진입 시각 추적 (_signoff_entered_at은 _transition_to 직전에 None으로 리셋되므로 별도 관리)
     _signoff_entry_time: Dict[int, float] = {}
 
@@ -246,6 +246,9 @@ def run(result_queue, cmd_queue, shutdown_event,
                 _signoff_entry_time[msg.group_id] = time.time()
                 group = signoff_mgr.get_groups().get(msg.group_id)
                 if group:
+                    with _last_frame_lock:
+                        snap = _last_frame.copy() if _last_frame is not None else None
+                    snap_jpeg = _encode_jpeg(snap)
                     telegram.notify_signoff(
                         group_name=group.name,
                         is_entry=True,
@@ -253,14 +256,18 @@ def run(result_queue, cmd_queue, shutdown_event,
                         trigger_media=signoff_mgr._media_names.get(
                             group.enter_roi.get("video_label", ""), ""),
                         suppressed_labels=group.suppressed_labels,
+                        jpeg_bytes=snap_jpeg,
                     )
-            # SIGNOFF→IDLE 전환 시 텔레그램 발송 + 스팸 억제 타이머 기록
+            # SIGNOFF→IDLE 전환 시 텔레그램 발송 + 그룹 라벨 1회 차단 마킹
             elif (msg.prev_state == SignoffState.SIGNOFF.value
                   and msg.new_state == SignoffState.IDLE.value):
                 entered = _signoff_entry_time.pop(msg.group_id, 0.0)
                 elapsed_sec = (time.time() - entered) if entered else 0.0
                 group = signoff_mgr.get_groups().get(msg.group_id)
                 if group:
+                    with _last_frame_lock:
+                        snap = _last_frame.copy() if _last_frame is not None else None
+                    snap_jpeg = _encode_jpeg(snap)
                     telegram.notify_signoff(
                         group_name=group.name,
                         is_entry=False,
@@ -269,14 +276,14 @@ def run(result_queue, cmd_queue, shutdown_event,
                             group.enter_roi.get("video_label", ""), ""),
                         suppressed_labels=group.suppressed_labels,
                         elapsed_sec=elapsed_sec,
+                        jpeg_bytes=snap_jpeg,
                     )
-                    # 억제 채널 해제 타이머 기록 (스팸 방지)
-                    now_t = time.time()
+                    # 정파 해제 후 그룹 내 라벨의 다음 1회 복구 알림 차단
                     for lbl in (group.suppressed_labels or []):
-                        _signoff_released_at[lbl] = now_t
+                        _signoff_recovery_suppress.add(lbl)
                     v_lbl = group.enter_roi.get("video_label", "")
                     if v_lbl:
-                        _signoff_released_at[v_lbl] = now_t
+                        _signoff_recovery_suppress.add(v_lbl)
         else:
             _put(result_queue, msg, _ipc_counters)
     signoff_mgr._emit = _signoff_emit_safe
@@ -493,7 +500,7 @@ def run(result_queue, cmd_queue, shutdown_event,
                         _prev_black, _prev_still, _prev_audio,
                         signoff_mgr, detector, telegram, recorder,
                         video_rois, audio_rois, snap,
-                        _signoff_released_at, _SIGNOFF_RELEASE_SUPPRESS_SEC,
+                        _signoff_recovery_suppress,
                     )
 
         except Exception as e:
@@ -657,8 +664,7 @@ def _process_alarms(
     prev_black, prev_still, prev_audio,
     signoff_mgr, detector, telegram, recorder,
     video_rois, audio_rois, snap,
-    signoff_released_at: dict = None,
-    signoff_release_suppress_sec: float = 10.0,
+    signoff_recovery_suppress: set = None,
 ):
     from ipc.messages import AlarmTrigger, AlarmResolve, DetectionResult
     from core.roi_manager import ROI
@@ -711,14 +717,11 @@ def _process_alarms(
                      AlarmResolve(label=lbl, detection_type=det_type,
                                   duration_sec=duration),
                      ipc_counters)
-                # 스틸 복구: 정파 해제 직후 suppress 시간 이내면 텔레그램 생략
-                released_at = (signoff_released_at or {}).get(lbl, 0.0)
-                in_suppress = (
-                    det_type == "still"
-                    and released_at > 0.0
-                    and (time.time() - released_at) < signoff_release_suppress_sec
-                )
-                if not in_suppress:
+                # 정파 해제 직후 그룹 라벨의 다음 1회 복구 알림은 텔레그램 발송 생략
+                # (정파 해제 메시지로 복구가 통보됨 → 개별 알림 폭주 방지)
+                if signoff_recovery_suppress and lbl in signoff_recovery_suppress:
+                    signoff_recovery_suppress.discard(lbl)
+                else:
                     telegram.notify(
                         "블랙" if det_type == "black" else "스틸",
                         lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg,
@@ -750,8 +753,12 @@ def _process_alarms(
                  AlarmResolve(label=lbl, detection_type="audio_level",
                               duration_sec=res.get("last_duration", 0.0)),
                  ipc_counters)
-            telegram.notify("오디오", lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg,
-                            duration_sec=res.get("last_duration", 0.0))
+            # 정파 해제 직후 그룹 라벨의 다음 1회 복구 알림은 텔레그램 발송 생략
+            if signoff_recovery_suppress and lbl in signoff_recovery_suppress:
+                signoff_recovery_suppress.discard(lbl)
+            else:
+                telegram.notify("오디오", lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg,
+                                duration_sec=res.get("last_duration", 0.0))
 
         prev_audio[lbl] = alerting
 
