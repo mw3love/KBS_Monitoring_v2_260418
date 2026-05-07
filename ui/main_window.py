@@ -26,7 +26,7 @@ from utils.config_manager import ConfigManager
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.2.0"
+VERSION = "2.2.1"
 
 
 class MainWindow(QMainWindow):
@@ -400,24 +400,39 @@ class MainWindow(QMainWindow):
                 dt += datetime.timedelta(days=1)
             return dt
 
+        def next_active_dt(h, m, weekdays):
+            """활성 요일(weekdays) 기준으로 가장 가까운 미래 시각을 반환."""
+            dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
+            if dt <= now:
+                dt += datetime.timedelta(days=1)
+            if not weekdays:
+                return dt
+            for _ in range(7):
+                if dt.weekday() in weekdays:
+                    return dt
+                dt += datetime.timedelta(days=1)
+            return dt
+
+        weekdays = grp_data.get("weekdays", list(range(7)))
+
         if state == "IDLE":
-            # 정파준비까지 = 정파준비시작 시각까지 잔여시간
+            # 정파준비까지 = 활성 요일 기준 정파준비시작 시각까지 잔여시간
             start_time = grp_data.get("start_time", "00:30")
             prep_minutes = int(grp_data.get("prep_minutes", 30))
             sh, sm = parse_hm(start_time)
             total_min = (sh * 60 + sm - prep_minutes) % (24 * 60)
             prep_h, prep_m = total_min // 60, total_min % 60
-            # 가장 가까운 미래 시각 찾기 (요일 필터 생략, 대략적 표시)
-            return max(0.0, (next_dt(prep_h, prep_m) - now).total_seconds())
+            return max(0.0, (next_active_dt(prep_h, prep_m, weekdays) - now).total_seconds())
 
         elif state == "PREPARATION":
-            # 정파까지 = 정파시작 시각(start_time)까지 잔여시간
+            # 정파까지 = 활성 요일 기준 정파시작 시각(start_time)까지 잔여시간
             start_time = grp_data.get("start_time", "00:30")
             sh, sm = parse_hm(start_time)
-            return max(0.0, (next_dt(sh, sm) - now).total_seconds())
+            return max(0.0, (next_active_dt(sh, sm, weekdays) - now).total_seconds())
 
         elif state == "SIGNOFF":
             # 정파해제까지 = 정파종료 시각(end_time)까지 잔여시간
+            # (이미 정파 중이므로 요일 필터 불필요)
             end_time = grp_data.get("end_time", "06:00")
             eh, em = parse_hm(end_time)
             return max(0.0, (next_dt(eh, em) - now).total_seconds())
