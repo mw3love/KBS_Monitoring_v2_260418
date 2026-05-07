@@ -28,19 +28,6 @@ from PySide6.QtCore import Qt, QTimer, Signal, QSize
 from PySide6.QtGui import QFont, QColor, QPainter, QPixmap, QIcon, QPen
 
 
-_SIGNOFF_LABEL_COLORS = {
-    "dark": {
-        "IDLE":        "color: #a0a2aa;",
-        "PREPARATION": "color: #e8a730;",
-        "SIGNOFF":     "color: #ff8080;",
-    },
-    "light": {
-        "IDLE":        "color: #666666;",
-        "PREPARATION": "color: #856404;",
-        "SIGNOFF":     "color: #842029;",
-    },
-}
-
 
 def _fmt_dhms(secs: float) -> str:
     s = int(abs(secs))
@@ -48,7 +35,7 @@ def _fmt_dhms(secs: float) -> str:
     h, s = divmod(s, 3600)
     m, s = divmod(s, 60)
     if d > 0:
-        return f"{d}D {h:02d}:{m:02d}:{s:02d}"
+        return f"[{d}D] {h:02d}:{m:02d}:{s:02d}"
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
@@ -397,32 +384,16 @@ class TopBar(QWidget):
         layout.addWidget(self._make_separator())
 
         self._btn_signoff: dict = {}
-        self._lbl_signoff_time: dict = {}
         for gid in (1, 2):
-            grp_widget = QWidget()
-            grp_widget.setFixedWidth(160)
-            grp_vbox = QVBoxLayout(grp_widget)
-            grp_vbox.setContentsMargins(2, 0, 2, 0)
-            grp_vbox.setSpacing(2)
-
-            btn = QPushButton(f"Group{gid} 정파")
+            btn = QPushButton(f"Group{gid} 정파\n--:--:--")
             btn.setObjectName("btnSignoff")
             btn.setCheckable(False)
             btn.setProperty("signoff_state", "IDLE")
+            btn.setFixedSize(160, 46)
             btn.setFont(QFont("Segoe UI", 9, QFont.Bold))
             btn.clicked.connect(lambda _, g=gid: self.signoff_manual_release.emit(g))
-            grp_vbox.addWidget(btn)
-
-            lbl = QLabel("")
-            lbl.setObjectName("lblSignoffTime")
-            lbl.setFont(QFont("JetBrains Mono", 9))
-            lbl.setAlignment(Qt.AlignCenter)
-            lbl.setFixedHeight(18)
-            grp_vbox.addWidget(lbl)
-
-            layout.addWidget(grp_widget, alignment=Qt.AlignVCenter)
+            layout.addWidget(btn, alignment=Qt.AlignVCenter)
             self._btn_signoff[gid] = btn
-            self._lbl_signoff_time[gid] = lbl
 
         layout.addStretch()
 
@@ -734,19 +705,7 @@ class TopBar(QWidget):
         self._btn_settings.setIcon(self._make_gear_icon())
         self._meter_l.set_theme(checked)
         self._meter_r.set_theme(checked)
-        for gid in (1, 2):
-            btn = self._btn_signoff.get(gid)
-            if btn:
-                state = btn.property("signoff_state") or "IDLE"
-                self._apply_signoff_lbl_color(gid, state)
         self.dark_mode_toggled.emit(checked)
-
-    def _apply_signoff_lbl_color(self, gid: int, state: str):
-        lbl = self._lbl_signoff_time.get(gid)
-        if lbl is None:
-            return
-        theme = "dark" if self._dark_mode else "light"
-        lbl.setStyleSheet(_SIGNOFF_LABEL_COLORS[theme].get(state, ""))
 
     # ── 외부 호출 메서드 ───────────────────────────────────────────
 
@@ -809,11 +768,10 @@ class TopBar(QWidget):
     def set_signoff_buttons_enabled(self, enabled: bool):
         for gid in (1, 2):
             btn = self._btn_signoff.get(gid)
-            lbl = self._lbl_signoff_time.get(gid)
             if btn:
                 btn.setEnabled(enabled)
-            if lbl and not enabled:
-                lbl.setText("")
+                if not enabled:
+                    btn.setText(btn.text().split('\n')[0])
 
     def set_fullscreen_button_state(self, is_fullscreen: bool):
         self._btn_fullscreen.blockSignals(True)
@@ -829,37 +787,27 @@ class TopBar(QWidget):
                               group_name: str, seconds: float = 0.0,
                               clock_enabled: bool = True):
         btn = self._btn_signoff.get(group_id)
-        lbl = self._lbl_signoff_time.get(group_id)
         if btn is None:
             return
 
-        btn.setText(f"{group_name or f'Group{group_id}'} 정파")
+        name = group_name or f"Group{group_id}"
 
         if not clock_enabled:
-            lbl.setVisible(True)
-            lbl.setText("")
+            btn.setText(f"{name} 정파")
             resolved = state if state in ("IDLE", "PREPARATION", "SIGNOFF") else "IDLE"
             btn.setProperty("signoff_state", resolved)
-            self._apply_signoff_lbl_color(group_id, resolved)
         elif state == "IDLE":
-            lbl.setVisible(True)
-            lbl.setText(f"준비 {_fmt_dhms(seconds)}")
+            btn.setText(f"{name} 정파\n준비 {_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "IDLE")
-            self._apply_signoff_lbl_color(group_id, "IDLE")
         elif state == "PREPARATION":
-            lbl.setVisible(True)
-            lbl.setText(f"정파 {_fmt_dhms(seconds)}")
+            btn.setText(f"{name} 정파\n정파 {_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "PREPARATION")
-            self._apply_signoff_lbl_color(group_id, "PREPARATION")
         elif state == "SIGNOFF":
-            lbl.setVisible(True)
-            lbl.setText(f"해제 {_fmt_dhms(seconds)}")
+            btn.setText(f"{name} 정파\n해제 {_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "SIGNOFF")
-            self._apply_signoff_lbl_color(group_id, "SIGNOFF")
         else:
-            lbl.setVisible(True)
+            btn.setText(f"{name} 정파")
             btn.setProperty("signoff_state", "IDLE")
-            self._apply_signoff_lbl_color(group_id, "IDLE")
 
         btn.style().unpolish(btn)
         btn.style().polish(btn)

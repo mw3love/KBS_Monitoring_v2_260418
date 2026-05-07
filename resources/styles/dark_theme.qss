@@ -333,11 +333,6 @@ QScrollBar::sub-line:vertical {
     height: 0;
 }
 
-/* ── 정파 시간 레이블 */
-QLabel#lblSignoffTime {
-    color: #a0a2aa;
-    font-size: 10px;
-}
 
 /* ── 섹션 소제목 */
 QLabel#lblSectionTitle {

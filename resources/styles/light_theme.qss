@@ -77,11 +77,6 @@ QPushButton#btnSignoff[signoff_state="SIGNOFF"] {
     border-color: #e03131;
 }
 
-/* 정파 시간 레이블 */
-QLabel#lblSignoffTime {
-    color: #666666;
-    font-size: 10px;
-}
 
 /* 섹션 소제목 */
 QLabel#lblSectionTitle {
