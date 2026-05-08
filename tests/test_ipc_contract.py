@@ -29,9 +29,10 @@ RESULT_CONTRACT = {
     "RecordingEvent":  {"event", "label", "filepath", "reason"},
     "TelegramStatus":  {"event", "message", "queue_size"},
     "StreamError":     {"source", "message", "retry_count"},
-    "DetectionReady":  {"pid", "config_loaded", "roi_count", "version"},
-    "PerfMeasurement": {"recommended_interval", "recommended_scale",
-                        "cpu_percent", "ram_percent"},
+    "DetectionReady":   {"pid", "config_loaded", "roi_count", "version"},
+    "DetectionCrashed": {"dead_pid", "reason", "stale_sec"},
+    "PerfMeasurement":  {"recommended_interval", "recommended_scale",
+                         "cpu_percent", "ram_percent"},
 }
 
 CMD_CONTRACT = {
