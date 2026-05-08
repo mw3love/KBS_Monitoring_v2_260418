@@ -310,9 +310,16 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 
 ### 5.3 정파 중 알림 억제
 
-- SIGNOFF 상태 + `suppressed_labels` 목록 ROI → 알림 즉시 resolve
+- SIGNOFF 상태 + `suppressed_labels` 목록 ROI → **알람 진입(trigger) 및 복구(recovery) 텔레그램 모두 차단**
+  - AlarmTrigger / AlarmResolve 이벤트는 result_queue에 정상 발행 (UI 상태 유지)
+  - 텔레그램 발송만 억제
 - PREPARATION 상태: 스틸 억제, 블랙은 계속 발생
 - 억제 시작 로그: 1회만 출력
+
+**정파 해제 시 텔레그램 발송 보장:**
+- SIGNOFF→IDLE 전환 시 `notify_signoff(is_entry=False)` 1개만 발송
+- 전환 직후 경합 조건 대비: `_signoff_recovery_suppress` 셋(suppressed_labels + enter_roi.video_label)으로 복구 알림 1회 추가 차단
+- 결과: 정파 관련 텔레그램은 진입 1개 + 해제 1개
 
 ### 5.4 주요 파라미터
 

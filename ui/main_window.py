@@ -26,7 +26,7 @@ from utils.config_manager import ConfigManager
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.2.2"
+VERSION = "2.2.3"
 
 
 class MainWindow(QMainWindow):

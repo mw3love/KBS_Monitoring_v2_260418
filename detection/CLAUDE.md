@@ -41,6 +41,10 @@ while self._running:
 - 억제는 그룹별로만 적용: `is_signoff_label(label, group_id)` 사용
 - 임베디드 오디오는 그룹 귀속이 없으므로 정파 억제 적용 불가 (`is_any_signoff()` 금지)
 - PREPARATION 상태: 스틸만 억제, 블랙은 계속 알림
+- **알람 진입(trigger)과 복구(recovery) 모두 억제**: SIGNOFF 중에는 `is_signoff_label` 체크를 복구 경로에도 적용
+  - 복구 경로에서 `is_signoff_label` → True 이면 텔레그램 발송 생략 (AlarmResolve는 result_queue에 정상 발행)
+  - SIGNOFF→IDLE 직후 경합 조건 대비: `_signoff_recovery_suppress` 셋으로 2차 차단 (suppressed_labels + enter_roi.video_label 1회)
+  - 결과: 정파 관련 텔레그램은 진입 1개 + 해제 1개만 발송됨
 
 ## 설정 동기화 원칙
 - 파라미터 추가·변경 시 반드시 3파일 동시 업데이트:

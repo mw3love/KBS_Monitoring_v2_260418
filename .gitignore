@@ -31,6 +31,13 @@ data/
 fix/
 clip_*.png
 
+# 로컬 전용 파일
+error_log.txt
+images/
+manual/
+presentation/
+*.bat
+
 # 기타
 *.log
 .DS_Store

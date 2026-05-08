@@ -732,9 +732,11 @@ def _process_alarms(
                      AlarmResolve(label=lbl, detection_type=det_type,
                                   duration_sec=duration),
                      ipc_counters)
-                # 정파 해제 직후 그룹 라벨의 다음 1회 복구 알림은 텔레그램 발송 생략
-                # (정파 해제 메시지로 복구가 통보됨 → 개별 알림 폭주 방지)
-                if signoff_recovery_suppress and lbl in signoff_recovery_suppress:
+                # SIGNOFF 중이면 억제 ROI 복구 알림 차단 (정파 해제 메시지로 통보됨)
+                # SIGNOFF→IDLE 직후 경합 조건 대비: _signoff_recovery_suppress 2차 차단
+                if signoff_mgr.is_signoff_label(lbl, lbl_gid):
+                    pass
+                elif signoff_recovery_suppress and lbl in signoff_recovery_suppress:
                     signoff_recovery_suppress.discard(lbl)
                 else:
                     telegram.notify(
@@ -768,8 +770,10 @@ def _process_alarms(
                  AlarmResolve(label=lbl, detection_type="audio_level",
                               duration_sec=res.get("last_duration", 0.0)),
                  ipc_counters)
-            # 정파 해제 직후 그룹 라벨의 다음 1회 복구 알림은 텔레그램 발송 생략
-            if signoff_recovery_suppress and lbl in signoff_recovery_suppress:
+            # SIGNOFF 중이면 억제 ROI 복구 알림 차단 / SIGNOFF→IDLE 직후 2차 차단
+            if signoff_mgr.is_signoff_label(lbl, label_to_gid.get(lbl)):
+                pass
+            elif signoff_recovery_suppress and lbl in signoff_recovery_suppress:
                 signoff_recovery_suppress.discard(lbl)
             else:
                 telegram.notify("오디오", lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg,
