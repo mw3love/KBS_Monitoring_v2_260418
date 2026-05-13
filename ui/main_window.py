@@ -23,6 +23,7 @@ from ui.ui_bridge import UIBridge
 from ui.alarm import AlarmSystem
 from utils.logger import AppLogger
 from utils.config_manager import ConfigManager
+from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
@@ -64,6 +65,8 @@ class MainWindow(QMainWindow):
         self._signoff_states = {1: "IDLE", 2: "IDLE"}
         # SIGNOFF 진입 시각(time.time()) — 재spawn 후 elapsed_sec 정확도 복원용. 0이면 미진입.
         self._signoff_entered_at: dict[int, float] = {1: 0.0, 2: 0.0}
+        # SIGNOFF 중인 그룹의 억제 대상 라벨 목록 (AlarmResolve 로그 필터링용)
+        self._signoff_suppressed_labels: dict[int, list[str]] = {1: [], 2: []}
         self._current_volume: int = self._cfg.get("alarm", {}).get("volume", 80)
         self._embed_muted: bool = False
 
@@ -255,10 +258,17 @@ class MainWindow(QMainWindow):
         self._active_alarm_roi.pop((msg.detection_type, msg.label), None)
         self._alarm.resolve(msg.detection_type, msg.label)
         self._video_widget.set_alert_state(msg.label, False)
+
+        # SIGNOFF 중인 그룹의 억제 대상이면 복구 로그 생략 (정파 해제 로그로 대체)
+        for gid, state in self._signoff_states.items():
+            if state == "SIGNOFF" and msg.label in self._signoff_suppressed_labels.get(gid, []):
+                self._refresh_summary()
+                return
+
         lbl_str = (f"{msg.label} ({msg.media_name})"
                    if msg.media_name and msg.media_name != msg.label else msg.label)
         self._log_widget.add_log(
-            f"{lbl_str} {msg.detection_type} ({msg.duration_sec:.0f}초)",
+            f"{lbl_str} {msg.detection_type} ({_fmt_dur(msg.duration_sec)})",
             source="복구",
         )
         self._refresh_summary()
@@ -318,15 +328,33 @@ class MainWindow(QMainWindow):
                 self._signoff_entered_at[msg.group_id] = time.time()
             elif msg.new_state != "SIGNOFF":
                 self._signoff_entered_at[msg.group_id] = 0.0
+
+        # 억제 라벨 추적 — AlarmResolve 필터링에 사용
+        if msg.new_state == "SIGNOFF":
+            self._signoff_suppressed_labels[msg.group_id] = \
+                self._get_signoff_suppressed_labels(msg.group_id)
+        elif msg.prev_state == "SIGNOFF":
+            self._signoff_suppressed_labels[msg.group_id] = []
+
         _SOURCE_KO = {
             "auto-time": "시간", "auto-detect": "감지",
             "manual": "수동", "restore": "복원", "auto": "자동",
         }
         src_ko = _SOURCE_KO.get(msg.source, msg.source)
-        self._log_widget.add_log(
-            f"그룹{msg.group_id}: {msg.prev_state} → {msg.new_state} [{src_ko}]",
-            source="정파",
-        )
+
+        if msg.new_state == "SIGNOFF" and msg.prev_state != "SIGNOFF" and msg.source != "restore":
+            labels = self._signoff_suppressed_labels[msg.group_id]
+            label_str = "·".join(labels) if labels else "-"
+            log_text = f"그룹{msg.group_id}: SIGNOFF 진입 [{src_ko}] — 억제: {label_str}"
+        elif msg.prev_state == "SIGNOFF" and msg.new_state != "SIGNOFF":
+            entered_at = self._signoff_entered_at.get(msg.group_id, 0.0)
+            elapsed = (time.time() - entered_at) if entered_at > 0 else 0.0
+            elapsed_str = f" ({_fmt_dur(elapsed)})" if elapsed > 0 else ""
+            log_text = f"그룹{msg.group_id}: SIGNOFF 해제 [{src_ko}]{elapsed_str}"
+        else:
+            log_text = f"그룹{msg.group_id}: {msg.prev_state} → {msg.new_state} [{src_ko}]"
+
+        self._log_widget.add_log(log_text, source="정파")
 
     def _on_stream_error(self, msg):
         self._log_widget.add_log(
@@ -447,6 +475,15 @@ class MainWindow(QMainWindow):
             return max(0.0, (next_dt(eh, em) - now).total_seconds())
 
         return 0.0
+
+    def _get_signoff_suppressed_labels(self, group_id: int) -> list[str]:
+        """설정에서 그룹의 억제 대상 라벨 목록 반환 (진입 ROI + suppressed_labels 합집합)."""
+        grp = self._cfg.get("signoff", {}).get(f"group{group_id}", {})
+        v_label = grp.get("enter_roi", {}).get("video_label", "")
+        suppressed = list(grp.get("suppressed_labels", []))
+        if v_label and v_label not in suppressed:
+            suppressed.insert(0, v_label)
+        return suppressed
 
     # ── 테마 ──────────────────────────────────────────────────────
 

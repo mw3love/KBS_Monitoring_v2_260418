@@ -13,6 +13,8 @@ import html as _html
 import cv2
 import numpy as np
 
+from utils import format_duration as _fmt_dur
+
 try:
     import requests as _requests
     _REQUESTS_AVAILABLE = True
@@ -347,12 +349,7 @@ class TelegramWorker:
         if media_name != label:
             channel_str += f" ({_html.escape(media_name)})"
 
-        if duration_sec > 0:
-            dur_min = int(duration_sec) // 60
-            dur_sec_val = int(duration_sec) % 60
-            dur_str = f"{dur_min}분 {dur_sec_val:02d}초" if dur_min > 0 else f"{dur_sec_val}초"
-        else:
-            dur_str = ""
+        dur_str = _fmt_dur(duration_sec) if duration_sec > 0 else ""
 
         if is_recovery:
             text = (
