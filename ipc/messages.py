@@ -32,6 +32,7 @@ class AlarmTrigger(BaseMsg):
     label: str = ""
     detection_type: str = ""
     roi_type: str = ""
+    media_name: str = ""
     snapshot_jpeg: Optional[bytes] = None
 
 
@@ -40,6 +41,7 @@ class AlarmResolve(BaseMsg):
     label: str = ""
     detection_type: str = ""
     duration_sec: float = 0.0
+    media_name: str = ""
 
 
 @dataclass

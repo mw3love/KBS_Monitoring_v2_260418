@@ -242,8 +242,10 @@ class MainWindow(QMainWindow):
         self._active_alarm_roi[(msg.detection_type, msg.label)] = msg.roi_type
         self._alarm.trigger(msg.detection_type, msg.label)
         self._video_widget.set_alert_state(msg.label, True)
+        lbl_str = (f"{msg.label} ({msg.media_name})"
+                   if msg.media_name and msg.media_name != msg.label else msg.label)
         self._log_widget.add_log(
-            f"{msg.label} {msg.detection_type} 감지",
+            f"{lbl_str} {msg.detection_type} 감지",
             log_type=self._detect_type_to_log_type(msg.detection_type),
             source="알람",
         )
@@ -253,8 +255,10 @@ class MainWindow(QMainWindow):
         self._active_alarm_roi.pop((msg.detection_type, msg.label), None)
         self._alarm.resolve(msg.detection_type, msg.label)
         self._video_widget.set_alert_state(msg.label, False)
+        lbl_str = (f"{msg.label} ({msg.media_name})"
+                   if msg.media_name and msg.media_name != msg.label else msg.label)
         self._log_widget.add_log(
-            f"{msg.label} {msg.detection_type} ({msg.duration_sec:.0f}초)",
+            f"{lbl_str} {msg.detection_type} ({msg.duration_sec:.0f}초)",
             source="복구",
         )
         self._refresh_summary()

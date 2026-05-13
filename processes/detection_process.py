@@ -718,6 +718,7 @@ def _process_alarms(
                     _put(result_queue,
                          AlarmTrigger(label=lbl, detection_type=det_type,
                                       roi_type="video",
+                                      media_name=media,
                                       snapshot_jpeg=snap_jpeg),
                          ipc_counters)
                     telegram.notify(
@@ -730,7 +731,8 @@ def _process_alarms(
                 snap_jpeg = _encode_jpeg(snap)
                 _put(result_queue,
                      AlarmResolve(label=lbl, detection_type=det_type,
-                                  duration_sec=duration),
+                                  duration_sec=duration,
+                                  media_name=media),
                      ipc_counters)
                 # SIGNOFF 중이면 억제 ROI 복구 알림 차단 (정파 해제 메시지로 통보됨)
                 # SIGNOFF→IDLE 직후 경합 조건 대비: _signoff_recovery_suppress 2차 차단
@@ -760,6 +762,7 @@ def _process_alarms(
                 _put(result_queue,
                      AlarmTrigger(label=lbl, detection_type="audio_level",
                                   roi_type="audio",
+                                  media_name=media,
                                   snapshot_jpeg=snap_jpeg),
                      ipc_counters)
                 telegram.notify("오디오", lbl, media, jpeg_bytes=snap_jpeg)
@@ -768,7 +771,8 @@ def _process_alarms(
             snap_jpeg = _encode_jpeg(snap)
             _put(result_queue,
                  AlarmResolve(label=lbl, detection_type="audio_level",
-                              duration_sec=res.get("last_duration", 0.0)),
+                              duration_sec=res.get("last_duration", 0.0),
+                              media_name=media),
                  ipc_counters)
             # SIGNOFF 중이면 억제 ROI 복구 알림 차단 / SIGNOFF→IDLE 직후 2차 차단
             if signoff_mgr.is_signoff_label(lbl, label_to_gid.get(lbl)):
