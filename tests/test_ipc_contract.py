@@ -26,6 +26,8 @@ RESULT_CONTRACT = {
     "LogEntry":        {"level", "source", "message"},
     "DiagSnapshot":    {"section", "payload"},
     "SignoffStateChange": {"group_id", "prev_state", "new_state", "source"},
+    # source 가능값: 'auto-time'(시간 강제), 'auto-detect'(스틸/비스틸 감지),
+    #               'manual'(버튼 클릭), 'restore'(재spawn 재주입)
     "RecordingEvent":  {"event", "label", "filepath", "reason"},
     "TelegramStatus":  {"event", "message", "queue_size"},
     "StreamError":     {"source", "message", "retry_count"},

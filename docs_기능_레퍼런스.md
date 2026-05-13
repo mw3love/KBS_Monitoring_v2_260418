@@ -298,6 +298,18 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 
 수동 전환: 상단바 버튼 클릭 → 순환 (소리 없음)
 
+**진입 사유(source) 구분:**
+- `auto-time` — 시간 창(start_time / end_time) 도달에 의한 강제 전환 (fallback 안전망)
+- `auto-detect` — enter_roi 스틸/비스틸 감지에 의한 조기 진입·해제
+- `manual` — 상단바 버튼 직접 클릭
+- `restore` — 재spawn 후 UI 상태 재주입
+
+UI 로그 위젯에 `그룹1: PREPARATION → SIGNOFF [감지]` 형태로 표시됨.
+
+**수동 SIGNOFF의 자동 해제:**
+- end_time 도달(prep_window 이탈) 시 수동/자동 구분 없이 무조건 IDLE로 전환됨.
+- 시간 창 밖에서 수동으로 SIGNOFF를 진입해도 다음 1초 사이클에서 즉시 해제됨 (테스트 외 사용 비권장).
+
 ### 5.2 히스테리시스
 
 **진입 (PREPARATION → SIGNOFF)**:

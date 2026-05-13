@@ -6,6 +6,8 @@ import sys
 import os
 import time
 import queue
+import datetime as real_datetime
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -171,6 +173,87 @@ def test_transition_emits_signoff_state_change():
     assert state_changes[0].group_id == 1
 
 
+# ── 수동 SIGNOFF 자동 해제 ────────────────────────────────────────────────────
+
+def test_manual_signoff_auto_release_at_end_time():
+    """수동 SIGNOFF 진입 후 end_time 도달(prep_window 이탈) 시 자동 IDLE 전환."""
+    from ipc.messages import SignoffStateChange
+    mgr, q = _make_manager()
+    grp = _make_group(start="03:00", end="05:00", prep=30, every_day=True)
+    mgr.set_group(grp)
+    mgr.set_state_direct(1, "SIGNOFF")
+    assert mgr.get_state(1) == SignoffState.SIGNOFF
+
+    # 05:01 — end_time 이후이므로 prep_window(02:30~05:00) 완전 이탈
+    fake_now = real_datetime.datetime(2026, 5, 13, 5, 1, 0)
+    with patch("detection.signoff_manager.datetime") as mock_dt:
+        mock_dt.datetime.now.return_value = fake_now
+        mock_dt.timedelta = real_datetime.timedelta
+        mgr._tick_impl()
+
+    assert mgr.get_state(1) == SignoffState.IDLE
+
+    msgs = []
+    while not q.empty():
+        msgs.append(q.get_nowait())
+    sc = [m for m in msgs if isinstance(m, SignoffStateChange)]
+    assert any(m.new_state == "IDLE" and m.source == "auto-time" for m in sc), \
+        f"SIGNOFF→IDLE source 불일치: {[(m.new_state, m.source) for m in sc]}"
+
+
+# ── source 값 구분 검증 ───────────────────────────────────────────────────────
+
+def test_source_auto_time_on_time_entry():
+    """시간 창 진입 시 source='auto-time' 확인 (IDLE → SIGNOFF)."""
+    from ipc.messages import SignoffStateChange
+    mgr, q = _make_manager()
+    # prep=0 이면 signoff_window 진입 시 바로 SIGNOFF
+    grp = _make_group(start="03:00", end="05:00", prep=0, every_day=True)
+    mgr.set_group(grp)
+
+    fake_now = real_datetime.datetime(2026, 5, 13, 3, 30, 0)
+    with patch("detection.signoff_manager.datetime") as mock_dt:
+        mock_dt.datetime.now.return_value = fake_now
+        mock_dt.timedelta = real_datetime.timedelta
+        mgr._tick_impl()
+
+    msgs = []
+    while not q.empty():
+        msgs.append(q.get_nowait())
+    sc = [m for m in msgs if isinstance(m, SignoffStateChange)]
+    assert any(m.new_state == "SIGNOFF" and m.source == "auto-time" for m in sc), \
+        f"시간 강제 진입 source 불일치: {[(m.new_state, m.source) for m in sc]}"
+
+
+def test_source_auto_detect_on_still_entry():
+    """스틸 지속 감지로 진입 시 source='auto-detect' 확인 (PREPARATION → SIGNOFF)."""
+    from ipc.messages import SignoffStateChange
+    mgr, q = _make_manager()
+    grp = _make_group(start="03:00", end="05:00", prep=30, every_day=True)
+    mgr.set_group(grp)
+    mgr.set_state_direct(1, "PREPARATION")
+    while not q.empty():
+        q.get_nowait()
+
+    # still_trigger_sec=5.0 → 10초 전부터 스틸로 설정
+    mgr._latest_video["V1"] = True
+    mgr._video_enter_start[1] = time.time() - 10.0
+
+    # 02:45 — prep_window(02:30~05:00) 내, signoff_window(03:00~05:00) 외
+    fake_now = real_datetime.datetime(2026, 5, 13, 2, 45, 0)
+    with patch("detection.signoff_manager.datetime") as mock_dt:
+        mock_dt.datetime.now.return_value = fake_now
+        mock_dt.timedelta = real_datetime.timedelta
+        mgr._tick_impl()
+
+    msgs = []
+    while not q.empty():
+        msgs.append(q.get_nowait())
+    sc = [m for m in msgs if isinstance(m, SignoffStateChange)]
+    assert any(m.new_state == "SIGNOFF" and m.source == "auto-detect" for m in sc), \
+        f"스틸 감지 진입 source 불일치: {[(m.new_state, m.source) for m in sc]}"
+
+
 # ── 직접 실행 지원 ────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -186,6 +269,9 @@ if __name__ == "__main__":
         test_is_signoff_label_not_blocked_in_prep,
         test_is_prep_label_blocks_in_prep,
         test_transition_emits_signoff_state_change,
+        test_manual_signoff_auto_release_at_end_time,
+        test_source_auto_time_on_time_entry,
+        test_source_auto_detect_on_still_entry,
     ]
     failed = 0
     for t in tests:

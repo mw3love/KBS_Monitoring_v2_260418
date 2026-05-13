@@ -123,7 +123,6 @@ class SignoffManager:
 
         self._signoff_entered_at: Dict[int, Optional[float]] = {}
         self._preparation_entered_at: Dict[int, Optional[float]] = {}
-        self._manual_override: Dict[int, bool] = {}
         self._exit_released: Dict[int, bool] = {}
 
         self._latest_video: Dict[str, bool] = {}
@@ -186,7 +185,6 @@ class SignoffManager:
             self._video_exit_still[gid] = 0
             self._signoff_entered_at[gid] = None
             self._preparation_entered_at[gid] = None
-            self._manual_override[gid] = False
             self._exit_released[gid] = False
         elif old_group is not None:
             schedule_changed = (
@@ -202,29 +200,28 @@ class SignoffManager:
                 self._exit_released[gid] = False
                 self._reset_enter_timers(gid)
                 self._reset_exit_timers(gid)
-                if not self._manual_override.get(gid, False):
-                    now = datetime.datetime.now()
-                    weekday = now.weekday()
-                    current_time = now.strftime("%H:%M")
-                    current_state = self._states.get(gid, SignoffState.IDLE)
-                    in_prep_window = self._is_in_prep_window(group, current_time, weekday)
-                    in_signoff_window = self._is_in_signoff_window(group, current_time, weekday)
-                    if current_state == SignoffState.SIGNOFF:
-                        if not in_prep_window:
-                            self._signoff_entered_at[gid] = None
-                            self._transition_to(gid, SignoffState.IDLE)
-                        elif not in_signoff_window:
-                            self._signoff_entered_at[gid] = None
-                            self._transition_to(gid, SignoffState.PREPARATION)
-                    elif current_state == SignoffState.PREPARATION:
-                        if not in_prep_window:
-                            self._reset_enter_timers(gid)
-                            self._transition_to(gid, SignoffState.IDLE)
-                    elif current_state == SignoffState.IDLE:
-                        if in_signoff_window:
-                            self._transition_to(gid, SignoffState.SIGNOFF)
-                        elif in_prep_window:
-                            self._transition_to(gid, SignoffState.PREPARATION)
+                now = datetime.datetime.now()
+                weekday = now.weekday()
+                current_time = now.strftime("%H:%M")
+                current_state = self._states.get(gid, SignoffState.IDLE)
+                in_prep_window = self._is_in_prep_window(group, current_time, weekday)
+                in_signoff_window = self._is_in_signoff_window(group, current_time, weekday)
+                if current_state == SignoffState.SIGNOFF:
+                    if not in_prep_window:
+                        self._signoff_entered_at[gid] = None
+                        self._transition_to(gid, SignoffState.IDLE, source="auto-time")
+                    elif not in_signoff_window:
+                        self._signoff_entered_at[gid] = None
+                        self._transition_to(gid, SignoffState.PREPARATION, source="auto-time")
+                elif current_state == SignoffState.PREPARATION:
+                    if not in_prep_window:
+                        self._reset_enter_timers(gid)
+                        self._transition_to(gid, SignoffState.IDLE, source="auto-time")
+                elif current_state == SignoffState.IDLE:
+                    if in_signoff_window:
+                        self._transition_to(gid, SignoffState.SIGNOFF, source="auto-time")
+                    elif in_prep_window:
+                        self._transition_to(gid, SignoffState.PREPARATION, source="auto-time")
 
     def get_state(self, group_id: int) -> SignoffState:
         return self._states.get(group_id, SignoffState.IDLE)
@@ -251,7 +248,6 @@ class SignoffManager:
     def get_debug_flags(self, group_id: int) -> dict:
         return {
             "exit_released": self._exit_released.get(group_id, False),
-            "manual": self._manual_override.get(group_id, False),
         }
 
     # ── 수동 상태 전환 ────────────────────────────────────────────────────────
@@ -259,7 +255,6 @@ class SignoffManager:
     def cycle_state(self, group_id: int):
         current = self._states.get(group_id, SignoffState.IDLE)
         if current == SignoffState.IDLE:
-            self._manual_override[group_id] = True
             self._reset_enter_timers(group_id)
             self._transition_to(group_id, SignoffState.PREPARATION, source="manual")
         elif current == SignoffState.PREPARATION:
@@ -270,16 +265,13 @@ class SignoffManager:
                 and self._is_in_signoff_window(group, now.strftime("%H:%M"), now.weekday())
             )
             if in_signoff:
-                self._manual_override[group_id] = True
                 self._reset_enter_timers(group_id)
                 self._transition_to(group_id, SignoffState.SIGNOFF, source="manual")
             else:
                 self._reset_enter_timers(group_id)
-                self._manual_override[group_id] = False
                 self._transition_to(group_id, SignoffState.IDLE, source="manual")
         elif current == SignoffState.SIGNOFF:
             self._signoff_entered_at[group_id] = None
-            self._manual_override[group_id] = False
             self._transition_to(group_id, SignoffState.IDLE, source="manual")
 
     def set_state_direct(
@@ -302,10 +294,6 @@ class SignoffManager:
         current = self._states.get(group_id, SignoffState.IDLE)
         if current == target:
             return
-        if target == SignoffState.SIGNOFF:
-            self._manual_override[group_id] = True
-        elif target == SignoffState.IDLE:
-            self._manual_override[group_id] = False
         self._transition_to(group_id, target, source=source, entered_at=entered_at)
 
     # ── 알림 차단 판단 ────────────────────────────────────────────────────────
@@ -448,27 +436,24 @@ class SignoffManager:
                         if not in_prep_window:
                             self._exit_released[gid] = False
                     elif in_signoff_window:
-                        self._transition_to(gid, SignoffState.SIGNOFF)
+                        self._transition_to(gid, SignoffState.SIGNOFF, source="auto-time")
                     elif in_prep_window:
-                        self._transition_to(gid, SignoffState.PREPARATION)
+                        self._transition_to(gid, SignoffState.PREPARATION, source="auto-time")
 
             elif current_state == SignoffState.PREPARATION:
-                is_manual = self._manual_override.get(gid, False)
-                if not in_prep_window and not is_manual:
+                if not in_prep_window:
                     self._reset_enter_timers(gid)
-                    self._transition_to(gid, SignoffState.IDLE)
+                    self._transition_to(gid, SignoffState.IDLE, source="auto-time")
                 elif in_signoff_window:
                     self._reset_enter_timers(gid)
-                    self._transition_to(gid, SignoffState.SIGNOFF)
+                    self._transition_to(gid, SignoffState.SIGNOFF, source="auto-time")
                 else:
                     self._tick_preparation(gid, group)
 
             elif current_state == SignoffState.SIGNOFF:
-                is_manual = self._manual_override.get(gid, False)
-                if not in_prep_window and not is_manual:
+                if not in_prep_window:
                     self._signoff_entered_at[gid] = None
-                    self._manual_override[gid] = False
-                    self._transition_to(gid, SignoffState.IDLE)
+                    self._transition_to(gid, SignoffState.IDLE, source="auto-time")
                 elif group.exit_prep_minutes > 0:
                     if self._is_in_exit_prep_window(group):
                         self._tick_exit_preparation(gid, group)
@@ -517,7 +502,7 @@ class SignoffManager:
                      ) if self._video_enter_start[gid] else 0.0
         if v_elapsed >= group.still_trigger_sec:
             self._reset_enter_timers(gid)
-            self._transition_to(gid, SignoffState.SIGNOFF)
+            self._transition_to(gid, SignoffState.SIGNOFF, source="auto-detect")
 
     def _is_in_signoff_window(self, group: SignoffGroup, current_time: str, weekday: int) -> bool:
         return self._is_in_time_range(group, current_time, weekday,
@@ -574,9 +559,8 @@ class SignoffManager:
             if now - self._video_exit_start[gid] >= group.exit_trigger_sec:
                 self._video_exit_start[gid] = None
                 self._signoff_entered_at[gid] = None
-                self._manual_override[gid] = False
                 self._exit_released[gid] = True
-                self._transition_to(gid, SignoffState.IDLE)
+                self._transition_to(gid, SignoffState.IDLE, source="auto-detect")
         else:
             self._video_exit_still[gid] = self._video_exit_still.get(gid, 0) + 1
             if self._video_exit_still[gid] >= _SIGNOFF_HYSTERESIS_TICKS:
@@ -621,7 +605,6 @@ class SignoffManager:
         self._states[group_id] = new_state
 
         if new_state == SignoffState.IDLE:
-            self._manual_override[group_id] = False
             self._preparation_entered_at[group_id] = None
             self._reset_enter_timers(group_id)   # IDLE 진입 시 진입 타이머 초기화
 
@@ -657,4 +640,4 @@ class SignoffManager:
             source=source,
         ))
         self._emit(LogEntry(level="info", source="signoff", message=msg))
-        _log.info("SignoffManager [%s] %s → %s", group.name, prev_str, new_state.value)
+        _log.info("SignoffManager [%s] %s → %s [%s]", group.name, prev_str, new_state.value, source)

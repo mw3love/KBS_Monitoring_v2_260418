@@ -314,8 +314,13 @@ class MainWindow(QMainWindow):
                 self._signoff_entered_at[msg.group_id] = time.time()
             elif msg.new_state != "SIGNOFF":
                 self._signoff_entered_at[msg.group_id] = 0.0
+        _SOURCE_KO = {
+            "auto-time": "시간", "auto-detect": "감지",
+            "manual": "수동", "restore": "복원", "auto": "자동",
+        }
+        src_ko = _SOURCE_KO.get(msg.source, msg.source)
         self._log_widget.add_log(
-            f"그룹{msg.group_id}: {msg.prev_state} → {msg.new_state}",
+            f"그룹{msg.group_id}: {msg.prev_state} → {msg.new_state} [{src_ko}]",
             source="정파",
         )
 
