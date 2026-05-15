@@ -463,15 +463,13 @@ class TelegramWorker:
             )
             log_kind = "정파 진입"
         else:
-            minutes = int(elapsed_sec) // 60
-            seconds = int(elapsed_sec) % 60
             text = (
                 f"<b>[KBS On-Air Monitoring \U00002705 정파 해제]</b>\n"
                 f"\U000023F0 시각: <code>{now_str}</code>\n"
                 f"\U0001F4CB 그룹: <b>{group_esc}</b>\n"
                 f"\U0001F3AF 진입 트리거: <b>{trigger_esc}</b>\n"
                 f"\U0001F515 알림 억제: {suppressed_esc} ({suppressed_count}개 채널)\n"
-                f"\U000023F1 정파 시간: {minutes}분 {seconds:02d}초"
+                f"\U000023F1 정파 시간: {_fmt_dur(elapsed_sec)}"
             )
             log_kind = "정파 해제"
 
