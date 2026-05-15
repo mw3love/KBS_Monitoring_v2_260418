@@ -385,7 +385,7 @@ class TopBar(QWidget):
 
         self._btn_signoff: dict = {}
         for gid in (1, 2):
-            btn = QPushButton(f"Group{gid} 정파\n--:--:--")
+            btn = QPushButton(f"준비 · Group{gid} 정파\n--:--:--")
             btn.setObjectName("btnSignoff")
             btn.setCheckable(False)
             btn.setProperty("signoff_state", "IDLE")
@@ -804,13 +804,13 @@ class TopBar(QWidget):
             resolved = state if state in ("IDLE", "PREPARATION", "SIGNOFF") else "IDLE"
             btn.setProperty("signoff_state", resolved)
         elif state == "IDLE":
-            btn.setText(f"{name} 정파\n준비 {_fmt_dhms(seconds)}")
+            btn.setText(f"준비 · {name} 정파\n{_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "IDLE")
         elif state == "PREPARATION":
-            btn.setText(f"{name} 정파\n정파 {_fmt_dhms(seconds)}")
+            btn.setText(f"정파 · {name} 정파\n{_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "PREPARATION")
         elif state == "SIGNOFF":
-            btn.setText(f"{name} 정파\n해제 {_fmt_dhms(seconds)}")
+            btn.setText(f"해제 · {name} 정파\n{_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "SIGNOFF")
         else:
             btn.setText(f"{name} 정파")
