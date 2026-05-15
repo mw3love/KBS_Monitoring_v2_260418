@@ -22,7 +22,7 @@ except ImportError:
     _REQUESTS_AVAILABLE = False
 
 _SEND_RETRY_COUNT = 2
-_SEND_RETRY_DELAY = 5.0
+_SEND_RETRY_DELAYS = (5.0, 10.0)   # 재시도 간 가벼운 백오프 (1차 5초, 2차 10초)
 
 
 class TelegramWorker:
@@ -269,7 +269,7 @@ class TelegramWorker:
             resp = _requests.post(
                 url,
                 json={"chat_id": chat_id, "text": "[KBS On-Air Monitoring] 텔레그램 연결 테스트 성공"},
-                timeout=(5.0, 10.0),
+                timeout=(10.0, 20.0),
             )
             if resp.status_code == 200:
                 return True, "연결 테스트 성공"
@@ -332,7 +332,7 @@ class TelegramWorker:
                 resp = _requests.post(
                     f"{base}/sendMessage",
                     json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
-                    timeout=(5.0, 15.0),
+                    timeout=(10.0, 20.0),
                 )
                 return resp.status_code == 200
             except Exception:
@@ -369,7 +369,7 @@ class TelegramWorker:
             )
 
         base = self._API_BASE.format(token=self._bot_token)
-        timeout = (5.0, 15.0)
+        timeout = (10.0, 20.0)
 
         from ipc.messages import TelegramStatus
         for attempt in range(1 + _SEND_RETRY_COUNT):
@@ -419,7 +419,7 @@ class TelegramWorker:
                 error_desc = self._classify_error(exc)
                 if attempt < _SEND_RETRY_COUNT:
                     self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
-                    time.sleep(_SEND_RETRY_DELAY)
+                    time.sleep(_SEND_RETRY_DELAYS[attempt])
                 else:
                     self._consecutive_failures += 1
                     self._log_with_suppression(f"전송 실패 (재시도 소진): {error_desc} — {exc}")
@@ -476,7 +476,7 @@ class TelegramWorker:
         base = self._API_BASE.format(token=self._bot_token)
         jpeg = item.get("jpeg_bytes")
         use_photo = bool(jpeg) and self._send_image
-        timeout = (5.0, 15.0)
+        timeout = (10.0, 20.0)
         # Telegram caption 한도(HTML 1024자)
         caption = text if len(text) <= 1024 else (text[:1020] + "…")
 
@@ -525,7 +525,7 @@ class TelegramWorker:
                 error_desc = self._classify_error(exc)
                 if attempt < _SEND_RETRY_COUNT:
                     self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
-                    time.sleep(_SEND_RETRY_DELAY)
+                    time.sleep(_SEND_RETRY_DELAYS[attempt])
                 else:
                     self._consecutive_failures += 1
                     self._log_with_suppression(
