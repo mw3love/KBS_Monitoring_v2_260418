@@ -124,7 +124,7 @@ class MainWindow(QMainWindow):
         self._top_bar.detection_toggled.connect(self._on_detection_toggled)
         self._top_bar.volume_changed.connect(self._on_volume_changed)
         self._top_bar.alarm_acknowledged.connect(self._alarm.acknowledge_all)
-        self._top_bar.sound_toggled.connect(self._alarm.set_sound_enabled)
+        self._top_bar.sound_toggled.connect(self._on_sound_toggled)
         self._top_bar.roi_visibility_changed.connect(self._video_widget.set_show_rois)
         self._top_bar.dark_mode_toggled.connect(self._apply_theme)
         self._top_bar.fullscreen_toggled.connect(self._toggle_fullscreen)
@@ -213,6 +213,11 @@ class MainWindow(QMainWindow):
         self._current_volume = value
         self._cfg.setdefault("alarm", {})["volume"] = value
         self._send_cmd(SetVolume(volume=value))
+
+    def _on_sound_toggled(self, enabled: bool):
+        """음소거 토글 시 AlarmSystem 상태와 cfg 동기화."""
+        self._alarm.set_sound_enabled(enabled)
+        self._cfg.setdefault("alarm", {})["sound_enabled"] = enabled
 
     def _on_embed_mute_toggled(self, muted: bool):
         self._embed_muted = muted

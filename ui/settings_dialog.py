@@ -1092,16 +1092,19 @@ class SettingsDialog(QDialog):
         self._emb_thresh = _int_edit(det.get("embedded_silence_threshold", -50), -60, 0)
         self._emb_dur = _int_edit(det.get("embedded_silence_duration", 20), 1, 300)
         self._emb_alarm_dur = _int_edit(det.get("embedded_alarm_duration", 60), 1, 300)
+        self._emb_recovery = _float_edit(det.get("embedded_recovery_seconds", 2.0))
         sl4.addLayout(_row("무음 임계값(dB)", self._emb_thresh,
                            "-60~0 / 이 값 이하일 때 무음 판정. 기본값 -50"))
         sl4.addLayout(_row("알림 발생 기준(초)", self._emb_dur,
                            "1~300 / 무음이 이 시간(초) 이상 지속되면 알림"))
         sl4.addLayout(_row("알림음 지속(초)", self._emb_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생"))
+        sl4.addLayout(_row("복구 대기(초)", self._emb_recovery,
+                           "0~30 / 정상 복귀 후 이 시간이 지나야 알림 해제. 기본값 2"))
         vl.addWidget(box4)
         self._emb_section_lbl = box4.findChild(QLabel, "settingsSectionLabel")
         self._emb_section_widgets = (
-            self._emb_thresh, self._emb_dur, self._emb_alarm_dur,
+            self._emb_thresh, self._emb_dur, self._emb_alarm_dur, self._emb_recovery,
         )
         self._toggle_section_widgets(self._emb_section_widgets,
                                      self._emb_enabled_cb.isChecked())
@@ -1153,7 +1156,8 @@ class SettingsDialog(QDialog):
                      self._still_dur, self._still_alarm_dur,
                      self._audio_pixel_ratio, self._audio_level_dur,
                      self._audio_level_alarm_dur, self._audio_recovery,
-                     self._emb_thresh, self._emb_dur, self._emb_alarm_dur):
+                     self._emb_thresh, self._emb_dur, self._emb_alarm_dur,
+                     self._emb_recovery):
             edit.editingFinished.connect(self._apply_now)
         # 슬라이더 → 입력 필드 동기화
         def _sync_h(lo, hi): self._hsv_h_min.setText(str(lo)); self._hsv_h_max.setText(str(hi))
@@ -1946,6 +1950,7 @@ class SettingsDialog(QDialog):
         det["embedded_silence_threshold"] = int(self._emb_thresh.text() or -50)
         det["embedded_silence_duration"] = int(self._emb_dur.text() or 20)
         det["embedded_alarm_duration"] = int(self._emb_alarm_dur.text() or 60)
+        det["embedded_recovery_seconds"] = float(self._emb_recovery.text() or 2.0)
 
         perf = cfg.setdefault("performance", {})
         perf["detection_interval"] = self._detect_interval_combo.currentData()
@@ -2215,32 +2220,37 @@ class SettingsDialog(QDialog):
             f"CPU {cpu:.0f}% / RAM {ram:.0f}% → {interval}ms / {scale_label} 권장")
         self._perf_result_lbl.setVisible(True)
 
-    def _reset_video_settings(self):
-        d = DEFAULT_CONFIG
-        rec = d.get("recording", {})
-        self._port_combo.setCurrentIndex(d.get("port", 0))
-        self._video_file_edit.clear()
+    def _apply_video_widgets(self, src: dict):
+        """주어진 cfg dict로 영상설정 탭 위젯 값 채움(저장은 호출자 책임)."""
+        rec = src.get("recording", {})
+        self._port_combo.setCurrentIndex(src.get("port", 0))
+        self._video_file_edit.setText(src.get("video_file", ""))
         self._rec_enabled_cb.setChecked(rec.get("enabled", True))
         self._rec_dir_edit.setText(rec.get("save_dir", "recordings"))
         self._rec_pre_edit.setText(str(rec.get("pre_seconds", 5)))
         self._rec_post_edit.setText(str(rec.get("post_seconds", 15)))
         self._rec_keep_edit.setText(str(rec.get("max_keep_days", 7)))
-        default_w = rec.get("output_width", 960)
+        target_w = rec.get("output_width", 960)
         for i in range(self._res_combo.count()):
-            if self._res_combo.itemData(i)[0] == default_w:
+            if self._res_combo.itemData(i)[0] == target_w:
                 self._res_combo.setCurrentIndex(i)
                 break
-        default_fps = rec.get("output_fps", 10)
+        target_fps = rec.get("output_fps", 10)
         for i in range(self._fps_combo.count()):
-            if self._fps_combo.itemData(i) == default_fps:
+            if self._fps_combo.itemData(i) == target_fps:
                 self._fps_combo.setCurrentIndex(i)
                 break
+
+    def _reset_video_settings(self):
+        """[버튼 핸들러] 영상설정 기본값 복원."""
+        self._apply_video_widgets(DEFAULT_CONFIG)
         self._apply_now()
         self._update_capacity_label()
 
-    def _reset_sensitivity_settings(self):
-        d = DEFAULT_CONFIG.get("detection", {})
-        p = DEFAULT_CONFIG.get("performance", {})
+    def _apply_sensitivity_widgets(self, src: dict):
+        """주어진 cfg dict로 감도설정 탭 위젯 값 채움."""
+        d = src.get("detection", {})
+        p = src.get("performance", {})
         self._black_thresh.setText(str(d.get("black_threshold", 5)))
         self._black_ratio.setText(str(d.get("black_dark_ratio", 98.0)))
         self._black_suppress.setText(str(d.get("black_motion_suppress_ratio", 0.2)))
@@ -2264,6 +2274,7 @@ class SettingsDialog(QDialog):
         self._emb_thresh.setText(str(d.get("embedded_silence_threshold", -50)))
         self._emb_dur.setText(str(d.get("embedded_silence_duration", 20)))
         self._emb_alarm_dur.setText(str(d.get("embedded_alarm_duration", 60)))
+        self._emb_recovery.setText(str(d.get("embedded_recovery_seconds", 2.0)))
 
         for i in range(self._detect_interval_combo.count()):
             if self._detect_interval_combo.itemData(i) == p.get("detection_interval", 200):
@@ -2285,10 +2296,15 @@ class SettingsDialog(QDialog):
                                      self._audio_enabled_cb.isChecked())
         self._toggle_section_widgets(self._emb_section_widgets,
                                      self._emb_enabled_cb.isChecked())
+
+    def _reset_sensitivity_settings(self):
+        """[버튼 핸들러] 감도설정 기본값 복원."""
+        self._apply_sensitivity_widgets(DEFAULT_CONFIG)
         self._apply_now()
 
-    def _reset_signoff_settings(self):
-        d = DEFAULT_CONFIG.get("signoff", {})
+    def _apply_signoff_widgets(self, src: dict):
+        """주어진 cfg dict로 정파설정 탭 위젯 값 채움 (감지영역 포함)."""
+        d = src.get("signoff", {})
         self._auto_prep_cb.setChecked(d.get("auto_preparation", True))
         self._so_prep_sound.setText(d.get("prep_alarm_sound", ""))
         self._so_enter_sound.setText(d.get("enter_alarm_sound", ""))
@@ -2323,9 +2339,9 @@ class SettingsDialog(QDialog):
             w["still_trigger_sec"].setText(str(grp.get("still_trigger_sec", 60)))
             w["exit_trigger_sec"].setText(str(grp.get("exit_trigger_sec", 5)))
 
-            default_days = set(grp.get("weekdays", list(range(7))))
+            target_days = set(grp.get("weekdays", list(range(7))))
             for d_idx, cb in enumerate(w["weekdays"]):
-                cb.setChecked(d_idx in default_days)
+                cb.setChecked(d_idx in target_days)
 
             w["_enter_roi"] = dict(grp.get("enter_roi") or {"video_label": ""})
             w["_suppressed"] = list(grp.get("suppressed_labels", []))
@@ -2334,11 +2350,45 @@ class SettingsDialog(QDialog):
             lbl_widget = w["enter_label_lbl"]
             if enter_v:
                 lbl_widget.setText(f"{enter_v} · 억제 {sup_cnt}개" if sup_cnt else enter_v)
+                lbl_widget.setObjectName("")
                 lbl_widget.setStyleSheet("")
             else:
                 lbl_widget.setText("미설정")
-                lbl_widget.setStyleSheet("color: #cc4444;")
+                lbl_widget.setObjectName("settingsDesc")
+                lbl_widget.setStyleSheet("")
+            lbl_widget.style().unpolish(lbl_widget)
+            lbl_widget.style().polish(lbl_widget)
 
+    def _apply_alert_widgets(self, src: dict):
+        """주어진 cfg dict로 알림설정 탭 위젯 값 채움 (텔레그램·예약 재시작 포함)."""
+        alm = src.get("alarm", {})
+        tg = src.get("telegram", {})
+        sys_cfg = src.get("system", {})
+        self._alarm_sound_edit.setText(alm.get("sound_file", "resources/sounds/alarm.wav"))
+        self._tg_enabled_cb.setChecked(tg.get("enabled", False))
+        self._tg_token_edit.setText(tg.get("bot_token", ""))
+        self._tg_chat_edit.setText(tg.get("chat_id", ""))
+        self._tg_sys_chat_edit.setText(tg.get("system_chat_id", ""))
+        self._tg_image_cb.setChecked(tg.get("send_image", True))
+        self._tg_black_cb.setChecked(tg.get("notify_black", True))
+        self._tg_still_cb.setChecked(tg.get("notify_still", True))
+        self._tg_audio_cb.setChecked(tg.get("notify_audio_level", True))
+        self._tg_emb_cb.setChecked(tg.get("notify_embedded", True))
+        self._tg_signoff_cb.setChecked(tg.get("notify_signoff", True))
+        self._tg_system_cb.setChecked(tg.get("notify_system", True))
+        self._tg_cooldown_edit.setText(str(tg.get("cooldown", 60)))
+        self._restart_enabled_cb.setChecked(sys_cfg.get("scheduled_restart_enabled", False))
+        self._restart_base_edit.setText(sys_cfg.get("scheduled_restart_base_time", "03:00"))
+        cur_h = sys_cfg.get("scheduled_restart_interval_hours", 24)
+        cur_idx = next((i for i, h in enumerate(self._restart_interval_values) if h == cur_h), 0)
+        self._restart_interval_combo.setCurrentIndex(cur_idx)
+        self._restart_exclude_edit.setText(sys_cfg.get("scheduled_restart_exclude", ""))
+        self._toggle_telegram_widgets(self._tg_enabled_cb.isChecked())
+        self._toggle_restart_widgets(self._restart_enabled_cb.isChecked())
+
+    def _reset_signoff_settings(self):
+        """[버튼 핸들러] 정파설정 기본값 복원."""
+        self._apply_signoff_widgets(DEFAULT_CONFIG)
         self._apply_now()
 
     def _show_save_status(self, lbl: QLabel, msg: str, ok: bool):
@@ -2407,16 +2457,11 @@ class SettingsDialog(QDialog):
         중간 _apply_now 호출이 self._cfg를 덮어쓰지 않도록 _applying 플래그로 차단."""
         SettingsDialog._applying = True
         try:
-            self._reset_video_settings()
-            self._reset_sensitivity_settings()
-            self._reset_signoff_settings()
-            alm = self._cfg.get("alarm", {})
-            tg = self._cfg.get("telegram", {})
-            self._alarm_sound_edit.setText(alm.get("sound_file", "resources/sounds/alarm.wav"))
-            self._tg_enabled_cb.setChecked(tg.get("enabled", False))
-            self._tg_token_edit.setText(tg.get("bot_token", ""))
-            self._tg_chat_edit.setText(tg.get("chat_id", ""))
-            self._toggle_telegram_widgets(self._tg_enabled_cb.isChecked())
+            self._apply_video_widgets(self._cfg)
+            self._apply_sensitivity_widgets(self._cfg)
+            self._apply_signoff_widgets(self._cfg)
+            self._apply_alert_widgets(self._cfg)
+            self._update_capacity_label()
             # ROI 탭: 테이블·오버레이 갱신 (ROIManager는 호출 전 이미 갱신됨)
             self._refresh_roi_table("video")
             self._refresh_roi_table("audio")

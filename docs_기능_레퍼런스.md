@@ -494,6 +494,7 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 | embedded_silence_threshold | -50 | -60~0 | dB |
 | embedded_silence_duration | 20 | 1~300 | 초 |
 | embedded_alarm_duration | 60 | 1~300 | 초 |
+| embedded_recovery_seconds | 2.0 | 0~30 | 초 |
 
 ### 성능(Performance)
 
