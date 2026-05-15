@@ -381,8 +381,7 @@ class AutoRecorder:
             return bundled
         return "ffmpeg"
 
-    @staticmethod
-    def _merge_with_ffmpeg(vtmp: str, atmp: str, output: str,
+    def _merge_with_ffmpeg(self, vtmp: str, atmp: str, output: str,
                            audio_offset: float = 0.0) -> bool:
         ffmpeg = AutoRecorder._find_ffmpeg()
         cmd = [ffmpeg, "-y", "-i", vtmp]
@@ -395,10 +394,40 @@ class AutoRecorder:
             cmd += ["-i", atmp]
         cmd += ["-c:v", "copy", "-c:a", "aac",
                 "-map", "0:v:0", "-map", "1:a:0", "-shortest", output]
+
+        from ipc.messages import LogEntry
         try:
             result = subprocess.run(cmd, capture_output=True, timeout=120)
-            return result.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+            if result.returncode == 0:
+                return True
+            stderr_text = (result.stderr or b"").decode("utf-8", errors="ignore").strip()
+            tail = " | ".join(stderr_text.splitlines()[-5:])[:500]
+            _log.warning("ffmpeg 머지 실패 rc=%d: %s", result.returncode, tail)
+            self._emit(LogEntry(
+                level="warning", source="recorder",
+                message=f"ffmpeg 머지 실패(rc={result.returncode}) — 영상 전용 MP4로 폴백: {tail}",
+            ))
+            return False
+        except FileNotFoundError:
+            _log.warning("ffmpeg 실행 파일 없음 — 영상 전용 MP4로 폴백")
+            self._emit(LogEntry(
+                level="warning", source="recorder",
+                message="ffmpeg 미설치 — 영상 전용 MP4로 폴백 (winget install ffmpeg)",
+            ))
+            return False
+        except subprocess.TimeoutExpired:
+            _log.warning("ffmpeg 머지 타임아웃(120s)")
+            self._emit(LogEntry(
+                level="warning", source="recorder",
+                message="ffmpeg 머지 타임아웃(120s) — 영상 전용 MP4로 폴백",
+            ))
+            return False
+        except Exception as e:
+            _log.warning("ffmpeg 머지 예외: %s", e)
+            self._emit(LogEntry(
+                level="warning", source="recorder",
+                message=f"ffmpeg 머지 예외 — 영상 전용 MP4로 폴백: {e}",
+            ))
             return False
 
     # ── 자동 삭제 ─────────────────────────────────────────────────────────────
