@@ -98,7 +98,7 @@ def _apply_config_to_detector(detector, cfg: dict):
     detector.black_motion_suppress_ratio = det.get("black_motion_suppress_ratio", 0.2)
     detector.still_threshold            = det.get("still_threshold", 4)
     detector.still_changed_ratio        = det.get("still_changed_ratio", 10.0)
-    detector.still_duration             = det.get("still_duration", 60)
+    detector.still_duration             = det.get("still_duration", 120)
     detector.still_alarm_duration       = det.get("still_alarm_duration", 60)
     detector.still_reset_frames         = det.get("still_reset_frames", 3)
     detector.audio_hsv_h_min            = det.get("audio_hsv_h_min", 40)

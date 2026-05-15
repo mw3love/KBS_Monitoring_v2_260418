@@ -986,7 +986,7 @@ class SettingsDialog(QDialog):
         self._still_thresh = _int_edit(det.get("still_threshold", 4), 0, 255)
         self._still_changed = _float_edit(det.get("still_changed_ratio", 10.0))
         self._still_reset = _int_edit(det.get("still_reset_frames", 3), 1, 10)
-        self._still_dur = _int_edit(det.get("still_duration", 60), 1, 300)
+        self._still_dur = _int_edit(det.get("still_duration", 120), 1, 300)
         self._still_alarm_dur = _int_edit(det.get("still_alarm_duration", 60), 1, 300)
         sl2.addLayout(_row("픽셀 차이 임계값", self._still_thresh,
                            "0~255 / 프레임 차이 기준 (기본값: 4)"))
@@ -1930,7 +1930,7 @@ class SettingsDialog(QDialog):
         det["still_threshold"] = int(self._still_thresh.text() or 8)
         det["still_changed_ratio"] = float(self._still_changed.text() or 2.0)
         det["still_reset_frames"] = int(self._still_reset.text() or 3)
-        det["still_duration"] = int(self._still_dur.text() or 60)
+        det["still_duration"] = int(self._still_dur.text() or 120)
         det["still_alarm_duration"] = int(self._still_alarm_dur.text() or 60)
 
         h_lo, h_hi = self._hsv_h.get_range()
@@ -2260,7 +2260,7 @@ class SettingsDialog(QDialog):
         self._still_thresh.setText(str(d.get("still_threshold", 4)))
         self._still_changed.setText(str(d.get("still_changed_ratio", 10.0)))
         self._still_reset.setText(str(d.get("still_reset_frames", 3)))
-        self._still_dur.setText(str(d.get("still_duration", 60)))
+        self._still_dur.setText(str(d.get("still_duration", 120)))
         self._still_alarm_dur.setText(str(d.get("still_alarm_duration", 60)))
 
         self._hsv_h.set_range(d.get("audio_hsv_h_min", 40), d.get("audio_hsv_h_max", 95))

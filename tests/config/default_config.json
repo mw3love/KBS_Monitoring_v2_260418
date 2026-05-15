@@ -9,7 +9,7 @@
     "black_motion_suppress_ratio": 0.2,
     "still_threshold": 4,
     "still_changed_ratio": 10.0,
-    "still_duration": 60,
+    "still_duration": 120,
     "still_alarm_duration": 60,
     "still_reset_frames": 3,
     "audio_hsv_h_min": 40,

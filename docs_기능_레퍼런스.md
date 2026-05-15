@@ -203,7 +203,7 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 |--------|------|-----|------|
 | still_threshold | 4 | 0~255 | 프레임 차이 기준값 |
 | still_changed_ratio | 10.0 | 0~100% | 블록 움직임 기준 |
-| still_duration | 60 | 1~300초 | 알림 발생까지 지속 시간 |
+| still_duration | 120 | 1~300초 | 알림 발생까지 지속 시간 |
 | still_alarm_duration | 60 | 1~300초 | 알림 지속 시간 |
 | still_reset_frames | 3 | 1~10 | 히스테리시스 프레임 수 |
 
@@ -478,7 +478,7 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 | black_motion_suppress_ratio | 0.2 | 0~100 | % |
 | still_threshold | 4 | 0~255 | 픽셀값 |
 | still_changed_ratio | 10.0 | 0~100 | % |
-| still_duration | 60 | 1~300 | 초 |
+| still_duration | 120 | 1~300 | 초 |
 | still_alarm_duration | 60 | 1~300 | 초 |
 | still_reset_frames | 3 | 1~10 | 프레임 |
 | audio_hsv_h_min | 40 | 0~179 | - |
