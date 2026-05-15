@@ -765,6 +765,13 @@ class TopBar(QWidget):
         self._btn_mute.setText("알림음\nMUTE" if muted else "알림음\n켜짐")
         self._btn_mute.blockSignals(False)
 
+    def set_embed_mute_state(self, muted: bool):
+        """임베디드 오디오 음소거 버튼 시각 상태 동기화 (재시작 시 복원용)."""
+        self._btn_embed_mute.blockSignals(True)
+        self._btn_embed_mute.setChecked(muted)
+        self._btn_embed_mute.setIcon(self._make_volume_icon(muted))
+        self._btn_embed_mute.blockSignals(False)
+
     def set_signoff_buttons_enabled(self, enabled: bool):
         for gid in (1, 2):
             btn = self._btn_signoff.get(gid)

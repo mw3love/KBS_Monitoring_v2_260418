@@ -68,7 +68,7 @@ class MainWindow(QMainWindow):
         # SIGNOFF 중인 그룹의 억제 대상 라벨 목록 (AlarmResolve 로그 필터링용)
         self._signoff_suppressed_labels: dict[int, list[str]] = {1: [], 2: []}
         self._current_volume: int = self._cfg.get("alarm", {}).get("volume", 80)
-        self._embed_muted: bool = False
+        self._embed_muted: bool = self._cfg.get("ui_state", {}).get("embed_muted", False)
 
         # Detection 준비 여부
         self._detection_ready = False
@@ -179,6 +179,7 @@ class MainWindow(QMainWindow):
         self._top_bar.set_volume_display(vol)
         self._top_bar.set_mute_state(
             self._cfg.get("alarm", {}).get("sound_enabled", True))
+        self._top_bar.set_embed_mute_state(self._embed_muted)
         self._top_bar.set_detection_state(self._detection_enabled)
         roi_visible = ui_state.get("roi_visible", True)
         self._top_bar.set_roi_visible_state(roi_visible)
@@ -221,6 +222,7 @@ class MainWindow(QMainWindow):
 
     def _on_embed_mute_toggled(self, muted: bool):
         self._embed_muted = muted
+        self._cfg.setdefault("ui_state", {})["embed_muted"] = muted
         from ipc.messages import SetMute
         self._send_cmd(SetMute(muted=muted))
 

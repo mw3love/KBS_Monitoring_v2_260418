@@ -71,7 +71,8 @@
   "ui_state": {
     "detection_enabled": true,
     "roi_visible": true,
-    "fullscreen": false
+    "fullscreen": false,
+    "embed_muted": false
   },
   "signoff": {
     "auto_preparation": true,

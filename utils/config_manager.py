@@ -81,6 +81,7 @@ DEFAULT_CONFIG = {
         "detection_enabled": True,
         "roi_visible": True,
         "fullscreen": False,            # v2 신규
+        "embed_muted": False,           # v2 신규: 임베디드 오디오 음소거 상태
     },
     "signoff": {
         "auto_preparation": True,

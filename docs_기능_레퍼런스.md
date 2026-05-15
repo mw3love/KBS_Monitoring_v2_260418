@@ -572,6 +572,7 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 | detection_enabled | True | - | 감지 ON/OFF 상태 (재시작 시 복원) |
 | roi_visible | True | - | 감지영역 표시 상태 (재시작 시 복원) |
 | fullscreen | False | - | 전체화면 상태 (재시작 시 복원) |
+| embed_muted | False | - | 임베디드 오디오 음소거 상태 (재시작 시 복원, pycaw 시스템 음소거) |
 
 ### 시스템(System)
 

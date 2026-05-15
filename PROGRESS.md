@@ -1,6 +1,6 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
-> 마지막 업데이트: 2026-05-15 (설정 저장/불러오기 정합성 수정)
+> 마지막 업데이트: 2026-05-15 (설정 저장/불러오기 정합성 + 임베디드 음소거 영속화)
 > 현재 단계: Phase 5 진행 중 (코딩 완료 / 실기 테스트 대기 중)
 
 ---
@@ -119,5 +119,6 @@
 - [x] **설정 다이얼로그 UI/UX 개선 4단계** (탭2·3 ROI 영역설정): 편집 버튼 활성 시 오렌지 배경+"편집 종료"/비활성 복원, 단축키 안내 인라인 카드(--bg-2+--border), 0개 카운터 --alert 색상+"등록된 영역 없음 — 감지 불가", 전체 지우기 QMessageBox 확인, 매체명 헤더 툴팁 추가
 - [x] **설정 다이얼로그 UI/UX 개선 5단계** (탭5 정파설정): 시간 입력 필드 36px+시작/종료 레이블, 섹션 헤더 요약 라벨(HH:MM~HH:MM 요일), 요일 전체선택·전체해제 2버튼 분리, 감지영역 미설정 --text-2 회색, 준비 시각 "▶ HH:MM 부터"/0분 "준비 없음", 그룹명 헤더 인라인 QLineEdit, 알림음 placeholder 힌트
 - [x] **설정 저장/불러오기 정합성 수정**: `_reload_all_tabs`가 `DEFAULT_CONFIG`로 초기화되던 버그 수정(`_apply_video/sensitivity/signoff/alert_widgets(cfg)` 분리), 알림설정 탭 누락 항목(system_chat_id·notify_image/black/still/audio/embedded/signoff/system·cooldown·예약 재시작 4개) `self._cfg`로 갱신, 음소거 토글(`sound_toggled`) 시 `self._cfg["alarm"]["sound_enabled"]` 동기화로 재시작 시 상태 복원, 임베디드 오디오 `embedded_recovery_seconds` UI 노출(감도설정 탭 임베디드 섹션 "복구 대기(초)")
+- [x] **임베디드 오디오 음소거 영속화**: `ui_state.embed_muted` 신규 키 추가(3개 config 파일 동기), 상단바 임베디드 뮤트 토글 시 cfg 즉시 동기화, `_restore_ui_state`에서 `set_embed_mute_state()`로 버튼 시각 복원, Detection 측 mute는 기존 `_reinject_runtime_state` 경로(DetectionReady → SetMute)로 자동 전파
 
 **완료 기준**: 24시간 무중단. 메모리 RSS 증가 < 5%. DIAG 전 섹션 정상. Chaos 테스트 재spawn 복원률 100%.
