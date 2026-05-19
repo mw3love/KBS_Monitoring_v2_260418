@@ -824,11 +824,61 @@ QLabel#capacityBar {
 }
 
 /* ── ROI 단축키 안내 ────────────────────────────────────────────── */
+QFrame#roiShortcutCard {
+    background-color: #1e1f23;
+    border: 1px solid #2a2b30;
+    border-radius: 6px;
+    padding: 0px;
+}
+
 QLabel#roiShortcutLabel {
     font-size: 11px;
     color: #9a9b9e;
-    background-color: #1a1b1f;
+    background-color: transparent;
+    border: none;
+    padding: 0px;
+}
+
+/* ── 영상설정 탭: 용량 추정 프레임 ──────────────────────────────── */
+QFrame#capacityFrame {
+    background-color: #26272c;
     border: 1px solid #2a2b30;
     border-radius: 4px;
-    padding: 6px 8px;
+}
+
+QFrame#capacityFrame QWidget {
+    background-color: transparent;
+}
+
+QLabel#capacityHeader {
+    color: #7d7e84;
+    font-size: 11px;
+    background: transparent;
+}
+
+QLabel#capacityBar {
+    background: transparent;
+    color: #ececec;
+}
+
+/* ── 섹션 하위 헤더 (▸ 비디오 / ▸ 오디오 등) ────────────────────── */
+QLabel#sectionSubHeader {
+    color: #888888;
+    font-size: 11px;
+    margin-top: 4px;
+}
+
+/* ── 저장 결과 상태 라벨 ────────────────────────────────────────── */
+QLabel#saveStatusLabel {
+    font-size: 11px;
+    padding-left: 46px;
+    background: transparent;
+}
+
+QLabel#saveStatusLabel[status="ok"] {
+    color: #b8b9bd;
+}
+
+QLabel#saveStatusLabel[status="error"] {
+    color: #e03131;
 }

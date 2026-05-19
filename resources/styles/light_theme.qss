@@ -464,24 +464,26 @@ QWidget#settingsTabBar {
 }
 
 QPushButton#settingsTabBtn {
-    background-color: transparent;
-    color: #666666;
-    border: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 0px;
+    background-color: #e8e8e8;
+    color: #555555;
+    border: 1px solid #cccccc;
+    border-bottom: 2px solid #cccccc;
+    border-radius: 4px 4px 0 0;
     padding: 6px 12px;
     font-size: 11px;
 }
 
 QPushButton#settingsTabBtn:hover {
     color: #D97757;
-    background-color: #e8e8e8;
-    border-bottom: 2px solid transparent;
+    background-color: #f0f0f0;
+    border-color: #D97757;
+    border-bottom: 2px solid #D97757;
 }
 
 QPushButton#settingsTabBtn:checked {
     color: #D97757;
     background-color: #ffffff;
+    border: 1px solid #cccccc;
     border-bottom: 2px solid #D97757;
 }
 
@@ -732,11 +734,61 @@ QLabel#aboutCardMeta {
 
 
 /* ── ROI 단축키 안내 ────────────────────────────────────────────── */
-QLabel#roiShortcutLabel {
-    font-size: 11px;
-    color: #555555;
+QFrame#roiShortcutCard {
     background-color: #f5f5f5;
     border: 1px solid #dddddd;
+    border-radius: 6px;
+    padding: 0px;
+}
+
+QLabel#roiShortcutLabel {
+    font-size: 11px;
+    color: #444444;
+    background-color: transparent;
+    border: none;
+    padding: 0px;
+}
+
+/* ── 영상설정 탭: 용량 추정 프레임 ──────────────────────────────── */
+QFrame#capacityFrame {
+    background-color: #ffffff;
+    border: 1px solid #dddddd;
     border-radius: 4px;
-    padding: 6px 8px;
+}
+
+QFrame#capacityFrame QWidget {
+    background-color: transparent;
+}
+
+QLabel#capacityHeader {
+    color: #666666;
+    font-size: 11px;
+    background: transparent;
+}
+
+QLabel#capacityBar {
+    background: transparent;
+    color: #1a1a1a;
+}
+
+/* ── 섹션 하위 헤더 (▸ 비디오 / ▸ 오디오 등) ────────────────────── */
+QLabel#sectionSubHeader {
+    color: #666666;
+    font-size: 11px;
+    margin-top: 4px;
+}
+
+/* ── 저장 결과 상태 라벨 ────────────────────────────────────────── */
+QLabel#saveStatusLabel {
+    font-size: 11px;
+    padding-left: 46px;
+    background: transparent;
+}
+
+QLabel#saveStatusLabel[status="ok"] {
+    color: #1a1a1a;
+}
+
+QLabel#saveStatusLabel[status="error"] {
+    color: #cc3333;
 }
