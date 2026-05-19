@@ -27,7 +27,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.2.6"
+VERSION = "2.2.7"
 
 
 class MainWindow(QMainWindow):
@@ -237,8 +237,8 @@ class MainWindow(QMainWindow):
     # ── 슬롯: UIBridge ────────────────────────────────────────────
 
     def _on_log_entry(self, msg):
-        level_map = {"debug": "debug", "error": "error", "still": "still",
-                     "audio": "audio", "embedded": "embedded"}
+        level_map = {"debug": "debug", "error": "error", "black": "black",
+                     "still": "still", "audio": "audio", "embedded": "embedded"}
         log_type = level_map.get(msg.level, "info")
         self._log_widget.add_log(msg.message, log_type, source=msg.source)
         if msg.level == "error":
@@ -505,6 +505,9 @@ class MainWindow(QMainWindow):
                 QApplication.instance().setStyleSheet(f.read())
         except Exception as e:
             _log.warning("테마 로드 실패: %s", e)
+        # QSS로 못 잡는 커스텀 페인팅 위젯에 테마 전달
+        if hasattr(self, "_log_widget"):
+            self._log_widget.set_theme(dark)
 
     # ── 전체화면 ──────────────────────────────────────────────────
 
@@ -592,7 +595,7 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _detect_type_to_log_type(detection_type: str) -> str:
         return {
-            "black":       "error",
+            "black":       "black",
             "still":       "still",
             "audio_level": "audio",
             "embedded":    "embedded",

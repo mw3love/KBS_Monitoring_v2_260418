@@ -43,20 +43,66 @@ class LogRowDelegate(QStyledItemDelegate):
     PAD     = 6    # 좌측 패딩
 
     # (행 배경색 hex 또는 None, 텍스트/배지 글자색)
-    _TYPE_COLORS: dict[str, tuple] = {
-        "error":    ("#cc0000", "#ffffff"),
+    # black = 블랙 감지(영상 이상), error = 시스템 장애 (스트림/크래시/녹화/텔레그램)
+    _TYPE_COLORS_DARK: dict[str, tuple] = {
+        "black":    ("#cc0000", "#ffffff"),
         "still":    ("#7B2FBE", "#ffffff"),
         "audio":    ("#1f7a1f", "#ffffff"),
         "embedded": ("#1e5a9e", "#ffffff"),
+        "error":    ("#e8730a", "#ffffff"),
         "info":     (None,      "#b8b9bd"),
         "debug":    (None,      "#555565"),
     }
 
+    # 라이트 모드: 배지 배경색은 동일(컬러 구분 유지), 메시지 fg는 어두운 톤으로
+    _TYPE_COLORS_LIGHT: dict[str, tuple] = {
+        # (row_bg_hex, message_fg_hex, badge_fg_hex)
+        "black":    ("#cc0000", "#1a1a1a", "#ffffff"),
+        "still":    ("#7B2FBE", "#1a1a1a", "#ffffff"),
+        "audio":    ("#1f7a1f", "#1a1a1a", "#ffffff"),
+        "embedded": ("#1e5a9e", "#1a1a1a", "#ffffff"),
+        "error":    ("#e8730a", "#1a1a1a", "#ffffff"),
+        "info":     (None,      "#3a3a3a", "#3a3a3a"),
+        "debug":    (None,      "#888888", "#888888"),
+    }
+
+    # 테마별 보조 색상 (타임스탬프 / 소스 / separator)
+    _AUX_COLORS_DARK = {
+        "ts":      "#7d7e84",
+        "src":     "#555565",
+        "sep_ln":  "#3a3b42",
+        "sep_txt": "#6060a0",
+    }
+    _AUX_COLORS_LIGHT = {
+        "ts":      "#666666",
+        "src":     "#666666",
+        "sep_ln":  "#cccccc",
+        "sep_txt": "#888888",
+    }
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._dark: bool = True
+
+    def set_dark(self, dark: bool):
+        self._dark = dark
+
+    def _type_color(self, log_type: str) -> tuple:
+        """현재 테마에 맞는 (row_bg, message_fg, badge_fg) 반환."""
+        if self._dark:
+            bg, fg = self._TYPE_COLORS_DARK.get(log_type, self._TYPE_COLORS_DARK["info"])
+            return bg, fg, fg
+        return self._TYPE_COLORS_LIGHT.get(log_type, self._TYPE_COLORS_LIGHT["info"])
+
+    def _aux(self, key: str) -> str:
+        return (self._AUX_COLORS_DARK if self._dark else self._AUX_COLORS_LIGHT)[key]
+
     _BADGE_LABELS: dict[str, str] = {
-        "error":    "ERROR",
+        "black":    "BLACK",
         "still":    "STILL",
         "audio":    "AUDIO",
         "embedded": "EMBED",
+        "error":    "ERROR",
         "info":     "INFO ",
         "debug":    "DEBUG",
     }
@@ -82,15 +128,16 @@ class LogRowDelegate(QStyledItemDelegate):
             return
 
         # ── 행 배경 ──
-        bg_hex, fg_hex = self._TYPE_COLORS.get(data.log_type, self._TYPE_COLORS["info"])
+        bg_hex, fg_hex, badge_fg_hex = self._type_color(data.log_type)
         if bg_hex:
             row_bg = QColor(bg_hex)
-            row_bg.setAlphaF(0.22)
+            row_bg.setAlphaF(0.18 if self._dark else 0.14)
             painter.fillRect(rect, row_bg)
 
         # ── pulse 하이라이트 ──
         if data.is_newest and data.pulse_alpha > 0:
-            pulse_c = QColor(255, 255, 255)
+            # 라이트 모드는 흰색 펄스가 안보이므로 오렌지 톤 사용
+            pulse_c = QColor(255, 255, 255) if self._dark else QColor("#D97757")
             pulse_c.setAlphaF(data.pulse_alpha)
             painter.fillRect(rect, pulse_c)
 
@@ -105,7 +152,7 @@ class LogRowDelegate(QStyledItemDelegate):
 
         # ── 1) 타임스탬프 컬럼 ──
         ts_rect = QRect(rect.left() + self.PAD, rect.top(), self.TS_W, rect.height())
-        painter.setPen(QColor("#7d7e84"))
+        painter.setPen(QColor(self._aux("ts")))
         painter.drawText(ts_rect, Qt.AlignVCenter | Qt.AlignLeft, data.timestamp)
 
         # ── 2) 타입 배지 컬럼 ──
@@ -118,9 +165,9 @@ class LogRowDelegate(QStyledItemDelegate):
             painter.setBrush(QBrush(badge_bg))
             painter.setPen(Qt.NoPen)
             painter.drawRoundedRect(badge_rect, 3, 3)
-            painter.setPen(QColor(fg_hex))
+            painter.setPen(QColor(badge_fg_hex))
         else:
-            painter.setPen(QColor(fg_hex))
+            painter.setPen(QColor(badge_fg_hex))
 
         bold_mono = QFont(mono)
         bold_mono.setBold(True)
@@ -135,7 +182,7 @@ class LogRowDelegate(QStyledItemDelegate):
             src_w = min(fm.horizontalAdvance(src_text) + 10, self.SRC_MAX)
             src_rect = QRect(rect.right() - src_w - self.PAD,
                              rect.top(), src_w, rect.height())
-            painter.setPen(QColor("#555565"))
+            painter.setPen(QColor(self._aux("src")))
             src_font = QFont("Pretendard")
             src_font.setPixelSize(10)
             painter.setFont(src_font)
@@ -163,12 +210,12 @@ class LogRowDelegate(QStyledItemDelegate):
         mid_y = rect.center().y()
         gap = 8
 
-        painter.setPen(QPen(QColor("#3a3b42"), 1))
+        painter.setPen(QPen(QColor(self._aux("sep_ln")), 1))
         if text_x - gap > rect.left() + 8:
             painter.drawLine(rect.left() + 8, mid_y, text_x - gap, mid_y)
         painter.drawLine(text_x + text_w + gap, mid_y, rect.right() - 8, mid_y)
 
-        painter.setPen(QColor("#6060a0"))
+        painter.setPen(QColor(self._aux("sep_txt")))
         painter.drawText(
             QRect(text_x, rect.top(), text_w, rect.height()),
             Qt.AlignVCenter | Qt.AlignLeft,
@@ -182,15 +229,23 @@ class LogWidget(QWidget):
     MAX_LOG_ITEMS = 500
     LOG_DIR = "logs"
 
-    # (표시 텍스트, log_type 키, 활성 색상)
+    # (표시 텍스트, 필터 키, 활성 색상)
+    # 필터 키는 그룹명. 그룹↔log_type 매핑은 _GROUP_TYPES 참조.
     _FILTER_DEFS: list[tuple] = [
-        ("ALL",   "ALL",      "#D97757"),
-        ("ERROR", "error",    "#cc0000"),
-        ("STILL", "still",    "#9B5FDE"),
-        ("AUDIO", "audio",    "#2ea82e"),
-        ("EMBED", "embedded", "#3a8fd4"),
-        ("INFO",  "info",     "#7d7e84"),
+        ("ALL",   "ALL",   "#D97757"),
+        ("VIDEO", "VIDEO", "#cc0000"),
+        ("AUDIO", "AUDIO", "#2ea82e"),
+        ("ERROR", "ERROR", "#e8730a"),
+        ("INFO",  "INFO",  "#7d7e84"),
     ]
+
+    # 필터 그룹 → 포함 log_type 집합
+    _GROUP_TYPES: dict[str, set] = {
+        "VIDEO": {"black", "still"},
+        "AUDIO": {"audio", "embedded"},
+        "ERROR": {"error"},
+        "INFO":  {"info"},
+    }
 
     log_cleared = Signal()
 
@@ -413,7 +468,10 @@ class LogWidget(QWidget):
         if data.log_type == "debug" and not self._show_debug:
             return False
         if self._active_type_filters and "ALL" not in self._active_type_filters:
-            if data.log_type not in self._active_type_filters:
+            allowed_types: set = set()
+            for group in self._active_type_filters:
+                allowed_types |= self._GROUP_TYPES.get(group, set())
+            if data.log_type not in allowed_types:
                 return False
         if self._keyword:
             haystack = f"{data.source} {data.message}".lower()
@@ -450,7 +508,12 @@ class LogWidget(QWidget):
 
     def add_log(self, message: str, log_type: str = "info", source: str = ""):
         """로그 항목 추가.
-        log_type: "debug" | "info" | "error" | "still" | "audio" | "embedded"
+        log_type: "debug" | "info" | "black" | "still" | "audio" | "embedded" | "error"
+          - black: 블랙 감지 (영상 이상) — VIDEO 그룹
+          - still: 스틸 감지 — VIDEO 그룹
+          - audio: 오디오레벨 이상 — AUDIO 그룹
+          - embedded: 임베디드 오디오 이상 — AUDIO 그룹
+          - error: 시스템 장애 (스트림/크래시/녹화/텔레그램) — SYSTEM 그룹
         source: 소스 태그 (예: "시스템", "알람", "복구")
         """
         now = datetime.datetime.now()
@@ -487,6 +550,13 @@ class LogWidget(QWidget):
 
     def add_info(self, message: str, source: str = ""):
         self.add_log(message, log_type="info", source=source)
+
+    def set_theme(self, dark: bool):
+        """테마 변경 시 delegate에 전달하고 리스트 다시 그리기."""
+        delegate = self._list.itemDelegate()
+        if isinstance(delegate, LogRowDelegate):
+            delegate.set_dark(dark)
+        self._list.viewport().update()
 
     def clear_logs(self):
         self._list.clear()

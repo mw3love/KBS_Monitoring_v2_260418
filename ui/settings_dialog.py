@@ -251,7 +251,7 @@ class SignoffROIDialog(QDialog):
 
         if video_rois:
             lbl_v = QLabel("▸ 비디오")
-            lbl_v.setStyleSheet("color: #888; font-size: 11px; margin-top: 4px;")
+            lbl_v.setObjectName("sectionSubHeader")
             vl.addWidget(lbl_v)
             for roi in video_rois:
                 cb = QCheckBox(f"  {roi.label} [{roi.media_name}]" if roi.media_name else f"  {roi.label}")
@@ -261,7 +261,7 @@ class SignoffROIDialog(QDialog):
 
         if audio_rois:
             lbl_a = QLabel("▸ 오디오")
-            lbl_a.setStyleSheet("color: #888; font-size: 11px; margin-top: 4px;")
+            lbl_a.setObjectName("sectionSubHeader")
             vl.addWidget(lbl_a)
             for roi in audio_rois:
                 cb = QCheckBox(f"  {roi.label} [{roi.media_name}]" if roi.media_name else f"  {roi.label}")
@@ -293,7 +293,7 @@ class SignoffROIDialog(QDialog):
             if label == trigger_label:
                 cb.setChecked(True)
                 cb.setEnabled(False)
-                cb.setToolTip("진입 트리거 항목은 자동으로 억제됩니다")
+                cb.setToolTip("진입 트리거 항목 자동 억제")
             else:
                 cb.setEnabled(True)
                 cb.setToolTip("")
@@ -447,14 +447,14 @@ class SettingsDialog(QDialog):
             self._port_combo.addItem(f"{i} (기본)" if i == 0 else str(i), i)
         self._port_combo.setCurrentIndex(self._cfg.get("port", 0))
         sl1.addLayout(_row("포트 번호 (0~3)", self._port_combo,
-                           "캡처카드 입력 포트 번호. 기본값은 0"))
+                           "0~3 / 캡처카드 입력 포트 번호 (기본값: 0)"))
         vl.addWidget(box1)
 
         # ── 파일 입력 (테스트용) ────────────────────────────────
         box2, sl2 = _section("파일 입력 (테스트용)")
         desc = QLabel(
-            "MP4 등 영상 파일을 불러와 포트 대신 소스로 사용합니다.\n"
-            "파일을 선택하면 파일 재생으로 전환되며, 초기화하면 포트로 복귀합니다.")
+            "MP4 등 영상 파일을 포트 대신 소스로 사용.\n"
+            "파일 선택 시 파일 재생으로 전환, 초기화 시 포트로 복귀.")
         desc.setObjectName("settingsDesc")
         sl2.addWidget(desc)
         file_hl = QHBoxLayout()
@@ -495,11 +495,11 @@ class SettingsDialog(QDialog):
         self._rec_post_edit = _int_edit(rec.get("post_seconds", 10), 1, 60)
         self._rec_keep_edit = _int_edit(rec.get("max_keep_days", 30), 1, 365)
         sl3.addLayout(_row("시작 전 버퍼 (초)", self._rec_pre_edit,
-                           "1~30 / 기본값 10 — 알림 발생 전 구간 저장"))
+                           "1~30 / 알림 발생 전 구간 저장 (기본값: 10)"))
         sl3.addLayout(_row("이후 녹화 시간 (초)", self._rec_post_edit,
-                           "1~60 / 기본값 10 — 알림 발생 후 추가 녹화"))
+                           "1~60 / 알림 발생 후 추가 녹화 (기본값: 10)"))
         sl3.addLayout(_row("최대 보관 기간 (일)", self._rec_keep_edit,
-                           "1~365 / 기본값 30 — 기간 지난 녹화 파일 자동 삭제"))
+                           "1~365 / 기간 지난 녹화 파일 자동 삭제 (기본값: 30)"))
         vl.addWidget(box3)
 
         # dim 처리용 위젯 목록 (자동 녹화 활성화 체크박스 연동)
@@ -540,20 +540,17 @@ class SettingsDialog(QDialog):
 
         # 용량 추정 정보 바
         cap_frame = QFrame()
-        cap_frame.setStyleSheet(
-            "QFrame { background: #26272c; border: 1px solid #2a2b30; border-radius: 4px; }"
-        )
+        cap_frame.setObjectName("capacityFrame")
         cap_frame_vl = QVBoxLayout(cap_frame)
         cap_frame_vl.setContentsMargins(12, 8, 12, 8)
         cap_frame_vl.setSpacing(3)
         cap_header = QLabel("예상 용량 (참고값)")
-        cap_header.setStyleSheet("color: #7d7e84; font-size: 11px; background: transparent;")
+        cap_header.setObjectName("capacityHeader")
         cap_frame_vl.addWidget(cap_header)
         self._capacity_label = QLabel()
         self._capacity_label.setObjectName("capacityBar")
         self._capacity_label.setTextFormat(Qt.RichText)
         self._capacity_label.setWordWrap(True)
-        self._capacity_label.setStyleSheet("background: transparent;")
         cap_frame_vl.addWidget(self._capacity_label)
         vl.addWidget(cap_frame)
 
@@ -614,32 +611,37 @@ class SettingsDialog(QDialog):
         else:
             self._btn_edit_audio = btn_edit
 
-        # 단축키 안내 — --bg-2 배경 + --border 테두리 인라인 카드
+        # 단축키 안내 카드 — 스타일은 QSS의 #roiShortcutCard에서 테마별 정의
         shortcut_card = QFrame()
         shortcut_card.setObjectName("roiShortcutCard")
-        shortcut_card.setStyleSheet(
-            "QFrame#roiShortcutCard {"
-            "  background-color: #1e1f23;"
-            "  border: 1px solid #2a2b30;"
-            "  border-radius: 6px;"
-            "  padding: 0px;"
-            "}"
-        )
         sc_layout = QVBoxLayout(shortcut_card)
         sc_layout.setContentsMargins(10, 8, 10, 8)
         sc_layout.setSpacing(0)
+        _bullet = "<td style='color:#D97757; padding-right:6px;'>•</td>"
         shortcut_lbl = QLabel(
-            "<b style='color:#D97757;'>편집 중 단축키</b><br>"
-            "<table cellspacing='4' style='margin-top:4px;'>"
-            "<tr><td>↑↓←→</td><td>이동 10px</td></tr>"
-            "<tr><td>Shift+↑↓←→</td><td>이동 1px</td></tr>"
-            "<tr><td>Ctrl+↑↓←→</td><td>크기 10px</td></tr>"
-            "<tr><td>Ctrl+Shift+↑↓←→</td><td>크기 1px</td></tr>"
-            "<tr><td>Ctrl+D</td><td>선택 영역 복사</td></tr>"
-            "<tr><td>Delete</td><td>선택 영역 삭제</td></tr>"
-            "<tr><td>Ctrl+드래그(빈 곳)</td><td>범위 다중 선택</td></tr>"
-            "<tr><td>Ctrl+클릭</td><td>선택 추가/제거</td></tr>"
-            "<tr><td>Ctrl+드래그(선택 후)</td><td>복사하며 이동</td></tr>"
+            "<b style='color:#D97757;'>편집 중 단축키</b>"
+            "<table cellspacing='0' cellpadding='2' style='margin-top:6px;'>"
+            # ── 이동 ──
+            "<tr><td colspan='3' style='color:#D97757; font-weight:600;"
+            " padding-top:2px; padding-bottom:2px;'>이동</td></tr>"
+            f"<tr>{_bullet}<td>↑↓←→</td><td style='padding-left:14px;'>이동 10px</td></tr>"
+            f"<tr>{_bullet}<td>Shift+↑↓←→</td><td style='padding-left:14px;'>이동 1px</td></tr>"
+            # ── 크기 조정 ──
+            "<tr><td colspan='3' style='color:#D97757; font-weight:600;"
+            " padding-top:8px; padding-bottom:2px;'>크기 조정</td></tr>"
+            f"<tr>{_bullet}<td>Ctrl+↑↓←→</td><td style='padding-left:14px;'>크기 10px</td></tr>"
+            f"<tr>{_bullet}<td>Ctrl+Shift+↑↓←→</td><td style='padding-left:14px;'>크기 1px</td></tr>"
+            # ── 편집 ──
+            "<tr><td colspan='3' style='color:#D97757; font-weight:600;"
+            " padding-top:8px; padding-bottom:2px;'>편집</td></tr>"
+            f"<tr>{_bullet}<td>Ctrl+D</td><td style='padding-left:14px;'>선택 영역 복사</td></tr>"
+            f"<tr>{_bullet}<td>Delete</td><td style='padding-left:14px;'>선택 영역 삭제</td></tr>"
+            # ── 다중 선택 ──
+            "<tr><td colspan='3' style='color:#D97757; font-weight:600;"
+            " padding-top:8px; padding-bottom:2px;'>다중 선택</td></tr>"
+            f"<tr>{_bullet}<td>Ctrl+드래그(빈 곳)</td><td style='padding-left:14px;'>범위 다중 선택</td></tr>"
+            f"<tr>{_bullet}<td>Ctrl+클릭</td><td style='padding-left:14px;'>선택 추가/제거</td></tr>"
+            f"<tr>{_bullet}<td>Ctrl+드래그(선택 후)</td><td style='padding-left:14px;'>복사하며 이동</td></tr>"
             "</table>"
         )
         shortcut_lbl.setObjectName("roiShortcutLabel")
@@ -967,11 +969,11 @@ class SettingsDialog(QDialog):
         sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
                            "50~100% / 이 비율 이상이면 블랙 판정 (기본값: 98%)"))
         sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준", self._black_suppress,
-                           "프레임 간 변화 비율이 이 값 이상이면 블랙을 무시합니다 (화면 전환 오감지 방지)"))
+                           "0~1 / 변화 비율이 이 값 이상이면 화면 전환으로 보아 블랙 무시 (기본값: 0.2)"))
         sl1.addLayout(_row("알림 발생 기준(초)", self._black_dur,
-                           "1~300 / 블랙이 이 시간(초) 이상 지속되면 알림"))
+                           "1~300 / 블랙이 이 시간(초) 이상 지속 시 알림 (기본값: 20)"))
         sl1.addLayout(_row("알림음 지속(초)", self._black_alarm_dur,
-                           "1~300 / 알림음이 최대 이 시간 동안 재생"))
+                           "1~300 / 알림음이 최대 이 시간 동안 재생 (기본값: 60)"))
         vl.addWidget(box1)
         self._black_section_lbl = box1.findChild(QLabel, "settingsSectionLabel")
         self._black_section_widgets = (
@@ -991,13 +993,13 @@ class SettingsDialog(QDialog):
         sl2.addLayout(_row("픽셀 차이 임계값", self._still_thresh,
                            "0~255 / 프레임 차이 기준 (기본값: 4)"))
         sl2.addLayout(_row("블록 변화 비율(%)", self._still_changed,
-                           "전체 블록 중 변화된 비율이 이 값 미만이면 스틸로 판정합니다"))
+                           "1~100% / 전체 블록 중 변화 비율이 이 값 미만이면 스틸 판정 (기본값: 10%)"))
         sl2.addLayout(_row("연속 정상 프레임 수", self._still_reset,
-                           "이 수 이상 정상 프레임이 연속되어야 스틸 해제 (일시적 화면 흔들림 오감지 방지)"))
+                           "1~10 / 이 수 이상 정상 프레임 연속 시 스틸 해제 — 일시적 화면 흔들림 오감지 방지 (기본값: 3)"))
         sl2.addLayout(_row("알림 발생 기준(초)", self._still_dur,
-                           "1~300 / 정지화면이 이 시간(초) 이상 지속되면 알림"))
+                           "1~300 / 정지화면이 이 시간(초) 이상 지속 시 알림 (기본값: 120)"))
         sl2.addLayout(_row("알림음 지속(초)", self._still_alarm_dur,
-                           "1~300 / 알림음이 최대 이 시간 동안 재생"))
+                           "1~300 / 알림음이 최대 이 시간 동안 재생 (기본값: 60)"))
         vl.addWidget(box2)
         self._still_section_lbl = box2.findChild(QLabel, "settingsSectionLabel")
         self._still_section_widgets = (
@@ -1059,20 +1061,20 @@ class SettingsDialog(QDialog):
         row_h.addStretch(1)
 
         _row_s, self._hsv_s_min, self._hsv_s_max = _hsv_row(
-            "S 범위 (채도, 0~255)", self._hsv_s, "기본값 80~255")
+            "S 범위 (채도, 0~255)", self._hsv_s, "기본값: 80~255")
         _row_v, self._hsv_v_min, self._hsv_v_max = _hsv_row(
-            "V 범위 (명도, 0~255)", self._hsv_v, "기본값 60~255")
+            "V 범위 (명도, 0~255)", self._hsv_v, "기본값: 60~255")
         sl3.addLayout(row_h)
         sl3.addLayout(_row_s)
         sl3.addLayout(_row_v)
         sl3.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
-                           "감지영역 내에서 설정 색상 범위에 해당하는 픽셀 비율이 이 값 이하면 오디오 레벨 미검출로 판정"))
+                           "0~100% / 설정 색상 픽셀 비율이 이 값 이하면 오디오 레벨 미검출 판정 (기본값: 5%)"))
         sl3.addLayout(_row("알림 발생 기준(초)", self._audio_level_dur,
-                           "1~300 / 레벨 이상이 이 시간(초) 이상 지속되면 알림"))
+                           "1~300 / 레벨 이상이 이 시간(초) 이상 지속 시 알림 (기본값: 20)"))
         sl3.addLayout(_row("알림음 지속(초)", self._audio_level_alarm_dur,
-                           "1~300 / 알림음이 최대 이 시간 동안 재생"))
+                           "1~300 / 알림음이 최대 이 시간 동안 재생 (기본값: 60)"))
         sl3.addLayout(_row("복구 대기(초)", self._audio_recovery,
-                           "0~30 / 정상 복귀 후 이 시간이 지나야 알림 해제. 기본값 2"))
+                           "0~30 / 정상 복귀 후 이 시간이 지나야 알림 해제 (기본값: 2)"))
         vl.addWidget(box3)
         self._audio_section_lbl = box3.findChild(QLabel, "settingsSectionLabel")
         self._audio_section_widgets = (
@@ -1094,13 +1096,13 @@ class SettingsDialog(QDialog):
         self._emb_alarm_dur = _int_edit(det.get("embedded_alarm_duration", 60), 1, 300)
         self._emb_recovery = _float_edit(det.get("embedded_recovery_seconds", 2.0))
         sl4.addLayout(_row("무음 임계값(dB)", self._emb_thresh,
-                           "-60~0 / 이 값 이하일 때 무음 판정. 기본값 -50"))
+                           "-60~0 / 이 값 이하일 때 무음 판정 (기본값: -50)"))
         sl4.addLayout(_row("알림 발생 기준(초)", self._emb_dur,
-                           "1~300 / 무음이 이 시간(초) 이상 지속되면 알림"))
+                           "1~300 / 무음이 이 시간(초) 이상 지속 시 알림 (기본값: 20)"))
         sl4.addLayout(_row("알림음 지속(초)", self._emb_alarm_dur,
-                           "1~300 / 알림음이 최대 이 시간 동안 재생"))
+                           "1~300 / 알림음이 최대 이 시간 동안 재생 (기본값: 60)"))
         sl4.addLayout(_row("복구 대기(초)", self._emb_recovery,
-                           "0~30 / 정상 복귀 후 이 시간이 지나야 알림 해제. 기본값 2"))
+                           "0~30 / 정상 복귀 후 이 시간이 지나야 알림 해제 (기본값: 2)"))
         vl.addWidget(box4)
         self._emb_section_lbl = box4.findChild(QLabel, "settingsSectionLabel")
         self._emb_section_widgets = (
@@ -1120,7 +1122,7 @@ class SettingsDialog(QDialog):
                 self._detect_interval_combo.setCurrentIndex(i)
                 break
         sl5.addLayout(_row("감지 주기", self._detect_interval_combo,
-                           "낮을수록 빠르지만 CPU 부하 증가"))
+                           "낮을수록 빠르지만 CPU 부하 증가 (기본값: 200ms)"))
 
         self._scale_combo = QComboBox()
         for label, val in [("원본 (1.0×)", 1.0), ("0.5× 해상도", 0.5),
@@ -1132,7 +1134,7 @@ class SettingsDialog(QDialog):
                 self._scale_combo.setCurrentIndex(i)
                 break
         sl5.addLayout(_row("감지 해상도 스케일", self._scale_combo,
-                           "낮출수록 CPU 절감, 정밀도 감소"))
+                           "낮출수록 CPU 절감, 정밀도 감소 (기본값: 원본 1.0×)"))
 
         perf_btn_hl = QHBoxLayout()
         perf_btn_hl.setContentsMargins(0, 0, 0, 0)
@@ -1399,7 +1401,7 @@ class SettingsDialog(QDialog):
         time_hl.addWidget(end_next_cb)
         time_hl.addStretch()
         sl.addLayout(_row("정파 시간 구간:", time_widget,
-                          "스틸 미감지 시 시작 시각에 자동으로 정파 진입 (보조 수단)"))
+                          "스틸 미감지 시 시작 시각에 자동 정파 진입 (보조 수단)"))
         widgets.update({"start_h": start_h, "start_m": start_m,
                         "end_h": end_h, "end_m": end_m, "end_next_day": end_next_cb})
 
@@ -1502,13 +1504,13 @@ class SettingsDialog(QDialog):
         # 정파 진입 기준 시간 (ROI 스틸 유지 시간)
         still_trig = _int_edit(int(grp.get("still_trigger_sec", 60)), 5, 300)
         sl.addLayout(_row("정파 진입 기준 시간(초)", still_trig,
-                          "ROI 스틸이 이 시간 이상 지속 시 정파 진입"))
+                          "5~300 / ROI 스틸이 이 시간 이상 지속 시 정파 진입 (기본값: 120)"))
         widgets["still_trigger_sec"] = still_trig
 
         # 조기 해제 트리거 시간
         exit_trig = _int_edit(grp.get("exit_trigger_sec", 5), 1, 300)
         sl.addLayout(_row("조기 해제 기준 시간(초)", exit_trig,
-                          "화면이 바뀌면 이 시간 후 정파 종료"))
+                          "1~300 / 화면이 바뀌면 이 시간 후 정파 종료 (기본값: 5)"))
         widgets["exit_trigger_sec"] = exit_trig
 
         # 요일 선택
@@ -1745,7 +1747,7 @@ class SettingsDialog(QDialog):
 
         self._tg_cooldown_edit = _int_edit(tg.get("cooldown", 60), 1, 3600)
         sl4.addLayout(_row("재전송 대기(초)", self._tg_cooldown_edit,
-                           "동일 감지유형 연속 재전송 방지. 기본 60초"))
+                           "1~3600 / 동일 감지유형 연속 재전송 방지 (기본값: 60)"))
         vl.addWidget(self._tg_options_box)
 
         # 자동 재시작
@@ -1759,7 +1761,7 @@ class SettingsDialog(QDialog):
         self._restart_base_edit.setPlaceholderText("HH:MM")
         self._restart_base_edit.setFixedWidth(80)
         sl5.addLayout(_row("기준 시각", self._restart_base_edit,
-                           "재시작 주기의 기준이 되는 시각 (예: 03:00)"))
+                           "재시작 주기 기준 시각 (예: 03:00)"))
 
         _INTERVAL_OPTIONS = [
             ("매일 (24h)", 24),
@@ -1781,7 +1783,7 @@ class SettingsDialog(QDialog):
         self._restart_exclude_edit = QLineEdit(sys_cfg.get("scheduled_restart_exclude", ""))
         self._restart_exclude_edit.setPlaceholderText("HH:MM-HH:MM 형식, 콤마로 구분. 예: 10:00-11:30, 21:00-21:30")
         sl5.addLayout(_row("제외 시간대", self._restart_exclude_edit,
-                           "재시작하지 않을 시간대. HH:MM-HH:MM 형식, 콤마로 구분"))
+                           "재시작하지 않을 시간대 — HH:MM-HH:MM 형식, 콤마로 구분"))
 
         vl.addWidget(box5)
 
@@ -1820,13 +1822,13 @@ class SettingsDialog(QDialog):
 
         card_data = [
             ("💾", "현재 설정 저장",
-             "현재 설정을 JSON 파일로 내보냅니다.",
+             "현재 설정을 JSON 파일로 내보내기",
              "저장...", "btnOutlineOrange", self._export_config, "_export_status_lbl"),
             ("📂", "설정 파일 불러오기",
-             "저장된 JSON 파일을 불러와 적용합니다.",
+             "저장된 JSON 파일을 불러와 적용",
              "불러오기...", "btnOutlineOrange", self._import_config, "_import_status_lbl"),
             ("⚠", "기본값으로 초기화",
-             "모든 설정을 초기 기본값으로 되돌립니다.",
+             "모든 설정을 초기 기본값으로 복원",
              "공장 초기화 (되돌릴 수 없음)", "btnOutlineDanger", self._reset_all_settings,
              "_reset_status_lbl"),
         ]
@@ -1881,11 +1883,11 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.2.6")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.2.7")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
-        lbl_meta = QLabel("날짜: 2026-05-15    제작: minwoo@kbs.co.kr")
+        lbl_meta = QLabel("날짜: 2026-05-19    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
 
@@ -2392,11 +2394,12 @@ class SettingsDialog(QDialog):
         self._apply_now()
 
     def _show_save_status(self, lbl: QLabel, msg: str, ok: bool):
-        """탭 7 상태 라벨에 결과 메시지를 표시하고 4초 후 자동으로 숨긴다."""
-        color = "#b8b9bd" if ok else "#e03131"
-        lbl.setStyleSheet(
-            f"font-size: 11px; padding-left: 46px; color: {color}; background: transparent;"
-        )
+        """탭 7 상태 라벨에 결과 메시지를 표시하고 4초 후 자동으로 숨긴다.
+        색상은 QSS #saveStatusLabel[status="ok"|"error"]에서 테마별 적용."""
+        lbl.setObjectName("saveStatusLabel")
+        lbl.setProperty("status", "ok" if ok else "error")
+        lbl.style().unpolish(lbl)
+        lbl.style().polish(lbl)
         lbl.setText(msg)
         lbl.show()
         QTimer.singleShot(4000, lbl.hide)
