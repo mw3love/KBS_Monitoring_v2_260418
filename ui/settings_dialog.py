@@ -1910,7 +1910,7 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.2.7")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.2.8")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
