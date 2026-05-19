@@ -88,7 +88,7 @@ class BaseMsg:
 | `DetectionResult` | `label:str`, `roi_type:str('video'\|'audio'\|'embedded')`, `media_name:str`, `detection_type:str('black'\|'still'\|'audio_level'\|'embedded')`, `active:bool`, `duration_sec:float`, `meta:dict` | 감지 상태 변화(진입/종료) 시 각 1회 |
 | `AlarmTrigger` | `label:str`, `detection_type:str`, `roi_type:str`, `snapshot_jpeg:bytes\|None` | 감지 지속 시간 초과로 실제 알람 발화 |
 | `AlarmResolve` | `label:str`, `detection_type:str`, `duration_sec:float` | 감지 해제로 알람 종료 |
-| `LogEntry` | `level:str('info'\|'error'\|'still'\|'audio'\|'embedded')`, `source:str`, `message:str` | Detection 측 로그 (UI 로그 위젯용 통합 표시) |
+| `LogEntry` | `level:str('info'\|'black'\|'still'\|'audio'\|'embedded'\|'error')`, `source:str`, `message:str` | Detection 측 로그 (UI 로그 위젯용 통합 표시). `error`=시스템 장애(스트림/크래시/녹화/텔레그램), `black`=블랙 감지 |
 | `DiagSnapshot` | `section:str`, `payload:dict` | 30초 주기 6개 섹션 발행 |
 | `SignoffStateChange` | `group_id:int(1\|2)`, `prev_state:str`, `new_state:str('IDLE'\|'PREPARATION'\|'SIGNOFF')`, `source:str('auto-time'\|'auto-detect'\|'manual'\|'restore')` | 정파 상태 전환 |
 | `RecordingEvent` | `event:str('start'\|'end'\|'extend'\|'drop')`, `label:str`, `filepath:str\|None`, `reason:str\|None` | 녹화 시작/종료/버퍼 드롭 |
