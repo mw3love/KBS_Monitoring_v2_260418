@@ -611,42 +611,69 @@ class SettingsDialog(QDialog):
         else:
             self._btn_edit_audio = btn_edit
 
-        # 단축키 안내 카드 — 스타일은 QSS의 #roiShortcutCard에서 테마별 정의
+        # 단축키 안내 카드 — 4열 균등 분배 + 제목 가운데 (스타일은 QSS의 #roiShortcutCard)
         shortcut_card = QFrame()
         shortcut_card.setObjectName("roiShortcutCard")
         sc_layout = QVBoxLayout(shortcut_card)
         sc_layout.setContentsMargins(10, 8, 10, 8)
-        sc_layout.setSpacing(0)
-        _bullet = "<td style='color:#D97757; padding-right:6px;'>•</td>"
-        shortcut_lbl = QLabel(
-            "<b style='color:#D97757;'>편집 중 단축키</b>"
-            "<table cellspacing='0' cellpadding='2' style='margin-top:6px;'>"
-            # ── 이동 ──
-            "<tr><td colspan='3' style='color:#D97757; font-weight:600;"
-            " padding-top:2px; padding-bottom:2px;'>이동</td></tr>"
-            f"<tr>{_bullet}<td>↑↓←→</td><td style='padding-left:14px;'>이동 10px</td></tr>"
-            f"<tr>{_bullet}<td>Shift+↑↓←→</td><td style='padding-left:14px;'>이동 1px</td></tr>"
-            # ── 크기 조정 ──
-            "<tr><td colspan='3' style='color:#D97757; font-weight:600;"
-            " padding-top:8px; padding-bottom:2px;'>크기 조정</td></tr>"
-            f"<tr>{_bullet}<td>Ctrl+↑↓←→</td><td style='padding-left:14px;'>크기 10px</td></tr>"
-            f"<tr>{_bullet}<td>Ctrl+Shift+↑↓←→</td><td style='padding-left:14px;'>크기 1px</td></tr>"
-            # ── 편집 ──
-            "<tr><td colspan='3' style='color:#D97757; font-weight:600;"
-            " padding-top:8px; padding-bottom:2px;'>편집</td></tr>"
-            f"<tr>{_bullet}<td>Ctrl+D</td><td style='padding-left:14px;'>선택 영역 복사</td></tr>"
-            f"<tr>{_bullet}<td>Delete</td><td style='padding-left:14px;'>선택 영역 삭제</td></tr>"
-            # ── 다중 선택 ──
-            "<tr><td colspan='3' style='color:#D97757; font-weight:600;"
-            " padding-top:8px; padding-bottom:2px;'>다중 선택</td></tr>"
-            f"<tr>{_bullet}<td>Ctrl+드래그(빈 곳)</td><td style='padding-left:14px;'>범위 다중 선택</td></tr>"
-            f"<tr>{_bullet}<td>Ctrl+클릭</td><td style='padding-left:14px;'>선택 추가/제거</td></tr>"
-            f"<tr>{_bullet}<td>Ctrl+드래그(선택 후)</td><td style='padding-left:14px;'>복사하며 이동</td></tr>"
-            "</table>"
+        sc_layout.setSpacing(6)
+
+        title_lbl = QLabel(
+            "<span style='color:#D97757; font-size:13px;"
+            " font-weight:700;'>편집 중 단축키</span>"
         )
-        shortcut_lbl.setObjectName("roiShortcutLabel")
-        shortcut_lbl.setTextFormat(Qt.RichText)
-        sc_layout.addWidget(shortcut_lbl)
+        title_lbl.setObjectName("roiShortcutLabel")
+        title_lbl.setTextFormat(Qt.RichText)
+        title_lbl.setAlignment(Qt.AlignCenter)
+        sc_layout.addWidget(title_lbl)
+
+        def _build_col(title: str, rows: list[tuple[str, str]]) -> QLabel:
+            row_html = "".join(
+                "<tr>"
+                "<td style='color:#D97757; padding-right:4px;'>•</td>"
+                f"<td style='font-weight:700; padding-right:10px; white-space:nowrap;'>{key}</td>"
+                f"<td style='white-space:nowrap;'>{desc}</td>"
+                "</tr>"
+                for key, desc in rows
+            )
+            html = (
+                "<table cellspacing='0' cellpadding='2'>"
+                f"<tr><td colspan='3' style='color:#D97757; font-weight:700;"
+                f" padding-bottom:3px;'>{title}</td></tr>"
+                f"{row_html}"
+                "</table>"
+            )
+            lbl = QLabel(html)
+            lbl.setObjectName("roiShortcutLabel")
+            lbl.setTextFormat(Qt.RichText)
+            lbl.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            return lbl
+
+        cols_row = QHBoxLayout()
+        cols_row.setContentsMargins(0, 0, 0, 0)
+        cols_row.setSpacing(0)
+        for col_title, col_rows in [
+            ("이동", [
+                ("↑ ↓ ← →", "이동 10px"),
+                ("Shift + ↑↓←→", "이동 1px"),
+            ]),
+            ("크기 조정", [
+                ("Ctrl + ↑↓←→", "크기 10px"),
+                ("Ctrl+Shift + ↑↓←→", "크기 1px"),
+            ]),
+            ("편집", [
+                ("Ctrl + D", "선택 영역 복사"),
+                ("Delete", "선택 영역 삭제"),
+            ]),
+            ("다중 선택", [
+                ("Ctrl + 드래그(빈 곳)", "범위 다중 선택"),
+                ("Ctrl + 클릭", "선택 추가/제거"),
+                ("Ctrl + 드래그(선택 후)", "복사하며 이동"),
+            ]),
+        ]:
+            cols_row.addWidget(_build_col(col_title, col_rows), 1)
+
+        sc_layout.addLayout(cols_row)
         vl.addWidget(shortcut_card)
 
         # ROI 개수 카운터 라벨
