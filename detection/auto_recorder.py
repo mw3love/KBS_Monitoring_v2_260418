@@ -44,9 +44,9 @@ class AutoRecorder:
         self._result_queue = result_queue
         self._enabled: bool = False
         self._save_dir: str = "recordings"
-        self._pre_seconds: float = 5.0
-        self._post_seconds: float = 15.0
-        self._max_keep_days: int = 7
+        self._pre_seconds: float = 10.0
+        self._post_seconds: float = 10.0
+        self._max_keep_days: int = 30
 
         self._out_w: int = 960
         self._out_h: int = 540

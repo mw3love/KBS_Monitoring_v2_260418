@@ -491,15 +491,15 @@ class SettingsDialog(QDialog):
         dir_hl.addWidget(btn_dir_open)
         sl3.addLayout(_row("저장 폴더", dir_widget))
 
-        self._rec_pre_edit = _int_edit(rec.get("pre_seconds", 5), 1, 30)
-        self._rec_post_edit = _int_edit(rec.get("post_seconds", 15), 1, 60)
-        self._rec_keep_edit = _int_edit(rec.get("max_keep_days", 7), 1, 365)
+        self._rec_pre_edit = _int_edit(rec.get("pre_seconds", 10), 1, 30)
+        self._rec_post_edit = _int_edit(rec.get("post_seconds", 10), 1, 60)
+        self._rec_keep_edit = _int_edit(rec.get("max_keep_days", 30), 1, 365)
         sl3.addLayout(_row("시작 전 버퍼 (초)", self._rec_pre_edit,
-                           "1~30 / 기본값 5 — 알림 발생 전 구간 저장"))
+                           "1~30 / 기본값 10 — 알림 발생 전 구간 저장"))
         sl3.addLayout(_row("이후 녹화 시간 (초)", self._rec_post_edit,
-                           "1~60 / 기본값 15 — 알림 발생 후 추가 녹화"))
+                           "1~60 / 기본값 10 — 알림 발생 후 추가 녹화"))
         sl3.addLayout(_row("최대 보관 기간 (일)", self._rec_keep_edit,
-                           "1~365 / 기본값 7 — 기간 지난 녹화 파일 자동 삭제"))
+                           "1~365 / 기본값 30 — 기간 지난 녹화 파일 자동 삭제"))
         vl.addWidget(box3)
 
         # dim 처리용 위젯 목록 (자동 녹화 활성화 체크박스 연동)
@@ -1908,9 +1908,9 @@ class SettingsDialog(QDialog):
         rec = cfg.setdefault("recording", {})
         rec["enabled"] = self._rec_enabled_cb.isChecked()
         rec["save_dir"] = self._rec_dir_edit.text().strip() or "recordings"
-        rec["pre_seconds"] = int(self._rec_pre_edit.text() or 5)
-        rec["post_seconds"] = int(self._rec_post_edit.text() or 15)
-        rec["max_keep_days"] = int(self._rec_keep_edit.text() or 7)
+        rec["pre_seconds"] = int(self._rec_pre_edit.text() or 10)
+        rec["post_seconds"] = int(self._rec_post_edit.text() or 10)
+        rec["max_keep_days"] = int(self._rec_keep_edit.text() or 30)
         wv, hv = self._res_combo.currentData()
         rec["output_width"] = wv
         rec["output_height"] = hv
@@ -2227,9 +2227,9 @@ class SettingsDialog(QDialog):
         self._video_file_edit.setText(src.get("video_file", ""))
         self._rec_enabled_cb.setChecked(rec.get("enabled", True))
         self._rec_dir_edit.setText(rec.get("save_dir", "recordings"))
-        self._rec_pre_edit.setText(str(rec.get("pre_seconds", 5)))
-        self._rec_post_edit.setText(str(rec.get("post_seconds", 15)))
-        self._rec_keep_edit.setText(str(rec.get("max_keep_days", 7)))
+        self._rec_pre_edit.setText(str(rec.get("pre_seconds", 10)))
+        self._rec_post_edit.setText(str(rec.get("post_seconds", 10)))
+        self._rec_keep_edit.setText(str(rec.get("max_keep_days", 30)))
         target_w = rec.get("output_width", 960)
         for i in range(self._res_combo.count()):
             if self._res_combo.itemData(i)[0] == target_w:

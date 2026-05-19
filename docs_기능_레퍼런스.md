@@ -361,9 +361,9 @@ UI 로그 위젯에 `그룹1: PREPARATION → SIGNOFF [감지]` 형태로 표시
 |--------|------|-----|------|
 | enabled | True | - | 자동 녹화 활성화 |
 | save_dir | "recordings" | - | 저장 폴더 |
-| pre_seconds | 5 | 1~30초 | 사고 전 버퍼 (메모리 상한 고려하여 1~30) |
-| post_seconds | 15 | 1~60초 | 사고 후 녹화 |
-| max_keep_days | 7 | 1~365일 | 최대 보관 일수 |
+| pre_seconds | 10 | 1~30초 | 사고 전 버퍼 (메모리 상한 고려하여 1~30) |
+| post_seconds | 10 | 1~60초 | 사고 후 녹화 |
+| max_keep_days | 30 | 1~365일 | 최대 보관 일수 |
 | output_width | 960 | 160~1920px | 출력 가로 |
 | output_height | 540 | 90~1080px | 출력 세로 |
 | output_fps | 10 | 1~30fps | 출력 FPS |
@@ -538,9 +538,9 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 |------|------|-----|-----|
 | enabled | True | - | - |
 | save_dir | "recordings" | - | 경로 |
-| pre_seconds | 5 | 1~30 | 초 |
-| post_seconds | 15 | 1~60 | 초 |
-| max_keep_days | 7 | 1~365 | 일 |
+| pre_seconds | 10 | 1~30 | 초 |
+| post_seconds | 10 | 1~60 | 초 |
+| max_keep_days | 30 | 1~365 | 일 |
 | output_width | 960 | 160~1920 | px |
 | output_height | 540 | 90~1080 | px |
 | output_fps | 10 | 1~30 | fps |

@@ -61,9 +61,9 @@
   "recording": {
     "enabled": true,
     "save_dir": "recordings",
-    "pre_seconds": 5,
-    "post_seconds": 15,
-    "max_keep_days": 7,
+    "pre_seconds": 10,
+    "post_seconds": 10,
+    "max_keep_days": 30,
     "output_width": 960,
     "output_height": 540,
     "output_fps": 10

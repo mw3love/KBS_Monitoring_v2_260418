@@ -70,9 +70,9 @@ DEFAULT_CONFIG = {
     "recording": {
         "enabled": True,
         "save_dir": "recordings",
-        "pre_seconds": 5,               # 1~30
-        "post_seconds": 15,             # 1~60
-        "max_keep_days": 7,
+        "pre_seconds": 10,              # 1~30
+        "post_seconds": 10,             # 1~60
+        "max_keep_days": 30,
         "output_width": 960,
         "output_height": 540,
         "output_fps": 10,

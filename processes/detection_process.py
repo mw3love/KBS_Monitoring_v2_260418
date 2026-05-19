@@ -129,9 +129,9 @@ def _apply_config_to_recorder(recorder, cfg: dict):
     recorder.configure(
         enabled       = rec.get("enabled", True),
         save_dir      = rec.get("save_dir", "recordings"),
-        pre_seconds   = rec.get("pre_seconds", 5),
-        post_seconds  = rec.get("post_seconds", 15),
-        max_keep_days = rec.get("max_keep_days", 7),
+        pre_seconds   = rec.get("pre_seconds", 10),
+        post_seconds  = rec.get("post_seconds", 10),
+        max_keep_days = rec.get("max_keep_days", 30),
         output_width  = rec.get("output_width", 960),
         output_height = rec.get("output_height", 540),
         output_fps    = rec.get("output_fps", 10),
