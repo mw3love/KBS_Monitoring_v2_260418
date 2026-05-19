@@ -99,13 +99,16 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 **헤더**: "SYSTEM LOG" 제목 + "Log 폴더 열기" + "Log 초기화" (화면만, 파일 보존)
 
 **로그 항목 색상:**
-| log_type | 배경색 |
-|----------|-------|
-| error (블랙) | 빨간 #cc0000 |
-| still (스틸) | 보라 #7B2FBE |
-| audio (오디오레벨미터) | 초록 #006600 |
-| embedded (임베디드) | 파란 #004488 |
-| info (일반) | QSS 테마색 |
+| log_type | 배지 | 배경색 | 필터 그룹 |
+|----------|------|--------|----------|
+| black | BLACK | 빨강 #cc0000 | VIDEO |
+| still | STILL | 보라 #7B2FBE | VIDEO |
+| audio | AUDIO | 초록 #1f7a1f | AUDIO |
+| embedded | EMBED | 파랑 #1e5a9e | AUDIO |
+| error (시스템 장애) | ERROR | 주황 #e8730a | ERROR |
+| info | INFO | QSS 테마색 | INFO |
+
+**필터 버튼**: `ALL | VIDEO | AUDIO | ERROR | INFO` — 매체 단위로 그룹화하여 운영 시점에 매체별로 빠르게 좁혀볼 수 있다. `ERROR`는 스트림 장애·Detection 크래시·녹화 실패·텔레그램 실패 등 시스템 장애성 에러 통합.
 
 날짜 변경 시 구분선 자동 삽입 / 최대 500개 (초과 시 오래된 항목 삭제)
 
