@@ -109,7 +109,7 @@ python main.py
 
 ```
 kbs_monitoring_v2/
-├── main.py                       # Launcher (faulthandler 포함)
+├── main.py                       # Launcher (faulthandler + sys.excepthook 포함)
 ├── processes/
 │   ├── detection_process.py      # Detection 프로세스 진입점
 │   └── watchdog_process.py       # Watchdog 프로세스

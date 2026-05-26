@@ -1,6 +1,6 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
-> 마지막 업데이트: 2026-05-15 (설정 저장/불러오기 정합성 + 임베디드 음소거 영속화)
+> 마지막 업데이트: 2026-05-26 (unhandled exception 을 ui 로그에 기록 + 재현불가 TypeError 인시던트 문서화)
 > 현재 단계: Phase 5 진행 중 (코딩 완료 / 실기 테스트 대기 중)
 
 ---
@@ -69,7 +69,7 @@
 - [x] `ui/log_widget.py`: v1 이식
 - [x] `ui/top_bar.py`: v1 이식 + 볼륨 debounce 100ms + L/R 레벨미터 SharedMemory 폴링
 - [x] `ui/main_window.py`: 뼈대 (UIBridge+SharedFramePoller, 3분할, 재주입, 테마)
-- [x] `main.py`: Launcher + faulthandler + SharedMemory 잔존 정리 + Watchdog spawn
+- [x] `main.py`: Launcher + faulthandler + sys.excepthook(unhandled exception → ui 로그) + SharedMemory 잔존 정리 + Watchdog spawn
 - [x] `processes/watchdog_process.py`: heartbeat 감시 + Detection 재spawn + UI 생존 확인
 - [x] cmd_queue 볼륨 슬라이더 debounce(100ms) 적용
 
