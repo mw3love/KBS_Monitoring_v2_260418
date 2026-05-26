@@ -128,7 +128,7 @@ class BaseMsg:
 
 ### 3.1 기동 시퀀스
 
-1. `main.py` 진입 → `multiprocessing.freeze_support()` → `faulthandler.enable(logs/fault.log)` → `sys.excepthook` 후킹(unhandled exception traceback 을 `logs/YYYYMMDD_ui.txt` 에 기록)
+1. `main.py` 진입 → `multiprocessing.freeze_support()` → `os.chdir(_ROOT)` (cwd 를 프로젝트 루트로 고정 — PC별 실행 방식 차이로 발생하는 상대경로 PermissionError 방지) → `faulthandler.enable(logs/fault.log)` → `sys.excepthook` 후킹(unhandled exception traceback 을 `logs/YYYYMMDD_ui.txt` 에 기록)
 2. 기존 SharedMemory 이름 잔존 확인: 각 이름으로 `create=False` 시도 → 성공 시 `unlink()`.
 3. SharedMemory `kbs_frame_v2`·`kbs_state_v2` create. state는 magic/version 초기화, 나머지 0.
 4. `result_queue(maxsize=200)`, `cmd_queue(maxsize=50)`, `shutdown_event`, `cmd_event` 생성.

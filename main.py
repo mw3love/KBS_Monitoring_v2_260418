@@ -17,6 +17,9 @@ import traceback
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
+# cwd 를 프로젝트 루트로 고정 — PC별 실행 방식(관리자 셸/단축키 시작위치 미지정 등)으로
+# cwd 가 System32 같은 곳으로 잡혀 logs/·config/ 상대 경로 쓰기가 PermissionError 나는 것을 방지.
+os.chdir(_ROOT)
 
 
 # ── 텔레그램 직접 발송 (main 전용) ────────────────────────────────
