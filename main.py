@@ -11,6 +11,7 @@ import multiprocessing
 import os
 import sys
 import time
+import traceback
 
 # ── 경로 보장 ──────────────────────────────────────────────────────
 _ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -65,6 +66,27 @@ def main():
     os.makedirs(os.path.join(_ROOT, "logs"), exist_ok=True)
     fault_log = open(os.path.join(_ROOT, "logs", "fault.log"), "a", encoding="utf-8")
     faulthandler.enable(file=fault_log)
+
+    # ── sys.excepthook 후킹: unhandled exception을 ui 로그에 기록 ──
+    # 사유: fix/260526_설정다이얼로그_TypeError_재현불가.md 참조.
+    # PySide6 슬롯 등에서 던져진 예외가 stderr로만 나가고 콘솔 닫히면 사라지는
+    # 문제를 막기 위해 traceback을 ui 로그 파일에도 함께 남긴다.
+    _orig_excepthook = sys.excepthook
+
+    def _logging_excepthook(exc_type, exc_value, exc_tb):
+        try:
+            today = datetime.datetime.now().strftime("%Y%m%d")
+            log_path = os.path.join(_ROOT, "logs", f"{today}_ui.txt")
+            ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(f"{ts} [ERROR] UNHANDLED EXCEPTION (sys.excepthook)\n")
+                traceback.print_exception(exc_type, exc_value, exc_tb, file=f)
+                f.write("\n")
+        except Exception:
+            pass
+        _orig_excepthook(exc_type, exc_value, exc_tb)
+
+    sys.excepthook = _logging_excepthook
 
     from ipc.shared_frame import SharedFrameBuffer, SHM_NAME as FRAME_SHM
     from ipc.shared_state import SharedStateBuffer, SHM_NAME as STATE_SHM
