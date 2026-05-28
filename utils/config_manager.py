@@ -135,6 +135,9 @@ class ConfigManager:
         os.makedirs(self.CONFIG_DIR, exist_ok=True)
         self._default_path = os.path.join(self.CONFIG_DIR, self.DEFAULT_FILE)
         self._config_path = os.path.join(self.CONFIG_DIR, self.CONFIG_FILE)
+        # 마지막 load 호출이 파일 손상 등으로 DEFAULT 폴백을 거쳤는지 표시.
+        # 호출자가 UI/로그에 별도 안내를 띄울 때 사용.
+        self.last_load_was_reset = False
 
         if not os.path.exists(self._default_path):
             self._write_json(self._default_path, DEFAULT_CONFIG)
@@ -146,9 +149,18 @@ class ConfigManager:
         if os.path.exists(path):
             try:
                 data = self._read_json(path)
+                self.last_load_was_reset = False
                 return self._merge_defaults(data)
             except Exception as e:
-                print(f"[ConfigManager] 설정 로드 실패 ({path}): {e}", file=sys.stderr)
+                # 파일이 있는데 파싱 실패 → 설정 손상. 기본값 폴백을 명확히 알린다.
+                msg = (
+                    f"[ConfigManager] 설정 파일 손상 — 기본값으로 초기화됨\n"
+                    f"  경로: {path}\n"
+                    f"  사유: {e}\n"
+                    f"  조치: 설정 다이얼로그에서 다시 저장하거나 백업 파일을 복원하세요."
+                )
+                print(msg, file=sys.stderr, flush=True)
+                self.last_load_was_reset = True
 
         return dict(DEFAULT_CONFIG)
 
@@ -177,7 +189,13 @@ class ConfigManager:
         try:
             data = self._read_json(abs_path)
             return self._merge_defaults(data)
-        except Exception:
+        except Exception as e:
+            print(
+                f"[ConfigManager] 설정 불러오기 실패 — 기본값 사용\n"
+                f"  경로: {abs_path}\n  사유: {e}",
+                file=sys.stderr, flush=True,
+            )
+            self.last_load_was_reset = True
             return dict(DEFAULT_CONFIG)
 
     def _merge_defaults(self, data: dict) -> dict:

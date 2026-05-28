@@ -4,6 +4,7 @@ KBS Monitoring v2 — Launcher (= UI 프로세스)
 faulthandler 활성화, SharedMemory 잔존 정리, last_exit.json 기록.
 예약 재시작: 날짜+시각(YYYY-MM-DD HH:MM) 조합으로 중복 방지 (Launcher 단독 관리).
 """
+import ctypes
 import datetime
 import faulthandler
 import json
@@ -13,6 +14,37 @@ import sys
 import time
 import traceback
 
+
+# ── 필수 의존성 사전 점검 (PySide6/OpenCV 없으면 친절한 안내 후 종료) ──────
+# install.ps1을 건너뛰고 main.py를 바로 실행한 경우, 운용자가 알아볼 수 있는
+# 한국어 메시지로 안내한다. (Python 기본 ImportError 추적은 비기술자에게 불친절.)
+def _check_critical_deps():
+    missing = []
+    try:
+        import PySide6  # noqa: F401
+    except ImportError:
+        missing.append("PySide6")
+    try:
+        import cv2  # noqa: F401
+    except ImportError:
+        missing.append("opencv-python")
+    if missing:
+        msg = (
+            f"필수 패키지가 설치되어 있지 않습니다: {', '.join(missing)}\n\n"
+            f"install.bat 또는 install.ps1을 실행하여 의존성을 설치하세요.\n"
+            f"(상세 절차는 '★ KBS Monitoring v2 설치 안내.txt' 참조)"
+        )
+        try:
+            ctypes.windll.user32.MessageBoxW(
+                0, msg, "KBS On-Air Monitoring v2", 0x10,  # MB_ICONERROR
+            )
+        except Exception:
+            print(msg, file=sys.stderr, flush=True)
+        sys.exit(1)
+
+
+_check_critical_deps()
+
 # ── 경로 보장 ──────────────────────────────────────────────────────
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 if _ROOT not in sys.path:
@@ -20,6 +52,48 @@ if _ROOT not in sys.path:
 # cwd 를 프로젝트 루트로 고정 — PC별 실행 방식(관리자 셸/단축키 시작위치 미지정 등)으로
 # cwd 가 System32 같은 곳으로 잡혀 logs/·config/ 상대 경로 쓰기가 PermissionError 나는 것을 방지.
 os.chdir(_ROOT)
+
+
+# ── 단일 인스턴스 가드 ────────────────────────────────────────────
+# 뮤텍스 핸들은 프로세스 수명 동안 유지 (OS가 종료/크래시 시 자동 해제 — stale 없음).
+_single_instance_handle: object = None
+
+
+def _check_single_instance() -> bool:
+    """
+    Windows 네이티브 뮤텍스로 단일 인스턴스 보장.
+    True 반환: 이 프로세스가 첫 실행 — 진행 가능.
+    False 반환: 이미 실행 중 — 호출자는 즉시 return (안내 메시지는 이 함수가 표시).
+    ctypes/Windows API 실패 시 True 반환 (가드 실패가 기동을 막지 않음).
+    Local\\ 네임스페이스 사용 — 일반 사용자 권한에서 동작.
+    """
+    global _single_instance_handle
+    try:
+        from ctypes import wintypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateMutexW.argtypes = [
+            ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR,
+        ]
+        kernel32.CreateMutexW.restype = wintypes.HANDLE
+        _single_instance_handle = kernel32.CreateMutexW(
+            None, False, r"Local\KBS_Monitoring_v2",
+        )
+        if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
+            try:
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    "KBS On-Air Monitoring v2 가 이미 실행 중입니다.\n\n"
+                    "기존 창을 확인해 주세요.",
+                    "KBS On-Air Monitoring v2",
+                    0x00 | 0x40,  # MB_OK | MB_ICONINFORMATION
+                )
+            except Exception:
+                print("[main] 이미 실행 중 — 기존 인스턴스 보호를 위해 종료합니다.",
+                      flush=True)
+            return False
+        return True
+    except Exception:
+        return True
 
 
 # ── 텔레그램 직접 발송 (main 전용) ────────────────────────────────
@@ -65,6 +139,12 @@ def _send_system_telegram_main(message: str):
 
 
 def main():
+    # ── 단일 인스턴스 가드 (Windows 네이티브 뮤텍스) ─────────────────
+    # 이중 실행 시 아래 SHM 잔존정리(unlink)가 돌아가던 인스턴스를 파괴하는 것을 방지.
+    # 가드 통과 후의 잔존정리는 "이전 비정상 종료의 잔재"만 안전하게 정리하게 됨.
+    if not _check_single_instance():
+        return 0
+
     # ── faulthandler 활성화 (C++ segfault 감지) ───────────────────
     os.makedirs(os.path.join(_ROOT, "logs"), exist_ok=True)
     fault_log = open(os.path.join(_ROOT, "logs", "fault.log"), "a", encoding="utf-8")

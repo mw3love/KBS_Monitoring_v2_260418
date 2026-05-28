@@ -31,6 +31,8 @@ class VideoCaptureWorker(threading.Thread):
         self._running = False
         self._lock = threading.Lock()
         self._target_fps = 30
+        # 루프 응답성 감시용 timestamp (Detection 메인 루프가 stale 감지 시 heartbeat 중단 → 재spawn)
+        self._last_loop_monotonic = time.monotonic()
         # 외부에서 구독할 수 있는 콜백 (frame 수신 시 호출, optional)
         self.on_frame = None      # callable(np.ndarray) — AutoRecorder.push_frame 등
 
@@ -47,6 +49,10 @@ class VideoCaptureWorker(threading.Thread):
 
     def stop(self):
         self._running = False
+
+    def loop_age_sec(self) -> float:
+        """캡처 while 루프 마지막 반복 이후 경과 초. cap.read() hang 감지에 사용."""
+        return time.monotonic() - self._last_loop_monotonic
 
     def _emit(self, msg):
         if self._result_queue is None:
@@ -71,6 +77,7 @@ class VideoCaptureWorker(threading.Thread):
         source_name = ""
 
         while self._running:
+            self._last_loop_monotonic = time.monotonic()
             try:
                 with self._lock:
                     current_port = self._port

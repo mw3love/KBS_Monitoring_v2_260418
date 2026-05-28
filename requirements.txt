@@ -1,8 +1,11 @@
-PySide6
-opencv-python
-numpy
-sounddevice
-psutil
-gputil
-pycaw
-requests
+# KBS Monitoring v2 의존성 (fire-and-forget 배포 안정성을 위해 버전 고정)
+# Python 3.11 이상 권장 (전주총국 운영 환경: 3.14.2)
+
+PySide6==6.10.2
+opencv-python==4.13.0.92
+numpy==2.4.2
+sounddevice==0.5.1
+psutil==7.2.2
+GPUtil==1.4.0
+pycaw==20240210
+requests==2.32.5

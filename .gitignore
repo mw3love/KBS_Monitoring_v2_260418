@@ -31,12 +31,13 @@ data/
 fix/
 clip_*.png
 
-# 로컬 전용 파일
+# 로컬 전용 파일 (개발 환경 전용 — 배포에 포함 안 됨)
 error_log.txt
 images/
-manual/
 presentation/
-*.bat
+
+# 사용자 매뉴얼(manual/)과 설치/실행 .bat 들은 배포에 포함 — gitignore 안 함.
+# 만약 개발용 .bat 가 생기면 파일별로 명시적으로 추가하세요.
 
 # 기타
 *.log

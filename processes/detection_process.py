@@ -42,12 +42,33 @@ class HeartbeatWriter(threading.Thread):
 
     def run(self):
         os.makedirs(os.path.dirname(self.HEARTBEAT_PATH), exist_ok=True)
+        _consecutive_failures = 0
         while self._running:
             try:
                 with open(self.HEARTBEAT_PATH, "wb") as f:
                     f.write(struct.pack("<d", time.time()))
-            except Exception:
-                pass
+                if _consecutive_failures > 0:
+                    try:
+                        print(
+                            f"[HeartbeatWriter] 쓰기 복구 "
+                            f"({_consecutive_failures}회 연속 실패 후)",
+                            flush=True,
+                        )
+                    except Exception:
+                        pass
+                    _consecutive_failures = 0
+            except Exception as e:
+                _consecutive_failures += 1
+                # 1·3·10회 + 이후 30회마다 보고 (5초 주기 → 30회 ≈ 2분 30초)
+                if _consecutive_failures in (1, 3, 10) or _consecutive_failures % 30 == 0:
+                    try:
+                        print(
+                            f"[HeartbeatWriter] 쓰기 실패 "
+                            f"({_consecutive_failures}회 연속): {e}",
+                            flush=True,
+                        )
+                    except Exception:
+                        pass
             time.sleep(5.0)
 
 
@@ -411,6 +432,9 @@ def run(result_queue, cmd_queue, shutdown_event,
     _diag_interval = 30.0
     _loop_count = 0
     _drop_count_snap = 0
+    # 캡처 워커 응답성 감시: cap.read() hang 시 heartbeat 중단 → Watchdog 재spawn 유도
+    _CAPTURE_FREEZE_SEC = 15.0
+    _capture_freeze_triggered = False
     # loop jitter 누적 (sleep 후 실제 경과 - 목표 interval 의 절댓값 평균)
     _jitter_sum_ms = 0.0
     _jitter_samples = 0
@@ -419,6 +443,23 @@ def run(result_queue, cmd_queue, shutdown_event,
     _running = True
     while _running:
         t = time.monotonic()
+
+        # ── 캡처 워커 응답성 감시 (독립 try-except) ─────────────────────
+        try:
+            if not _capture_freeze_triggered:
+                _age = video_worker.loop_age_sec()
+                if _age > _CAPTURE_FREEZE_SEC:
+                    log_error(
+                        f"영상 캡처 스레드 응답 없음 {_age:.1f}초 → "
+                        f"heartbeat 중단 (Watchdog 재spawn 유도)"
+                    )
+                    heartbeat.stop()
+                    _capture_freeze_triggered = True
+        except Exception:
+            try:
+                log_error(f"캡처 감시 오류: {traceback.format_exc()}")
+            except Exception:
+                pass
 
         # ── DIAG (독립 try-except) ─────────────────────────────────────────
         try:

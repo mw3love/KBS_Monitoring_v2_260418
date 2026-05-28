@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
-> 마지막 업데이트: 2026-05-26 (sys.excepthook 도입 + cwd 를 프로젝트 루트로 고정해 PC별 PermissionError 해소)
-> 현재 단계: Phase 5 진행 중 (코딩 완료 / 실기 테스트 대기 중)
+> 마지막 업데이트: 2026-05-28 (Phase 6 배포 하드닝 — P0 자가복원력 + P1 안전부분 완료)
+> 현재 단계: Phase 6 진행 중 (W0·W1·W2·W3·W4·W5·W7·W8·W8b·W8d·W12 완료 / W6·W8c는 승인 대기, W9·W10·W11·W13·W14·W15 + 전주 운영테스트 남음)
 
 ---
 
@@ -122,3 +122,42 @@
 - [x] **임베디드 오디오 음소거 영속화**: `ui_state.embed_muted` 신규 키 추가(3개 config 파일 동기), 상단바 임베디드 뮤트 토글 시 cfg 즉시 동기화, `_restore_ui_state`에서 `set_embed_mute_state()`로 버튼 시각 복원, Detection 측 mute는 기존 `_reinject_runtime_state` 경로(DetectionReady → SetMute)로 자동 전파
 
 **완료 기준**: 24시간 무중단. 메모리 RSS 증가 < 5%. DIAG 전 섹션 정상. Chaos 테스트 재spawn 복원률 100%.
+
+---
+
+## Phase 6 — fire-and-forget 배포 하드닝
+> 계획: `C:\Users\7make\.claude\plans\wobbly-herding-whale.md`
+> 목표: 10여 개 총국으로 GitHub+자체Python 방식 배포 가능 수준. 한 번 배포 후 개발자 개입 불가 전제.
+
+### P0 — 무인 자가복원력
+- [x] **W0** 단일 인스턴스 가드 (Windows Local 뮤텍스 + 한국어 MessageBox) — `main.py`
+- [x] **W1** 프레임 신선도 자가복원 (15s stale → `heartbeat.stop()` → Watchdog 재spawn) — `detection/video_capture.py`, `processes/detection_process.py`
+- [x] **W2** 워커 자동재개 (audio_monitor 외부 init 실패 시 silent failure 갭 해소) — `detection/audio_monitor.py`
+- [x] **W3** heartbeat 견고화 (쓰기 실패 로그화 + UI 크래시 감시 30s→10s) — `processes/detection_process.py`, `processes/watchdog_process.py`
+- [x] **W4** Chaos 테스트 100% PASS (3라운드 × 3회 실행 — W0/W1/W2/W3/W7/W8 적용 후 회귀 없음 확인)
+
+### P1 — 환경 이식성
+- [x] **W5** requirements.txt 8개 패키지 == 버전 핀 + Python 3.11+ 명시
+- [ ] **W6** 캡처 포트 스캔·미리보기 도우미 ★(설계 승인 대기)
+- [x] **W7** config 손상 가시화 (`last_load_was_reset` 플래그 + 친화 메시지) — `utils/config_manager.py`
+- [x] **W8** cv2/PySide6 부재 친화 메시지 (사전 점검 + MessageBox) — `main.py`
+- [x] **W8b** 배포 산출물 정리 (.gitignore 정정, `실행.bat`·`디버그실행.bat` 이식 버전 재작성, `manual/`·`install_ffmpeg.bat` 포함)
+- [ ] **W8c** 재부팅 후 자동 시작 ★(방식 승인 대기)
+- [x] **W8d** 최초 실행 부트스트랩 검증 (코드 검증: `kbs_config.json` 없을 시 DEFAULT 폴백 정상)
+
+### P2 — 비기술 운용성
+- [ ] **W9** 설정 입력 검증 강화 (감사 후 확정 — ROI 0개·정파 시간 형식·HSV 범위 등)
+- [ ] **W10** 에러 메시지 친화화 (감사 후 확정 — traceback 노출 부분 한국어 안내+조치로 wrap)
+- [ ] **W11** 정파 상태 가시성 + 수동해제 UI
+- [x] **W12** 설치안내.txt 보강 (`실행.bat`, 이중실행 보호, 폐쇄망, 캡처 포트, 패키지 오류 Q5~Q7)
+
+### P3 — 코어 감지 정확도
+- [ ] **W13** detector 엣지케이스 감사·수정 (해상도 변화·블록 경계 반올림·부분 블랙 오탐·임베디드 진동)
+- [ ] **W14** 알람 상태머신 감사 (다중 ROI 동시 alert 시 일부 resolve로 깜빡임 조기 OFF 등)
+- [ ] **W15** 회귀(`pytest tests/test_regression.py`)/24h(`tests/test_24h_monitor.py`) 테스트 실행 + 발견 케이스 추가
+
+### 최종 검증 — 전주총국 운영 테스트
+- [ ] 위 모든 항목 완료 후, 해당 버전을 전주총국에 가져가 며칠간 실제 방송 영상으로 운영 테스트
+- [ ] 통과 시 다른 총국 배포 시작
+
+**완료 기준**: P0~P3 모두 완료 + Chaos 100% + 24h RSS<5% + 전주 운영 테스트 통과.

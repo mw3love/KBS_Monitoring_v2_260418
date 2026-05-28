@@ -38,7 +38,8 @@ _HEARTBEAT_PATH   = os.path.join(_ROOT, "data", "heartbeat.dat")
 _CONFIG_PATH      = os.path.join(_ROOT, "config", "kbs_config.json")
 _DEFAULT_CFG_PATH = os.path.join(_ROOT, "config", "default_config.json")
 _HB_STALE_SEC     = 10.0
-_PARENT_CHECK_SEC = 30.0
+# UI(main) 크래시 시 Detection 고아 시간 단축 위해 30 → 10초 (psutil.pid_exists 부하 미미)
+_PARENT_CHECK_SEC = 10.0
 _SPAWN_COOLDOWN   = 5.0
 
 
