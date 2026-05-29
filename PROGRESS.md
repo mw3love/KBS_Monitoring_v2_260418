@@ -146,7 +146,7 @@
 - [x] **W8d** 최초 실행 부트스트랩 검증 (코드 검증: `kbs_config.json` 없을 시 DEFAULT 폴백 정상)
 
 ### P2 — 비기술 운용성
-- [x] **W9** 설정 입력 검증 강화 (감사 완료. 정파 시간=`QIntValidator`+zfill, HSV=`DualSlider.set_range` 클램프+스왑으로 이미 견고 → 후보 기각. 실질 갭은 ROI 0개 → 영상 ROI 0개 시 `detection_process` 초기 로드·`UpdateROIs`에서 ERROR 로그 1회 추가)
+- [x] **W9** 설정 입력 검증 강화 (감사 완료. 정파 시간=`QIntValidator`+zfill, HSV=`DualSlider.set_range` 클램프+스왑으로 이미 견고 → 후보 기각. 실질 갭은 ROI 0개 → 영상 ROI 0개 시 `detection_process` 초기 로드·`UpdateROIs`에서 INFO 로그 1회 안내 — 키자마자 빨간 ERROR가 시선을 끌어 INFO로 톤 다운)
 - [x] **W10** 에러 메시지 친화화 (감사 완료. traceback 노출은 전부 로그/result_queue 행이고 사용자 MessageBox raw 노출 없음. config 손상=W7·패키지 부재=W8에서 이미 친화화 → 추가 수정 불필요)
 - [x] **W11** 정파 상태 가시성 + 수동해제 UI (시간대 인지 수동순환 `CycleSignoffState` 신규 — Detection `cycle_state()` 단일출처로 튕김 제거 / `auto_preparation` OFF=완전 수동 모드: `_tick_impl` PREP·SIGNOFF 분기 + `set_group` 즉시재평가에 가드 추가 → 수동 상태 유지·자동전환 0건 / 상단바 버튼 auto OFF여도 항상 활성+"· 수동" 표기+클릭 안내 툴팁 / `docs_signoff_운영.md §5` 신설)
 - [x] **W12** 설치안내.txt 보강 (`실행.bat`, 이중실행 보호, 폐쇄망, 캡처 포트, 패키지 오류 Q5~Q7)

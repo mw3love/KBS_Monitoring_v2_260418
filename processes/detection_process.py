@@ -333,8 +333,8 @@ def run(result_queue, cmd_queue, shutdown_event,
     video_rois = roi_mgr.video_rois
     audio_rois = roi_mgr.audio_rois
     if not video_rois:
-        log_error("영상 감지영역(ROI) 0개 — 블랙/스틸 영상 감지가 동작하지 않습니다. "
-                  "설정에서 영상 감지영역을 추가하세요.")
+        log_info("영상 감지영역(ROI) 0개 — 블랙/스틸 영상 감지가 동작하지 않습니다. "
+                 "설정에서 영상 감지영역을 추가하세요.")
 
     # SignoffManager 설정
     signoff_mgr.configure_from_dict(cfg.get("signoff", {}))
@@ -668,7 +668,7 @@ def _process_commands(
                                             roi_mgr.video_rois + roi_mgr.audio_rois)
                 if not roi_mgr.video_rois:
                     _put(result_queue,
-                         LogEntry(level="error", source="detection",
+                         LogEntry(level="info", source="detection",
                                   message="영상 감지영역(ROI) 0개 — 블랙/스틸 영상 감지가 "
                                           "동작하지 않습니다. 설정에서 영상 감지영역을 추가하세요."),
                          ipc_counters)
