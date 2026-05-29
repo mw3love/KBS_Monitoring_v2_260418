@@ -580,6 +580,12 @@ class LogWidget(QWidget):
     def _insert_item(self, data: LogItemData):
         item = QListWidgetItem()
         item.setData(Qt.UserRole, data)
+        if not data.is_separator:
+            # 메시지가 잘려도 호버 시 전문 확인 가능하도록 툴팁 부착
+            tip = data.message
+            if data.source:
+                tip = f"[{data.source}] {tip}"
+            item.setToolTip(tip)
         h = LogRowDelegate.SEP_H if data.is_separator else LogRowDelegate.ROW_H
         item.setSizeHint(QSize(0, h))
         self._list.addItem(item)
