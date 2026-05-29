@@ -26,6 +26,8 @@ data/
 
 # 개발 도구
 .claude/
+.agents/
+AGENTS.md
 
 # 임시 파일
 fix/
