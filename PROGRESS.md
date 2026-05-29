@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
 > 마지막 업데이트: 2026-05-28 (Phase 6 배포 하드닝 — P0 자가복원력 + P1 안전부분 완료)
-> 현재 단계: Phase 6 진행 중 (W0·W1·W2·W3·W4·W5·W7·W8·W8b·W8d·W12 완료 / W6·W8c는 승인 대기, W9·W10·W11·W13·W14·W15 + 전주 운영테스트 남음)
+> 현재 단계: Phase 6 진행 중 (W0·W1·W2·W3·W4·W5·W6·W7·W8·W8b·W8c·W8d·W12 완료 / W9·W10·W11·W13·W14·W15 + 전주 운영테스트 남음)
 
 ---
 
@@ -138,11 +138,11 @@
 
 ### P1 — 환경 이식성
 - [x] **W5** requirements.txt 8개 패키지 == 버전 핀 + Python 3.11+ 명시
-- [ ] **W6** 캡처 포트 스캔·미리보기 도우미 ★(설계 승인 대기)
+- [x] **W6** 캡처 포트 스캔·미리보기 도우미 (옵션1 '현재 포트 제외 스캔' — `ui/settings_dialog.py` 영상탭 `포트 스캔` 버튼 + `PortScanDialog`/`_PortScanWorker`. DSHOW 디바이스 독점 충돌 회피: 현재 점유 포트는 스캔 제외)
 - [x] **W7** config 손상 가시화 (`last_load_was_reset` 플래그 + 친화 메시지) — `utils/config_manager.py`
 - [x] **W8** cv2/PySide6 부재 친화 메시지 (사전 점검 + MessageBox) — `main.py`
 - [x] **W8b** 배포 산출물 정리 (.gitignore 정정, `실행.bat`·`디버그실행.bat` 이식 버전 재작성, `manual/`·`install_ffmpeg.bat` 포함)
-- [ ] **W8c** 재부팅 후 자동 시작 ★(방식 승인 대기)
+- [x] **W8c** 재부팅 후 자동 시작 (옵션a '시작프로그램 바로가기' — `자동시작 등록.bat`/`자동시작 해제.bat`로 `shell:startup`에 `실행.bat` 바로가기 생성/제거 + 설치안내 §6)
 - [x] **W8d** 최초 실행 부트스트랩 검증 (코드 검증: `kbs_config.json` 없을 시 DEFAULT 폴백 정상)
 
 ### P2 — 비기술 운용성

@@ -14,9 +14,10 @@ from PySide6.QtWidgets import (
     QComboBox, QScrollArea, QFrame, QFileDialog,
     QMessageBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QStackedWidget,
+    QGridLayout,
 )
 from PySide6.QtCore import Qt, Signal, QThread, QTimer
-from PySide6.QtGui import QIntValidator, QDoubleValidator
+from PySide6.QtGui import QIntValidator, QDoubleValidator, QImage, QPixmap
 
 from core.roi_manager import ROI, ROIManager
 from ui.dual_slider import DualSlider
@@ -54,6 +55,53 @@ class _TelegramTestWorker(QThread):
                 self.result_ready.emit(False, f"전송 실패: {resp.status_code}\n{resp.text[:200]}")
         except Exception as e:
             self.result_ready.emit(False, f"연결 오류:\n{e}")
+
+
+class _PortScanWorker(QThread):
+    """캡처 포트들을 순차로 열어 미리보기 프레임을 캡처한다(UI freeze 방지).
+
+    주의: 현재 Detection이 점유 중인 포트는 호출자가 scan_ports에서 제외해야 한다
+    (DSHOW 디바이스 독점 오픈 충돌 회피 — 옵션 1 '현재 포트 제외 스캔').
+    """
+    result_ready = Signal(int, object)  # (port, frame ndarray | None)
+
+    def __init__(self, scan_ports):
+        super().__init__()
+        self._scan_ports = list(scan_ports)
+
+    def run(self):
+        import cv2
+        for p in self._scan_ports:
+            frame = None
+            cap = None
+            try:
+                cap = cv2.VideoCapture(p, cv2.CAP_DSHOW)
+                if cap.isOpened():
+                    # 워밍업: 첫 프레임은 비어 있을 수 있어 몇 번 읽어 유효 프레임 확보
+                    for _ in range(5):
+                        ret, f = cap.read()
+                        if ret and f is not None and f.size > 0:
+                            frame = f
+                            break
+            except Exception:
+                frame = None
+            finally:
+                if cap is not None:
+                    try:
+                        cap.release()
+                    except Exception:
+                        pass
+            self.result_ready.emit(p, frame)
+
+
+def _bgr_to_thumb_pixmap(frame, w: int, h: int) -> QPixmap:
+    """BGR ndarray(OpenCV)를 썸네일 QPixmap으로 변환."""
+    import cv2
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    fh, fw, _ = rgb.shape
+    img = QImage(rgb.data, fw, fh, fw * 3, QImage.Format_RGB888).copy()
+    return QPixmap.fromImage(img).scaled(
+        w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
 
 # ── 공통 헬퍼 ──────────────────────────────────────────────────────────
@@ -199,6 +247,109 @@ def _file_row(label_text: str, edit: QLineEdit,
         btn_test.clicked.connect(test_cb)
         h.addWidget(btn_test)
     return h
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 캡처 포트 스캔·미리보기 팝업
+# ──────────────────────────────────────────────────────────────────────
+
+class PortScanDialog(QDialog):
+    """포트 0~3을 스캔해 썸네일을 보여주고 사용할 포트를 선택받는 팝업.
+
+    현재 Detection이 점유 중인 포트(current_port)는 스캔하지 않고
+    '현재 사용 중'으로 표시한다(메인 화면이 곧 그 포트의 미리보기).
+    """
+
+    _ALL_PORTS = (0, 1, 2, 3)
+
+    def __init__(self, current_port: int, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("캡처 포트 스캔")
+        self.setMinimumSize(560, 470)
+        self.selected_port: Optional[int] = None
+        self._current_port = current_port
+        self._cells: dict = {}
+        self._worker: Optional[_PortScanWorker] = None
+        self._setup_ui()
+        self._start_scan()
+
+    def _setup_ui(self):
+        vl = QVBoxLayout(self)
+        vl.setSpacing(10)
+        info = QLabel(
+            "현재 사용 중인 포트를 제외한 나머지 포트를 스캔합니다.\n"
+            "신호가 보이는 포트의 [이 포트 사용] 버튼을 누르세요.")
+        info.setObjectName("settingsDesc")
+        vl.addWidget(info)
+
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        for idx, p in enumerate(self._ALL_PORTS):
+            cell = QFrame()
+            cell.setObjectName("settingsSection")
+            cvl = QVBoxLayout(cell)
+            cvl.setContentsMargins(10, 8, 10, 10)
+            title = QLabel(f"포트 {p}" + (" (기본)" if p == 0 else ""))
+            title.setObjectName("settingsSectionLabel")
+            cvl.addWidget(title)
+
+            thumb = QLabel()
+            thumb.setFixedSize(240, 135)
+            thumb.setAlignment(Qt.AlignCenter)
+            thumb.setStyleSheet("background:#000; color:#888; border:1px solid #333;")
+            cvl.addWidget(thumb)
+
+            btn = QPushButton("이 포트 사용")
+            btn.clicked.connect(lambda _checked=False, pp=p: self._select(pp))
+            cvl.addWidget(btn)
+
+            if p == self._current_port:
+                thumb.setText("현재 사용 중\n(메인 화면)")
+                btn.setEnabled(False)
+            else:
+                thumb.setText("스캔 대기…")
+                btn.setEnabled(False)
+
+            self._cells[p] = {"thumb": thumb, "btn": btn}
+            grid.addWidget(cell, idx // 2, idx % 2)
+        vl.addLayout(grid)
+
+        btn_close = QPushButton("닫기")
+        btn_close.clicked.connect(self.reject)
+        vl.addWidget(btn_close, alignment=Qt.AlignRight)
+
+    def _start_scan(self):
+        scan_ports = [p for p in self._ALL_PORTS if p != self._current_port]
+        self._worker = _PortScanWorker(scan_ports)
+        self._worker.result_ready.connect(self._on_result)
+        self._worker.start()
+
+    def _on_result(self, port: int, frame):
+        cell = self._cells.get(port)
+        if cell is None:
+            return
+        thumb = cell["thumb"]
+        if frame is not None:
+            try:
+                thumb.setPixmap(_bgr_to_thumb_pixmap(frame, thumb.width(), thumb.height()))
+                cell["btn"].setEnabled(True)
+            except Exception:
+                thumb.setText("미리보기 변환 실패")
+        else:
+            thumb.setText("신호 없음")
+
+    def _select(self, port: int):
+        self.selected_port = port
+        self.accept()
+
+    def _cleanup_worker(self):
+        if self._worker is not None and self._worker.isRunning():
+            # 진행 중인 cv2 오픈이 끝날 때까지 대기(포트당 최대 수 초)
+            self._worker.wait(8000)
+
+    def done(self, result: int):
+        self._cleanup_worker()
+        super().done(result)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -448,6 +599,15 @@ class SettingsDialog(QDialog):
         self._port_combo.setCurrentIndex(self._cfg.get("port", 0))
         sl1.addLayout(_row("포트 번호 (0~3)", self._port_combo,
                            "0~3 / 캡처카드 입력 포트 번호 (기본값: 0)"))
+        scan_hl = QHBoxLayout()
+        scan_hl.setContentsMargins(0, 0, 0, 0)
+        btn_port_scan = QPushButton("포트 스캔 (미리보기)")
+        btn_port_scan.clicked.connect(self._scan_ports)
+        scan_hl.addWidget(btn_port_scan)
+        scan_hint = QLabel("사용 중인 포트를 제외하고 미리보기로 신호를 확인합니다")
+        scan_hint.setObjectName("settingsDesc")
+        scan_hl.addWidget(scan_hint, 1)
+        sl1.addLayout(scan_hl)
         vl.addWidget(box1)
 
         # ── 파일 입력 (테스트용) ────────────────────────────────
@@ -2112,6 +2272,17 @@ class SettingsDialog(QDialog):
             f"녹화 파일: 약 <b>{rec_mb_lo:.0f}~{rec_mb_hi:.0f} MB</b> / {pre + post}초 | "
             f"코덱: <b>mp4v</b>"
         )
+
+    def _scan_ports(self):
+        """[버튼 핸들러] 포트 스캔 팝업을 열어 선택된 포트를 콤보박스에 반영."""
+        cur = self._port_combo.currentData()
+        dlg = PortScanDialog(cur if cur is not None else 0, self)
+        if dlg.exec() == QDialog.Accepted and dlg.selected_port is not None:
+            for i in range(self._port_combo.count()):
+                if self._port_combo.itemData(i) == dlg.selected_port:
+                    # currentIndexChanged → _apply_now 자동 발화
+                    self._port_combo.setCurrentIndex(i)
+                    break
 
     def _browse_video_file(self):
         path, _ = QFileDialog.getOpenFileName(
