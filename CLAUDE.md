@@ -96,7 +96,7 @@ Watchdog Process  (Detection의 spawn 주체)
   ├─ Detection Process spawn / 감시 / 재spawn 전담
   ├─ heartbeat.dat 감시 → 10초 무응답 시 Detection kill 후 재spawn
   ├─ 텔레그램 알림 직접 발송 (UI가 죽어도 알림 보장)
-  ├─ main(UI) 생존 확인 (30초 주기 psutil.pid_exists) → 죽으면 Detection 정리 + 자신 종료
+  ├─ main(UI) 생존 확인 (10초 주기 psutil.pid_exists) → 죽으면 Detection 정리 + 자신 종료
   └─ shutdown_event set 시 "의도된 종료" 플래그 ON → false-positive respawn 방지
 
 Detection Process (PySide6 임포트 금지 — 세부 규칙은 detection/CLAUDE.md)
@@ -240,7 +240,7 @@ if __name__ == '__main__':
 
 ### 비정상 종료 대응
 - **Detection 크래시**: Watchdog이 재spawn + 텔레그램 알림 ("중단 감지" → "복구 완료")
-- **UI(main) 크래시**: Watchdog이 30초 주기로 `psutil.pid_exists(parent)` 감시 → 사라지면 Detection 정리 + 자신 종료 + 텔레그램 "전체 비정상 종료" 알림
+- **UI(main) 크래시**: Watchdog이 10초 주기로 `psutil.pid_exists(parent)` 감시 → 사라지면 Detection 정리 + 자신 종료 + 텔레그램 "전체 비정상 종료" 알림 (W3: 고아 시간 단축 위해 30→10초)
 - **Watchdog 자체 크래시**: main은 Watchdog join 실패 시 Detection 정리 + 로그 + 텔레그램 (main 프로세스에서 직접 HTTP 발송)
 
 ### 텔레그램 발송 주체 분리
