@@ -17,6 +17,8 @@ import queue
 import sys
 import os
 import time
+import datetime
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -148,27 +150,42 @@ def test_s2_still_alarm_and_recovery():
 def test_s3_signoff_transition():
     """수동 cycle_state() → PREPARATION, still 지속 → SIGNOFF 전환.
     SignoffManager tick 주기 = 1s → 최대 2회 tick 대기 필요 → 데드라인 3.5s.
+
+    시각 의존 제거: datetime.now()를 정파 준비 시간대(23:15)로 고정해
+    prep_window 안·signoff_window 밖에서 still 기반 자연 전환(_tick_preparation)을 검증.
+    (고정 없이 실행하면 _tick_impl이 PREPARATION을 시간대 밖이라 IDLE로 강등 →
+     낮 시간대에 거짓 실패. still 경과는 time.time() 기반이라 시각 고정과 무관하게 흐름.)
     """
     q = _alarm_q()
     sm = SignoffManager(result_queue=q)
     # still_trigger_sec=0.5: 첫 tick(1s)에서 start 설정, 두 번째 tick(2s)에서 elapsed>=0.5 확인
-    sm.set_group(_group(still_trigger_sec=0.5))
-    sm.start()
+    # prep_minutes=30 → prep_start=23:00 < signoff_start=23:30, 고정 시각 23:15가 그 사이
+    sm.set_group(_group(still_trigger_sec=0.5, prep_minutes=30))
 
-    # 수동으로 PREPARATION 진입
-    sm.cycle_state(1)
-    assert sm.get_state(1) == SignoffState.PREPARATION, "PREPARATION 전환 실패"
+    _RealDateTime = datetime.datetime
 
-    # still=True 를 계속 주입 → still_trigger_sec 경과 후 SIGNOFF 전환
-    # tick 2회(~2s) + 여유 1.5s = 3.5s
-    deadline = time.time() + 3.5
-    while time.time() < deadline:
-        sm.update_detection({"V1": True})
-        if sm.get_state(1) == SignoffState.SIGNOFF:
-            break
-        time.sleep(0.05)
+    class _FrozenDateTime(_RealDateTime):
+        @classmethod
+        def now(cls, tz=None):
+            return _RealDateTime(2026, 1, 2, 23, 15, 0)
 
-    sm.stop()
+    with patch.object(datetime, "datetime", _FrozenDateTime):
+        sm.start()
+
+        # 수동으로 PREPARATION 진입
+        sm.cycle_state(1)
+        assert sm.get_state(1) == SignoffState.PREPARATION, "PREPARATION 전환 실패"
+
+        # still=True 를 계속 주입 → still_trigger_sec 경과 후 SIGNOFF 전환
+        # tick 2회(~2s) + 여유 1.5s = 3.5s
+        deadline = time.time() + 3.5
+        while time.time() < deadline:
+            sm.update_detection({"V1": True})
+            if sm.get_state(1) == SignoffState.SIGNOFF:
+                break
+            time.sleep(0.05)
+
+        sm.stop()
 
     assert sm.get_state(1) == SignoffState.SIGNOFF, "SIGNOFF 전환 실패"
 
