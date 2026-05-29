@@ -86,8 +86,8 @@ class BaseMsg:
 | 메시지 | 필드 | 발행 시점 |
 |--------|------|-----------|
 | `DetectionResult` | `label:str`, `roi_type:str('video'\|'audio'\|'embedded')`, `media_name:str`, `detection_type:str('black'\|'still'\|'audio_level'\|'embedded')`, `active:bool`, `duration_sec:float`, `meta:dict` | 감지 상태 변화(진입/종료) 시 각 1회 |
-| `AlarmTrigger` | `label:str`, `detection_type:str`, `roi_type:str`, `snapshot_jpeg:bytes\|None` | 감지 지속 시간 초과로 실제 알람 발화 |
-| `AlarmResolve` | `label:str`, `detection_type:str`, `duration_sec:float` | 감지 해제로 알람 종료 |
+| `AlarmTrigger` | `label:str`, `detection_type:str`, `roi_type:str`, `media_name:str`, `snapshot_jpeg:bytes\|None` | 감지 지속 시간 초과로 실제 알람 발화 |
+| `AlarmResolve` | `label:str`, `detection_type:str`, `duration_sec:float`, `media_name:str` | 감지 해제로 알람 종료 |
 | `LogEntry` | `level:str('info'\|'black'\|'still'\|'audio'\|'embedded'\|'error')`, `source:str`, `message:str` | Detection 측 로그 (UI 로그 위젯용 통합 표시). `error`=시스템 장애(스트림/크래시/녹화/텔레그램), `black`=블랙 감지 |
 | `DiagSnapshot` | `section:str`, `payload:dict` | 30초 주기 6개 섹션 발행 |
 | `SignoffStateChange` | `group_id:int(1\|2)`, `prev_state:str`, `new_state:str('IDLE'\|'PREPARATION'\|'SIGNOFF')`, `source:str('auto-time'\|'auto-detect'\|'manual'\|'restore')` | 정파 상태 전환 |
@@ -109,7 +109,8 @@ class BaseMsg:
 | `SetDetectionEnabled` | `enabled:bool` | 감지 ON/OFF 버튼 |
 | `SetVolume` | `volume:int(0-100)` | 볼륨 슬라이더 (debounce 100ms) |
 | `SetMute` | `muted:bool` | Mute 버튼 |
-| `SetSignoffState` | `group_id:int`, `new_state:str`, `source:str='manual'\|'restore'`, `entered_at:float=0.0` | 수동 정파 순환 버튼 / 재spawn 후 UI 재주입(`source='restore'`, `entered_at`=원본 SIGNOFF 진입 시각). `source='restore'`인 경우 Detection은 텔레그램 발송을 생략하고 `entered_at`>0이면 SIGNOFF 진입 시각을 복원해 elapsed_sec 정확도를 유지 |
+| `SetSignoffState` | `group_id:int`, `new_state:str`, `source:str='manual'\|'restore'`, `entered_at:float=0.0` | 정파 상태 직접 설정. **주 용도는 재spawn 후 UI 재주입**(`source='restore'`, `entered_at`=원본 SIGNOFF 진입 시각). `source='restore'`인 경우 Detection은 텔레그램 발송을 생략하고 `entered_at`>0이면 SIGNOFF 진입 시각을 복원해 elapsed_sec 정확도를 유지 |
+| `CycleSignoffState` | `group_id:int` | 수동 정파 순환 버튼 클릭. Detection이 `SignoffManager.cycle_state()`로 라우팅 — **시간대 인지** 순환(IDLE→PREPARATION, PREPARATION→정파시간대면 SIGNOFF·아니면 IDLE, SIGNOFF→IDLE). raw `SetSignoffState` 순환과 달리 시간대 밖 강제 SIGNOFF 후 자동 되돌림(튕김)을 방지 |
 | `PauseForRoiEdit` | `paused:bool` | ROI 편집 모드 진입/종료 (detection skip, heartbeat 유지) |
 | `ClearAlarms` | — | 감지 OFF 전환 시 남은 알람 강제 resolve |
 | `RequestAutoPerf` | `duration_sec:float` | 설정 탭 "자동 성능 감지" 버튼 |

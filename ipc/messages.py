@@ -151,6 +151,14 @@ class SetSignoffState(BaseMsg):
 
 
 @dataclass
+class CycleSignoffState(BaseMsg):
+    group_id: int = 1
+    # 시간대 인지 수동 순환. Detection이 SignoffManager.cycle_state()로 라우팅:
+    # IDLE→PREPARATION, PREPARATION→(정파 시간대면 SIGNOFF, 아니면 IDLE), SIGNOFF→IDLE.
+    # raw 설정(SetSignoffState)과 달리 시간대 밖 강제 SIGNOFF 후 자동 되돌림(튕김)을 방지.
+
+
+@dataclass
 class PauseForRoiEdit(BaseMsg):
     paused: bool = False
 
@@ -188,8 +196,8 @@ RESULT_MESSAGES = (
 
 CMD_MESSAGES = (
     ApplyConfig, UpdateROIs, SetDetectionEnabled, SetVolume, SetMute,
-    SetSignoffState, PauseForRoiEdit, ClearAlarms, RequestAutoPerf,
-    RequestSnapshot, Shutdown,
+    SetSignoffState, CycleSignoffState, PauseForRoiEdit, ClearAlarms,
+    RequestAutoPerf, RequestSnapshot, Shutdown,
 )
 
 ALL_MESSAGES = RESULT_MESSAGES + CMD_MESSAGES

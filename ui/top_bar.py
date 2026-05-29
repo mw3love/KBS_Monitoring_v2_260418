@@ -798,23 +798,37 @@ class TopBar(QWidget):
             return
 
         name = group_name or f"Group{group_id}"
+        resolved = state if state in ("IDLE", "PREPARATION", "SIGNOFF") else "IDLE"
+
+        # 클릭 시 동작 안내 (cycle_state: 시간대 인지 순환)
+        _CLICK_TIP = {
+            "IDLE":        "클릭: 정파준비 시작",
+            "PREPARATION": "클릭: 정파 진입 (정파 시간대 밖이면 해제)",
+            "SIGNOFF":     "클릭: 정파 해제",
+        }
 
         if not clock_enabled:
-            btn.setText(f"{name} 정파")
-            resolved = state if state in ("IDLE", "PREPARATION", "SIGNOFF") else "IDLE"
+            # auto OFF = 완전 수동 모드: 카운트다운 대신 현재 상태 + 수동 표기
+            _STATE_KO = {"IDLE": "대기", "PREPARATION": "정파준비", "SIGNOFF": "정파중"}
+            btn.setText(f"{name} 정파\n{_STATE_KO[resolved]} · 수동")
             btn.setProperty("signoff_state", resolved)
+            btn.setToolTip(f"자동 정파준비 꺼짐 (수동 전용) — {_CLICK_TIP[resolved]}")
         elif state == "IDLE":
             btn.setText(f"준비 · {name} 정파\n{_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "IDLE")
+            btn.setToolTip(_CLICK_TIP["IDLE"])
         elif state == "PREPARATION":
             btn.setText(f"정파 · {name} 정파\n{_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "PREPARATION")
+            btn.setToolTip(_CLICK_TIP["PREPARATION"])
         elif state == "SIGNOFF":
             btn.setText(f"해제 · {name} 정파\n{_fmt_dhms(seconds)}")
             btn.setProperty("signoff_state", "SIGNOFF")
+            btn.setToolTip(_CLICK_TIP["SIGNOFF"])
         else:
             btn.setText(f"{name} 정파")
             btn.setProperty("signoff_state", "IDLE")
+            btn.setToolTip(_CLICK_TIP["IDLE"])
 
         btn.style().unpolish(btn)
         btn.style().polish(btn)

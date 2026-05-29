@@ -196,7 +196,8 @@ class SignoffManager:
                 or old_group.exit_prep_minutes != group.exit_prep_minutes
                 or old_group.end_next_day != group.end_next_day
             )
-            if schedule_changed:
+            if schedule_changed and self._auto_preparation:
+                # auto OFF = 완전 수동 모드: 스케줄 저장 시 즉시 재평가도 억제 (수동 상태 유지)
                 self._exit_released[gid] = False
                 self._reset_enter_timers(gid)
                 self._reset_exit_timers(gid)
@@ -441,22 +442,26 @@ class SignoffManager:
                         self._transition_to(gid, SignoffState.PREPARATION, source="auto-time")
 
             elif current_state == SignoffState.PREPARATION:
-                if not in_prep_window:
-                    self._reset_enter_timers(gid)
-                    self._transition_to(gid, SignoffState.IDLE, source="auto-time")
-                elif in_signoff_window:
-                    self._reset_enter_timers(gid)
-                    self._transition_to(gid, SignoffState.SIGNOFF, source="auto-time")
-                else:
-                    self._tick_preparation(gid, group)
+                # auto OFF = 완전 수동 모드: 자동 강등/진입/감지 모두 억제 (수동 상태 유지)
+                if self._auto_preparation:
+                    if not in_prep_window:
+                        self._reset_enter_timers(gid)
+                        self._transition_to(gid, SignoffState.IDLE, source="auto-time")
+                    elif in_signoff_window:
+                        self._reset_enter_timers(gid)
+                        self._transition_to(gid, SignoffState.SIGNOFF, source="auto-time")
+                    else:
+                        self._tick_preparation(gid, group)
 
             elif current_state == SignoffState.SIGNOFF:
-                if not in_prep_window:
-                    self._signoff_entered_at[gid] = None
-                    self._transition_to(gid, SignoffState.IDLE, source="auto-time")
-                elif group.exit_prep_minutes > 0:
-                    if self._is_in_exit_prep_window(group):
-                        self._tick_exit_preparation(gid, group)
+                # auto OFF = 완전 수동 모드: 자동 해제(강등/exit-prep) 억제 (수동 해제까지 유지)
+                if self._auto_preparation:
+                    if not in_prep_window:
+                        self._signoff_entered_at[gid] = None
+                        self._transition_to(gid, SignoffState.IDLE, source="auto-time")
+                    elif group.exit_prep_minutes > 0:
+                        if self._is_in_exit_prep_window(group):
+                            self._tick_exit_preparation(gid, group)
 
     def _tick_preparation(self, gid: int, group: SignoffGroup):
         v_label = group.enter_roi.get("video_label", "")

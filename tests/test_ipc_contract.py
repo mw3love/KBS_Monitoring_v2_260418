@@ -21,8 +21,8 @@ import ipc.messages as M
 RESULT_CONTRACT = {
     "DetectionResult": {"label", "roi_type", "media_name", "detection_type",
                         "active", "duration_sec", "meta"},
-    "AlarmTrigger":    {"label", "detection_type", "roi_type", "snapshot_jpeg"},
-    "AlarmResolve":    {"label", "detection_type", "duration_sec"},
+    "AlarmTrigger":    {"label", "detection_type", "roi_type", "media_name", "snapshot_jpeg"},
+    "AlarmResolve":    {"label", "detection_type", "duration_sec", "media_name"},
     "LogEntry":        {"level", "source", "message"},
     "DiagSnapshot":    {"section", "payload"},
     "SignoffStateChange": {"group_id", "prev_state", "new_state", "source"},
@@ -44,6 +44,7 @@ CMD_CONTRACT = {
     "SetVolume":             {"volume"},
     "SetMute":               {"muted"},
     "SetSignoffState":       {"group_id", "new_state", "source", "entered_at"},
+    "CycleSignoffState":     {"group_id"},
     "PauseForRoiEdit":       {"paused"},
     "ClearAlarms":           set(),
     "RequestAutoPerf":       {"duration_sec"},

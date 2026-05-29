@@ -170,11 +170,14 @@ def test_s3_signoff_transition():
             return _RealDateTime(2026, 1, 2, 23, 15, 0)
 
     with patch.object(datetime, "datetime", _FrozenDateTime):
-        sm.start()
-
-        # 수동으로 PREPARATION 진입
+        # 수동으로 PREPARATION 진입 — tick 스레드 시작 전에 호출해
+        # start()의 즉시 첫 tick(23:15 → IDLE 자동승격)과의 경합을 제거.
+        # (start() 후 호출하면 자동 tick이 먼저 PREPARATION으로 올린 뒤
+        #  cycle_state가 PREPARATION→IDLE로 되돌려 간헐 실패)
         sm.cycle_state(1)
         assert sm.get_state(1) == SignoffState.PREPARATION, "PREPARATION 전환 실패"
+
+        sm.start()
 
         # still=True 를 계속 주입 → still_trigger_sec 경과 후 SIGNOFF 전환
         # tick 2회(~2s) + 여유 1.5s = 3.5s

@@ -25,6 +25,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_PY_NAMES = ("python.exe", "pythonw.exe", "py.exe")
 
 try:
     import psutil
@@ -53,15 +54,29 @@ def _find_kbs_processes():
         return result
 
     # 1단계: main 프로세스 탐색
-    _root_lower = _ROOT.lower().replace("\\", "/")
+    #   인터프리터(python/pythonw/py)만 대상 → 셸 래퍼(bash.exe)·conhost 오인 방지.
+    #   cmdline에 main.py 인자 + cwd가 프로젝트 루트(_ROOT)인 프로세스로 확정.
+    #   (app이 시작 시 os.chdir(_ROOT) 하므로 신뢰 가능. cwd 접근 불가 시 cmdline 루트경로/kbs 폴백)
+    _root_norm = os.path.normcase(os.path.abspath(_ROOT))
+    _root_fs   = os.path.abspath(_ROOT).replace("\\", "/").lower()
     for proc in psutil.process_iter(["pid", "name", "cmdline", "create_time"]):
         try:
-            cmd = " ".join(proc.info.get("cmdline") or [])
-            cmd_lower = cmd.lower().replace("\\", "/")
-            if "main.py" in cmd_lower and _root_lower in cmd_lower:
-                result["main"] = proc
-                break
-            if "main.py" in cmd and "kbs" in cmd_lower:
+            if (proc.info.get("name") or "").lower() not in _PY_NAMES:
+                continue
+            argv = proc.info.get("cmdline") or []
+            if not any(a.lower().replace("\\", "/").endswith("main.py") for a in argv):
+                continue
+            matched = False
+            try:
+                if os.path.normcase(os.path.abspath(proc.cwd())) == _root_norm:
+                    matched = True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+            if not matched:
+                cmd_fs = " ".join(argv).replace("\\", "/").lower()
+                if _root_fs in cmd_fs or "kbs" in cmd_fs:
+                    matched = True
+            if matched:
                 result["main"] = proc
                 break
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -70,29 +85,47 @@ def _find_kbs_processes():
     if "main" not in result:
         return result
 
-    # 2단계: main 자손 프로세스(recursive=True) → watchdog·detection 식별
-    # detection = watchdog의 자식(손자)이므로 recursive=True 필수
+    # 2단계: main 자손에서 watchdog·detection 식별.
+    #   Windows spawn cmdline은 'spawn_main(parent_pid=N, ...)' 형태라
+    #   watchdog=parent_pid==main, detection=parent_pid==watchdog 로 확정.
+    #   인터프리터만 대상 + resource_tracker/모니터 자신은 제외.
     try:
-        descendants = result["main"].children(recursive=True)
-        descendants.sort(key=lambda p: p.create_time())
-        unidentified = []
-        for child in descendants:
+        main_pid = result["main"].pid
+        cand = []   # [(proc, cmdline_lower)]
+        for child in result["main"].children(recursive=True):
             try:
-                child_cmd = " ".join(child.cmdline()).lower()
-                if "detection_process" in child_cmd:
-                    result["detection"] = child
-                elif "watchdog_process" in child_cmd:
-                    result["watchdog"] = child
-                else:
-                    unidentified.append(child)
+                if (child.name() or "").lower() not in _PY_NAMES:
+                    continue
+                ccmd = " ".join(child.cmdline()).lower()
+                if "resource_tracker" in ccmd or "test_24h_monitor" in ccmd:
+                    continue
+                cand.append((child, ccmd))
             except (psutil.NoSuchProcess, psutil.AccessDenied):
-                unidentified.append(child)
-        # cmdline 미식별 → 생성 시간 순으로 배정 (watchdog 먼저, detection 나중)
-        for child in unidentified:
-            if "watchdog" not in result:
+                continue
+
+        for child, ccmd in cand:
+            if f"parent_pid={main_pid}" in ccmd or "watchdog_process" in ccmd:
                 result["watchdog"] = child
-            elif "detection" not in result:
-                result["detection"] = child
+                break
+        if "watchdog" in result:
+            wd_pid = result["watchdog"].pid
+            for child, ccmd in cand:
+                if f"parent_pid={wd_pid}" in ccmd or "detection_process" in ccmd:
+                    result["detection"] = child
+                    break
+
+        # parent_pid 교차검증 실패분 → 생성 시간 순으로 배정 (watchdog 먼저)
+        if "watchdog" not in result or "detection" not in result:
+            taken = {result[r].pid for r in ("watchdog", "detection") if r in result}
+            for child, _ in sorted(cand, key=lambda c: c[0].create_time()):
+                if child.pid in taken:
+                    continue
+                if "watchdog" not in result:
+                    result["watchdog"] = child
+                    taken.add(child.pid)
+                elif "detection" not in result:
+                    result["detection"] = child
+                    taken.add(child.pid)
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         # 앱이 관리자 권한으로 실행된 경우 children() 자체가 AccessDenied
         # 폴백: 전체 프로세스에서 main 생성 직후 시작된 Python 프로세스 탐색

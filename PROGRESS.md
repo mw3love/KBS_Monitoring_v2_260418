@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
-> 마지막 업데이트: 2026-05-28 (Phase 6 배포 하드닝 — P0 자가복원력 + P1 안전부분 완료)
-> 현재 단계: Phase 6 진행 중 (W0~W10·W12·W13·W14 완료 / W11·W15 + 전주 운영테스트 남음)
+> 마지막 업데이트: 2026-05-29 (Phase 6 배포 하드닝 — W11 정파 수동 UI 완료)
+> 현재 단계: Phase 6 진행 중 (W0~W14 완료 / W15 24h테스트 + 전주 운영테스트 남음)
 
 ---
 
@@ -148,7 +148,7 @@
 ### P2 — 비기술 운용성
 - [x] **W9** 설정 입력 검증 강화 (감사 완료. 정파 시간=`QIntValidator`+zfill, HSV=`DualSlider.set_range` 클램프+스왑으로 이미 견고 → 후보 기각. 실질 갭은 ROI 0개 → 영상 ROI 0개 시 `detection_process` 초기 로드·`UpdateROIs`에서 ERROR 로그 1회 추가)
 - [x] **W10** 에러 메시지 친화화 (감사 완료. traceback 노출은 전부 로그/result_queue 행이고 사용자 MessageBox raw 노출 없음. config 손상=W7·패키지 부재=W8에서 이미 친화화 → 추가 수정 불필요)
-- [ ] **W11** 정파 상태 가시성 + 수동해제 UI
+- [x] **W11** 정파 상태 가시성 + 수동해제 UI (시간대 인지 수동순환 `CycleSignoffState` 신규 — Detection `cycle_state()` 단일출처로 튕김 제거 / `auto_preparation` OFF=완전 수동 모드: `_tick_impl` PREP·SIGNOFF 분기 + `set_group` 즉시재평가에 가드 추가 → 수동 상태 유지·자동전환 0건 / 상단바 버튼 auto OFF여도 항상 활성+"· 수동" 표기+클릭 안내 툴팁 / `docs_signoff_운영.md §5` 신설)
 - [x] **W12** 설치안내.txt 보강 (`실행.bat`, 이중실행 보호, 폐쇄망, 캡처 포트, 패키지 오류 Q5~Q7)
 
 ### P3 — 코어 감지 정확도
@@ -156,8 +156,8 @@
 - [x] **W14** 알람 상태머신 감사 (`AlarmSystem.resolve`는 `not _active_alarms`(전체 해제) 시에만 깜빡임/소리 중단 → 일부 resolve로 조기 OFF 없음. 집합 기반 다중 ROI 안전. 후보 기각, 수정 불필요)
 - [ ] **W15** 회귀(`pytest tests/test_regression.py`)/24h(`tests/test_24h_monitor.py`) 테스트 실행 + 발견 케이스 추가
   - 회귀 실행: 6/6 PASS. **발견·수정**: `test_s3_signoff_transition`이 시각 의존(그룹 23:30~06:00 밖이면 PREPARATION→IDLE 강등으로 거짓 실패) → `datetime.now()`를 23:15로 mock해 시각 독립화 (SignoffManager 코드는 정상)
-  - Chaos 재spawn: 3/3 (100%)
-  - 24h 테스트: 미실행 (장시간)
+  - Chaos 재spawn: 3/3 (100%) — **W11 이후 재검증 3/3 (100%)**: `CycleSignoffState` import·cmd 라우팅 변경이 Detection 기동/재spawn 무영향 확인
+  - 24h 테스트: 미완 (장시간 — 라이브 앱 필요). **하네스 버그 수정**(`test_24h_monitor.py _find_kbs_processes`): Windows spawn cmdline엔 detection/watchdog 키워드가 없고, 셸 래퍼(`bash.exe`)·conhost가 "main.py"를 포함해 오인되던 문제 → ① main=인터프리터 이름+`cwd==_ROOT` 확정 ② watchdog/detection=`parent_pid` 트리로 식별. 실측 검증 OK(main 181MB·detect 106MB·wd 62MB 정상 인식). 웹캠 소스 1h 스모크 진행 가능 확인 (감지 정확도는 전주 현장 몫)
 
 ### 최종 검증 — 전주총국 운영 테스트
 - [ ] 위 모든 항목 완료 후, 해당 버전을 전주총국에 가져가 며칠간 실제 방송 영상으로 운영 테스트

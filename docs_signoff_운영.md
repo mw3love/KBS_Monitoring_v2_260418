@@ -80,6 +80,35 @@
 
 ---
 
+## 5. `auto_preparation` OFF = 완전 수동 모드 (2026-05-29, W11)
+
+설정 "자동 정파준비"(`signoff.auto_preparation`)를 끄면 해당 시스템은 **완전 수동 모드**가 된다.
+
+### 동작
+- **자동 전환 0건**: 시간대 진입(IDLE→PREP/SIGNOFF)·시간대 이탈 강등(→IDLE)·스틸 감지 자동진입(`_tick_preparation`)·exit-prep 자동해제(`_tick_exit_preparation`)·스케줄 저장 시 즉시 재평가(`set_group`)가 **모두 억제**된다.
+- 상태는 **상단바 정파 버튼 수동 클릭**으로만 바뀐다. 한 번 설정한 상태는 다음 수동 조작까지 유지된다(1초 tick에 의해 되돌려지지 않음).
+- 상단바 버튼은 auto OFF여도 **활성 유지**되며, 카운트다운 대신 "대기 · 수동 / 정파준비 · 수동 / 정파중 · 수동"으로 현재 상태를 표기한다.
+
+### 수동 순환 규칙 (시간대 인지)
+버튼 클릭은 `SignoffManager.cycle_state()`를 탄다:
+- IDLE → PREPARATION (항상)
+- PREPARATION → 정파 시간대 안이면 SIGNOFF, **밖이면 IDLE**
+- SIGNOFF → IDLE
+
+즉 auto OFF여도 **정파 시간대 밖에서는 수동으로도 SIGNOFF에 진입할 수 없다**(PREPARATION 클릭 시 IDLE로 감). 정파 시간대(generous prep_minutes 포함)가 넓으므로 운영상 제약은 작지만, 시간대를 벗어난 임의 시점에 SIGNOFF 강제가 필요하면 스케줄(start/end_time)을 조정해야 한다.
+
+### 설계 근거
+- auto ON일 때는 가드가 항상 통과하므로 §1~§4의 자동 동작·자연 회복 경로가 **그대로 유지**된다(거동 무변).
+- 기존 코드는 IDLE 분기만 `auto_preparation`를 존중하고 PREP/SIGNOFF 분기는 무시하던 **비일관 상태**였음 → W11에서 세 분기 + `set_group` 모두 동일 가드로 정렬.
+
+### 핵심 코드 위치
+- `detection/signoff_manager.py` `_tick_impl` PREPARATION/SIGNOFF 분기 `if self._auto_preparation:` 가드
+- `detection/signoff_manager.py` `set_group` `if schedule_changed and self._auto_preparation:`
+- `detection/signoff_manager.py:255` `cycle_state` (시간대 인지 순환)
+- UI: `ui/main_window.py` `_on_signoff_button_clicked`(→`CycleSignoffState`), `ui/top_bar.py` `update_signoff_state`(수동 표기)
+
+---
+
 ## 부록 — 관련 참조
 
 - 코드 규칙: `detection/CLAUDE.md` "히스테리시스 원칙", "정파 억제 규칙"

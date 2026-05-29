@@ -182,7 +182,7 @@ def _apply_config_to_telegram(telegram, cfg: dict):
 
 def run(result_queue, cmd_queue, shutdown_event,
         state_lock, frame_shm_name: str, state_shm_name: str,
-        version: str = "2.2", cmd_event=None):
+        version: str = "2.3", cmd_event=None):
     """
     Watchdog이 spawn하는 Detection 프로세스 메인 함수.
     종료 조건: shutdown_event set 또는 Shutdown 메시지 수신.
@@ -616,8 +616,8 @@ def _process_commands(
 ):
     from ipc.messages import (
         ApplyConfig, UpdateROIs, SetDetectionEnabled, SetVolume, SetMute,
-        SetSignoffState, PauseForRoiEdit, ClearAlarms, RequestAutoPerf,
-        RequestSnapshot, Shutdown, LogEntry,
+        SetSignoffState, CycleSignoffState, PauseForRoiEdit, ClearAlarms,
+        RequestAutoPerf, RequestSnapshot, Shutdown, LogEntry,
     )
     _MAX_PER_TICK = 10
     for _ in range(_MAX_PER_TICK):
@@ -695,6 +695,10 @@ def _process_commands(
                     source=msg.source or "manual",
                     entered_at=msg.entered_at,
                 )
+
+            elif isinstance(msg, CycleSignoffState):
+                # 시간대 인지 수동 순환 (raw 설정과 달리 튕김 방지)
+                signoff_mgr.cycle_state(msg.group_id)
 
             elif isinstance(msg, ClearAlarms):
                 detector.reset_all()

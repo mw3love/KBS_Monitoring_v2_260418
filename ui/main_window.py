@@ -27,7 +27,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.2.10"
+VERSION = "2.3.0"
 
 
 class MainWindow(QMainWindow):
@@ -185,9 +185,9 @@ class MainWindow(QMainWindow):
         self._top_bar.set_roi_visible_state(roi_visible)
         self._video_widget.set_show_rois(roi_visible)
 
-        signoff_cfg = self._cfg.get("signoff", {})
-        auto_prep = signoff_cfg.get("auto_preparation", True)
-        self._top_bar.set_signoff_buttons_enabled(auto_prep)
+        # 정파 버튼은 항상 활성: auto OFF여도 수동 전환/해제가 가능해야 함(W11).
+        # auto 여부는 _update_signoff_display의 clock_enabled로 표기에만 반영.
+        self._top_bar.set_signoff_buttons_enabled(True)
 
         self._apply_rois_to_video_widget(self._cfg)
 
@@ -227,12 +227,10 @@ class MainWindow(QMainWindow):
         self._send_cmd(SetMute(muted=muted))
 
     def _on_signoff_button_clicked(self, group_id: int):
-        from ipc.messages import SetSignoffState
-        current = self._signoff_states.get(group_id, "IDLE")
-        _cycle = {"IDLE": "PREPARATION", "PREPARATION": "SIGNOFF", "SIGNOFF": "IDLE"}
-        # 정파 시간대 밖이면 PREPARATION → IDLE
-        next_state = _cycle.get(current, "IDLE")
-        self._send_cmd(SetSignoffState(group_id=group_id, new_state=next_state))
+        # 시간대 인지 순환은 Detection의 cycle_state()가 단일 출처. UI는 의도만 전달.
+        # (raw SetSignoffState로 직접 순환하면 시간대 밖 강제 SIGNOFF 후 튕김 발생)
+        from ipc.messages import CycleSignoffState
+        self._send_cmd(CycleSignoffState(group_id=group_id))
 
     # ── 슬롯: UIBridge ────────────────────────────────────────────
 

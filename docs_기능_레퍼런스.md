@@ -71,9 +71,10 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 2. **감지영역 보이기/숨기기**: ROI 오버레이 토글 (알림 중인 ROI는 항상 표시)
 3. **Mute**: 프로그램 알림음 음소거
 4. **알림확인**: 소리/깜빡임 해제 (감지기 상태 유지, 동일 이상 재알림 없음)
-5. **그룹1/2 정파 버튼**: IDLE → PREPARATION → SIGNOFF → IDLE 수동 순환 (소리 없음)
+5. **그룹1/2 정파 버튼**: 시간대 인지 수동 순환 (소리 없음). IDLE→PREPARATION, PREPARATION→(정파 시간대면 SIGNOFF·밖이면 IDLE), SIGNOFF→IDLE
    - 버튼 하단에 현재 상태까지 남은 시간 카운트다운 표시: `정파준비까지 1D [6H:6M:26S]` 형식
    - IDLE 상태: "정파준비까지 Xd [HH:MM:SS]" / PREPARATION: "정파까지 [HH:MM:SS]" / SIGNOFF: "정파해제준비까지 [HH:MM:SS]"
+   - "자동 정파준비"(auto_preparation) OFF 시: 버튼은 **활성 유지**되며 카운트다운 대신 "대기/정파준비/정파중 · 수동" 표기. 완전 수동 모드(자동 전환·자동 해제 없음, 수동 클릭만) — `docs_signoff_운영.md §5`
 6. **설정**: 설정 다이얼로그 열기 (비모달)
 7. **주간/야간 모드**: 다크/라이트 테마 전환
 8. **전체화면**: F11 단축키 또는 버튼 클릭
@@ -299,7 +300,7 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 | PREPARATION | 정파 준비 구간 | start_time 도달 또는 enter_roi 스틸 조기 감지 |
 | SIGNOFF | 정파 중 | end_time 도달 또는 exit_prep 구간에서 비-스틸 감지 |
 
-수동 전환: 상단바 버튼 클릭 → 순환 (소리 없음)
+수동 전환: 상단바 버튼 클릭 → 시간대 인지 순환 (소리 없음). PREPARATION에서 클릭 시 정파 시간대면 SIGNOFF, 밖이면 IDLE. auto_preparation OFF면 완전 수동 모드(자동 전환 억제, `docs_signoff_운영.md §5`)
 
 **진입 사유(source) 구분:**
 - `auto-time` — 시간 창(start_time / end_time) 도달에 의한 강제 전환 (fallback 안전망)

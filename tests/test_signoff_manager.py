@@ -201,6 +201,46 @@ def test_manual_signoff_auto_release_at_end_time():
         f"SIGNOFF→IDLE source 불일치: {[(m.new_state, m.source) for m in sc]}"
 
 
+# ── auto_preparation OFF = 완전 수동 모드 (W11) ───────────────────────────────
+
+def test_auto_off_signoff_persists_at_end_time():
+    """auto OFF 시 수동 SIGNOFF는 end_time(prep_window 이탈)에도 자동 강등되지 않음."""
+    mgr, _ = _make_manager()
+    mgr._auto_preparation = False
+    grp = _make_group(start="03:00", end="05:00", prep=30, every_day=True)
+    mgr.set_group(grp)
+    mgr.set_state_direct(1, "SIGNOFF")
+    assert mgr.get_state(1) == SignoffState.SIGNOFF
+
+    # 05:01 — prep_window 완전 이탈. auto ON이면 IDLE로 강등되지만 OFF면 유지.
+    fake_now = real_datetime.datetime(2026, 5, 13, 5, 1, 0)
+    with patch("detection.signoff_manager.datetime") as mock_dt:
+        mock_dt.datetime.now.return_value = fake_now
+        mock_dt.timedelta = real_datetime.timedelta
+        mgr._tick_impl()
+
+    assert mgr.get_state(1) == SignoffState.SIGNOFF, "auto OFF인데 자동 강등됨"
+
+
+def test_auto_off_preparation_persists_outside_window():
+    """auto OFF 시 수동 PREPARATION은 시간대 밖에서도 자동 강등되지 않음."""
+    mgr, _ = _make_manager()
+    mgr._auto_preparation = False
+    grp = _make_group(start="03:00", end="05:00", prep=30, every_day=True)
+    mgr.set_group(grp)
+    mgr.set_state_direct(1, "PREPARATION")
+    assert mgr.get_state(1) == SignoffState.PREPARATION
+
+    # 12:00 — prep_window(02:30~05:00) 밖. auto ON이면 IDLE로 강등되지만 OFF면 유지.
+    fake_now = real_datetime.datetime(2026, 5, 13, 12, 0, 0)
+    with patch("detection.signoff_manager.datetime") as mock_dt:
+        mock_dt.datetime.now.return_value = fake_now
+        mock_dt.timedelta = real_datetime.timedelta
+        mgr._tick_impl()
+
+    assert mgr.get_state(1) == SignoffState.PREPARATION, "auto OFF인데 자동 강등됨"
+
+
 # ── source 값 구분 검증 ───────────────────────────────────────────────────────
 
 def test_source_auto_time_on_time_entry():
@@ -270,6 +310,8 @@ if __name__ == "__main__":
         test_is_prep_label_blocks_in_prep,
         test_transition_emits_signoff_state_change,
         test_manual_signoff_auto_release_at_end_time,
+        test_auto_off_signoff_persists_at_end_time,
+        test_auto_off_preparation_persists_outside_window,
         test_source_auto_time_on_time_entry,
         test_source_auto_detect_on_still_entry,
     ]
