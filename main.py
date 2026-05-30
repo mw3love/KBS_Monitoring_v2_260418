@@ -225,6 +225,9 @@ def main():
     from ui.main_window import MainWindow
 
     app = QApplication(sys.argv)
+    # Windows 11 네이티브 스타일은 콤보 팝업을 반투명 창으로 렌더링해 QSS 배경을
+    # 무시한다(드롭다운 글자 뒤섞임). Fusion 스타일은 QSS를 일관 적용해 이를 해결한다.
+    app.setStyle("Fusion")
     app.setApplicationName("KBS On-Air Monitoring")
     app.setOrganizationName("KBS")
 
