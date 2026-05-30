@@ -138,7 +138,7 @@
 
 ### P1 — 환경 이식성
 - [x] **W5** requirements.txt 8개 패키지 == 버전 핀 + Python 3.11+ 명시
-- [x] **W6** 캡처 포트 스캔·미리보기 도우미 (옵션1 '현재 포트 제외 스캔' — `ui/settings_dialog.py` 영상탭 `포트 스캔` 버튼 + `PortScanDialog`/`_PortScanWorker`. DSHOW 디바이스 독점 충돌 회피: 현재 점유 포트는 스캔 제외)
+- [x] **W6** 캡처 포트 스캔·미리보기 도우미 — ~~v2.x에서 제거~~ (현장 검증 결과 활용도 낮음: 정작 보고 싶은 점유 포트(port 0)는 DSHOW 독점 오픈 때문에 미리보기 불가 + 대부분 외장 포트 미사용. `ui/settings_dialog.py`의 버튼·`PortScanDialog`·`_PortScanWorker` 삭제. 포트 번호 콤보박스 수동 변경은 유지)
 - [x] **W7** config 손상 가시화 (`last_load_was_reset` 플래그 + 친화 메시지) — `utils/config_manager.py`
 - [x] **W8** cv2/PySide6 부재 친화 메시지 (사전 점검 + MessageBox) — `main.py`
 - [x] **W8b** 배포 산출물 정리 (.gitignore 정정, `실행.bat`·`디버그실행.bat` 이식 버전 재작성, `manual/`·`install_ffmpeg.bat` 포함)

@@ -27,7 +27,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.3.1"
+VERSION = "2.3.2"
 
 
 class MainWindow(QMainWindow):
