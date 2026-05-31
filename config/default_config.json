@@ -44,6 +44,13 @@
     "audio_detection_enabled": true,
     "embedded_detection_enabled": true
   },
+  "capture_recovery": {
+    "enabled": true,
+    "trigger_sec": 8.0,
+    "observe_sec": 5.0,
+    "max_attempts": 3,
+    "cooldown_sec": 60.0
+  },
   "telegram": {
     "enabled": false,
     "bot_token": "",

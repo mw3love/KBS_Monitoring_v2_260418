@@ -1,7 +1,7 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
-> 마지막 업데이트: 2026-05-29 (Phase 6 코드 완료 — v2.3.0 GitHub 푸시, 전주 현장 검증 단계 진입)
-> 현재 단계: Phase 6 코드 작업 완료 (W0~W14 + W15 회귀/Chaos 완료, v2.3.0 배포). 남은 것은 비-코딩 현장 검증뿐 — W15 24h 연속 테스트(웹캠 1h 스모크 PASS, 풀 24h는 현장) + 전주총국 실제 방송 운영 테스트 → 통과 시 타 총국 배포
+> 마지막 업데이트: 2026-05-31 (현장 이슈 대응 — W16 캡처 입력 상실 자동복구 추가)
+> 현재 단계: Phase 6 코드 작업 완료 (W0~W14 + W15 회귀/Chaos 완료 + W16 현장 이슈 대응). 남은 것은 비-코딩 현장 검증뿐 — W15 24h 연속 테스트(웹캠 1h 스모크 PASS, 풀 24h는 현장) + 전주총국 실제 방송 운영 테스트(W16 캡처 자동복구 실기 확인 포함) → 통과 시 타 총국 배포
 
 ---
 
@@ -158,6 +158,12 @@
   - 회귀 실행: 6/6 PASS. **발견·수정**: `test_s3_signoff_transition`이 시각 의존(그룹 23:30~06:00 밖이면 PREPARATION→IDLE 강등으로 거짓 실패) → `datetime.now()`를 23:15로 mock해 시각 독립화 (SignoffManager 코드는 정상)
   - Chaos 재spawn: 3/3 (100%) — **W11 이후 재검증 3/3 (100%)**: `CycleSignoffState` import·cmd 라우팅 변경이 Detection 기동/재spawn 무영향 확인
   - 24h 테스트: 미완 (장시간 — 라이브 앱 필요). **하네스 버그 수정**(`test_24h_monitor.py _find_kbs_processes`): Windows spawn cmdline엔 detection/watchdog 키워드가 없고, 셸 래퍼(`bash.exe`)·conhost가 "main.py"를 포함해 오인되던 문제 → ① main=인터프리터 이름+`cwd==_ROOT` 확정 ② watchdog/detection=`parent_pid` 트리로 식별. 실측 검증 OK(main 181MB·detect 106MB·wd 62MB 정상 인식). 웹캠 소스 1h 스모크 진행 가능 확인 (감지 정확도는 전주 현장 몫)
+
+### P0 추가 — 캡처 입력 상실 자동복구 (현장 이슈 대응, 2026-05-31) ✅
+- [x] **W16** 캡처 입력 상실 자동복구 — 캡처보드가 신호 상실 시 "유효하지만 완전 검정인 프레임"(`ret=True`)을 계속 내보내 ROI 단체 블랙 + 무한 지속(사람 재시작 전까지)되던 현장 이슈 대응. **2층 분리 설계**: 기존 탐지·로그·녹화는 무수정·무억제(진짜 블랙이면 채널 알람 그대로 기록·녹화), 별도 워치독이 화면 *전체* "얼어붙은 검정"(전체 블랙 AND 정지, 원본 프레임 자체 계산 → 보드/설정 무관)을 `trigger_sec` 감지 시 **캡처 디바이스만 재오픈**(`force_reconnect`, 프로세스 재시작 아님)으로 자동 복구. 미복구 시 `max_attempts` 재시도 → 실패 시 에스컬레이션, `cooldown_sec` 플래핑 방지. 정파/감지비활성/ROI편집/파일모드 시 보류. 텔레그램은 상실+복구결과만. — `detection/capture_watchdog.py`(신규 순수 상태기계), `detection/video_capture.py`(`force_reconnect`), `processes/detection_process.py`(메인 루프 독립 try-except), `config/*`·`utils/config_manager.py`(`capture_recovery` 블록), `tests/test_capture_watchdog.py`. 기능 문서 §3.1-b 신설.
+  - 검증: 상태기계 단위테스트 14/14 + 전체 회귀 65/65 PASS. 실기 캡처 상실 복구는 전주총국 운영 테스트에서 확인 예정.
+
+---
 
 ### 최종 검증 — 전주총국 운영 테스트
 - [ ] 위 모든 항목 완료 후, 해당 버전을 전주총국에 가져가 며칠간 실제 방송 영상으로 운영 테스트

@@ -159,7 +159,8 @@ kbs_monitoring_v2/
 │   ├── detection_state.py
 │   ├── signoff_manager.py
 │   ├── auto_recorder.py
-│   └── telegram_worker.py
+│   ├── telegram_worker.py
+│   └── capture_watchdog.py
 ├── ui/
 │   ├── main_window.py
 │   ├── ui_bridge.py

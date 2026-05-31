@@ -47,6 +47,12 @@ class VideoCaptureWorker(threading.Thread):
             self._video_file = path
             self._reconnect = True
 
+    def force_reconnect(self):
+        """현재 소스(포트/파일)를 유지한 채 캡처 디바이스를 release→재open 한다.
+        캡처 입력 상실 자동복구(CaptureLossWatchdog)가 호출. 프로세스는 재시작하지 않는다."""
+        with self._lock:
+            self._reconnect = True
+
     def stop(self):
         self._running = False
 

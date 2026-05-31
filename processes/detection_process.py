@@ -12,6 +12,8 @@ import logging
 import traceback
 from typing import Dict, Optional
 
+import numpy as np
+
 _log = logging.getLogger(__name__)
 
 # ── 경로 설정 (프로세스 독립 실행 시 패키지 루트 보장) ───────────────────────
@@ -182,7 +184,7 @@ def _apply_config_to_telegram(telegram, cfg: dict):
 
 def run(result_queue, cmd_queue, shutdown_event,
         state_lock, frame_shm_name: str, state_shm_name: str,
-        version: str = "2.3", cmd_event=None):
+        version: str = "2.4", cmd_event=None):
     """
     Watchdog이 spawn하는 Detection 프로세스 메인 함수.
     종료 조건: shutdown_event set 또는 Shutdown 메시지 수신.
@@ -239,6 +241,7 @@ def run(result_queue, cmd_queue, shutdown_event,
     from detection.signoff_manager import SignoffManager
     from detection.auto_recorder import AutoRecorder
     from detection.telegram_worker import TelegramWorker
+    from detection.capture_watchdog import CaptureLossWatchdog
 
     roi_mgr   = ROIManager()
     detector  = Detector()
@@ -438,6 +441,18 @@ def run(result_queue, cmd_queue, shutdown_event,
     # 캡처 워커 응답성 감시: cap.read() hang 시 heartbeat 중단 → Watchdog 재spawn 유도
     _CAPTURE_FREEZE_SEC = 15.0
     _capture_freeze_triggered = False
+    # 캡처 입력 상실 자동복구 워치독 (화면 전체 frozen-black → 캡처 재오픈)
+    _cr_cfg = cfg.get("capture_recovery", {})
+    capture_watchdog = CaptureLossWatchdog(
+        enabled=_cr_cfg.get("enabled", True),
+        trigger_sec=_cr_cfg.get("trigger_sec", 8.0),
+        observe_sec=_cr_cfg.get("observe_sec", 5.0),
+        max_attempts=_cr_cfg.get("max_attempts", 3),
+        cooldown_sec=_cr_cfg.get("cooldown_sec", 60.0),
+    )
+    _CR_BLACK_MAX = 16        # 다운샘플 프레임 최대 픽셀값 ≤ 이 값이면 전체 블랙으로 간주
+    _CR_FROZEN_EPS = 1.0      # 직전 프레임 대비 평균 절대차 < 이 값이면 정지(얼어붙음)
+    _cr_prev_small = None     # 직전 다운샘플 프레임 (frozen 판정용)
     # loop jitter 누적 (sleep 후 실제 경과 - 목표 interval 의 절댓값 평균)
     _jitter_sum_ms = 0.0
     _jitter_samples = 0
@@ -446,6 +461,9 @@ def run(result_queue, cmd_queue, shutdown_event,
     _running = True
     while _running:
         t = time.monotonic()
+        # 캡처 상실 워치독 입력 (이번 틱 신선 프레임 없으면 None = 판단 불가)
+        _cr_black = None
+        _cr_frozen = None
 
         # ── 캡처 워커 응답성 감시 (독립 try-except) ─────────────────────
         try:
@@ -522,6 +540,21 @@ def run(result_queue, cmd_queue, shutdown_event,
                 _loop_count += 1  # 루프 생존 카운터 (프레임 유무 무관)
                 frame = shared_frame.read_frame()
                 if frame is not None:
+                    # 캡처 상실 워치독용: 화면 전체 frozen-black 자체 계산
+                    # (detector/ROI 설정·보드 종류와 무관하게 원본 프레임에서 직접 판정)
+                    try:
+                        _small = frame[::20, ::20].astype(np.int16)
+                        _cr_black = bool(_small.max() <= _CR_BLACK_MAX)
+                        if _cr_prev_small is not None and _cr_prev_small.shape == _small.shape:
+                            _cr_frozen = bool(
+                                np.abs(_small - _cr_prev_small).mean() < _CR_FROZEN_EPS)
+                        else:
+                            _cr_frozen = False
+                        _cr_prev_small = _small
+                    except Exception:
+                        _cr_black = None
+                        _cr_frozen = None
+
                     video_rois = roi_mgr.video_rois
                     audio_rois = roi_mgr.audio_rois
 
@@ -560,6 +593,29 @@ def run(result_queue, cmd_queue, shutdown_event,
         except Exception as e:
             try:
                 log_error(f"감지 루프 오류: {traceback.format_exc()}")
+            except Exception:
+                pass
+
+        # ── 캡처 입력 상실 자동복구 워치독 (독립 try-except) ───────────────
+        # 탐지/기록 경로와 병렬. 화면 전체 frozen-black 지속 시 캡처 디바이스만 재오픈.
+        try:
+            _cr_gated = (
+                (not detection_enabled) or paused_for_roi
+                or bool(cfg.get("video_file", "").strip())  # 파일 재생 모드 제외
+                or signoff_mgr.is_any_signoff()             # 정파 활성 중 보류
+            )
+            for _kind, _payload in capture_watchdog.update(
+                    t, _cr_black, _cr_frozen, _cr_gated):
+                if _kind == "reconnect":
+                    video_worker.force_reconnect()
+                elif _kind == "log":
+                    _lvl, _msg = _payload
+                    (log_error if _lvl == "warn" else log_info)(_msg)
+                elif _kind == "telegram":
+                    telegram.notify_system(_payload)
+        except Exception:
+            try:
+                log_error(f"캡처 복구 워치독 오류: {traceback.format_exc()}")
             except Exception:
                 pass
 

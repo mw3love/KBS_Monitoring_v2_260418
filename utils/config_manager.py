@@ -53,6 +53,13 @@ DEFAULT_CONFIG = {
         "audio_detection_enabled": True,
         "embedded_detection_enabled": True,
     },
+    "capture_recovery": {                   # v2 신규: 캡처 입력 상실 자동복구
+        "enabled": True,
+        "trigger_sec": 8.0,                 # 전 화면 정지+블랙 지속 시간 → 재오픈 트리거
+        "observe_sec": 5.0,                 # 재오픈 후 복구 관찰 시간
+        "max_attempts": 3,                  # 최대 재오픈 시도 횟수
+        "cooldown_sec": 60.0,               # 복구/실패 후 재트리거 억제(플래핑 방지)
+    },
     "telegram": {
         "enabled": False,
         "bot_token": "",
