@@ -27,7 +27,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.4.0"
+VERSION = "2.5.0"
 
 
 class MainWindow(QMainWindow):
@@ -422,11 +422,37 @@ class MainWindow(QMainWindow):
             grp_data = signoff_cfg.get(f"group{gid}", {})
             group_name = grp_data.get("name", f"Group{gid}")
             seconds = self._calc_signoff_seconds(state, grp_data, now)
+            exit_detecting = (
+                state == "SIGNOFF" and self._is_in_exit_prep(grp_data, now)
+            )
             self._top_bar.update_signoff_state(
                 gid, state, group_name,
                 seconds=seconds,
                 clock_enabled=auto_prep,
+                exit_detecting=exit_detecting,
             )
+
+    def _is_in_exit_prep(self, grp_data: dict, now: datetime.datetime) -> bool:
+        """정파모드 중 '해제준비' 구간(exit_prep_start_time ~ end_time)인지.
+
+        detection/signoff_manager._is_in_exit_prep_window와 동일 판정을 UI에서 로컬 계산.
+        exit_prep_start_time == "" 이면 해제준비 미사용.
+        """
+        exit_prep_start = grp_data.get("exit_prep_start_time", "")
+        if not exit_prep_start:
+            return False
+        try:
+            eh, em = map(int, grp_data.get("end_time", "05:00").split(":"))
+            ph, pm = map(int, exit_prep_start.split(":"))
+        except (ValueError, AttributeError):
+            return False
+        gap_min = (eh * 60 + em - (ph * 60 + pm)) % (24 * 60)
+        if gap_min == 0:
+            return False
+        end_dt = now.replace(hour=eh, minute=em, second=0, microsecond=0)
+        if end_dt <= now:
+            end_dt += datetime.timedelta(days=1)
+        return (end_dt - now).total_seconds() <= gap_min * 60
 
     def _calc_signoff_seconds(self, state: str, grp_data: dict,
                                now: datetime.datetime) -> float:
@@ -458,19 +484,13 @@ class MainWindow(QMainWindow):
         weekdays = grp_data.get("weekdays", list(range(7)))
 
         if state == "IDLE":
-            # 정파준비까지 = 활성 요일 기준 정파준비시작 시각까지 잔여시간
-            start_time = grp_data.get("start_time", "00:30")
-            prep_minutes = int(grp_data.get("prep_minutes", 30))
-            sh, sm = parse_hm(start_time)
-            total_min = (sh * 60 + sm - prep_minutes) % (24 * 60)
-            prep_h, prep_m = total_min // 60, total_min % 60
+            # 정파준비까지 = 활성 요일 기준 정파준비 시작 시각까지 잔여시간
+            prep_h, prep_m = parse_hm(grp_data.get("prep_start_time", "00:30"))
             return max(0.0, (next_active_dt(prep_h, prep_m, weekdays) - now).total_seconds())
 
         elif state == "PREPARATION":
-            # 정파까지 = 활성 요일 기준 정파시작 시각(start_time)까지 잔여시간
-            start_time = grp_data.get("start_time", "00:30")
-            sh, sm = parse_hm(start_time)
-            return max(0.0, (next_active_dt(sh, sm, weekdays) - now).total_seconds())
+            # 정파 예정시각 개념 제거 → 카운트다운 없음(top_bar가 "감지중" 표시). 0 반환.
+            return 0.0
 
         elif state == "SIGNOFF":
             # 정파해제까지 = 정파종료 시각(end_time)까지 잔여시간

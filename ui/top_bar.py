@@ -792,7 +792,8 @@ class TopBar(QWidget):
 
     def update_signoff_state(self, group_id: int, state: str,
                               group_name: str, seconds: float = 0.0,
-                              clock_enabled: bool = True):
+                              clock_enabled: bool = True,
+                              exit_detecting: bool = False):
         btn = self._btn_signoff.get(group_id)
         if btn is None:
             return
@@ -800,10 +801,10 @@ class TopBar(QWidget):
         name = group_name or f"Group{group_id}"
         resolved = state if state in ("IDLE", "PREPARATION", "SIGNOFF") else "IDLE"
 
-        # 클릭 시 동작 안내 (cycle_state: 시간대 인지 순환)
+        # 클릭 시 동작 안내 (cycle_state: 정파준비 윈도우 안이면 즉시 정파, 밖이면 해제)
         _CLICK_TIP = {
             "IDLE":        "클릭: 정파준비 시작",
-            "PREPARATION": "클릭: 정파 진입 (정파 시간대 밖이면 해제)",
+            "PREPARATION": "클릭: 정파 진입 (정파준비 시간대 밖이면 해제)",
             "SIGNOFF":     "클릭: 정파 해제",
         }
 
@@ -818,13 +819,21 @@ class TopBar(QWidget):
             btn.setProperty("signoff_state", "IDLE")
             btn.setToolTip(_CLICK_TIP["IDLE"])
         elif state == "PREPARATION":
-            btn.setText(f"정파 · {name} 정파\n{_fmt_dhms(seconds)}")
+            # 정파 예정시각 개념 없음 → 화면 스틸 감지 대기 중임을 표기
+            btn.setText(f"정파 · {name} 정파\n감지중")
+            btn.setToolTip("정파 감지중 — 화면이 멈추면 자동 정파. " + _CLICK_TIP["PREPARATION"])
             btn.setProperty("signoff_state", "PREPARATION")
-            btn.setToolTip(_CLICK_TIP["PREPARATION"])
         elif state == "SIGNOFF":
-            btn.setText(f"해제 · {name} 정파\n{_fmt_dhms(seconds)}")
+            if exit_detecting:
+                # 해제준비 구간: 화면이 다시 움직이면 조기 해제
+                btn.setText(f"해제 · {name} 정파\n해제 감지중")
+                btn.setToolTip(
+                    "정파 해제 감지중 — 화면이 움직이면 조기 해제. " + _CLICK_TIP["SIGNOFF"]
+                )
+            else:
+                btn.setText(f"해제 · {name} 정파\n{_fmt_dhms(seconds)}")
+                btn.setToolTip(_CLICK_TIP["SIGNOFF"])
             btn.setProperty("signoff_state", "SIGNOFF")
-            btn.setToolTip(_CLICK_TIP["SIGNOFF"])
         else:
             btn.setText(f"{name} 정파")
             btn.setProperty("signoff_state", "IDLE")

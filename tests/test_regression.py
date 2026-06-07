@@ -48,10 +48,13 @@ def _noise(h=200, w=200, seed=0):
     return rng.integers(0, 256, (h, w, 3), dtype=np.uint8)
 
 
-def _group(group_id=1, still_trigger_sec=0.05, prep_minutes=0,
-           start_time="23:30", end_time="06:00", end_next_day=True,
+def _group(group_id=1, still_trigger_sec=0.05, prep_start_time="23:00",
+           end_time="06:00", exit_prep_start_time="",
            weekdays=None) -> SignoffGroup:
-    """테스트용 정파 그룹 — still_trigger_sec 짧게 설정."""
+    """테스트용 정파 그룹 — still_trigger_sec 짧게 설정.
+
+    기본 prep_start_time='23:00' > end_time='06:00' → 자정 넘김(wrap) 윈도우.
+    """
     if weekdays is None:
         weekdays = [0, 1, 2, 3, 4, 5, 6]
     return SignoffGroup(
@@ -59,11 +62,9 @@ def _group(group_id=1, still_trigger_sec=0.05, prep_minutes=0,
         name="테스트그룹",
         enter_roi={"video_label": "V1"},
         suppressed_labels=["V1"],
-        start_time=start_time,
+        prep_start_time=prep_start_time,
+        exit_prep_start_time=exit_prep_start_time,
         end_time=end_time,
-        prep_minutes=prep_minutes,
-        exit_prep_minutes=0,
-        end_next_day=end_next_day,
         every_day=True,
         weekdays=weekdays,
         still_trigger_sec=still_trigger_sec,
@@ -151,16 +152,16 @@ def test_s3_signoff_transition():
     """수동 cycle_state() → PREPARATION, still 지속 → SIGNOFF 전환.
     SignoffManager tick 주기 = 1s → 최대 2회 tick 대기 필요 → 데드라인 3.5s.
 
-    시각 의존 제거: datetime.now()를 정파 준비 시간대(23:15)로 고정해
-    prep_window 안·signoff_window 밖에서 still 기반 자연 전환(_tick_preparation)을 검증.
-    (고정 없이 실행하면 _tick_impl이 PREPARATION을 시간대 밖이라 IDLE로 강등 →
+    시각 의존 제거: datetime.now()를 정파준비 윈도우 안(23:15)으로 고정해
+    still 기반 자연 전환(_tick_preparation)을 검증.
+    (고정 없이 실행하면 _tick_impl이 PREPARATION을 윈도우 밖이라 IDLE로 강등 →
      낮 시간대에 거짓 실패. still 경과는 time.time() 기반이라 시각 고정과 무관하게 흐름.)
     """
     q = _alarm_q()
     sm = SignoffManager(result_queue=q)
     # still_trigger_sec=0.5: 첫 tick(1s)에서 start 설정, 두 번째 tick(2s)에서 elapsed>=0.5 확인
-    # prep_minutes=30 → prep_start=23:00 < signoff_start=23:30, 고정 시각 23:15가 그 사이
-    sm.set_group(_group(still_trigger_sec=0.5, prep_minutes=30))
+    # prep_start_time=23:00, end_time=06:00 → wrap 윈도우, 고정 시각 23:15가 그 안
+    sm.set_group(_group(still_trigger_sec=0.5))
 
     _RealDateTime = datetime.datetime
 

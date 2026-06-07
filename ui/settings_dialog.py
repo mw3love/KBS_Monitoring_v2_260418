@@ -1335,6 +1335,12 @@ class SettingsDialog(QDialog):
                 for child in _box.findChildren(QWidget):
                     if child.objectName() not in _always_enabled_names:
                         child.setEnabled(enabled)
+            # 활성 상태에서는 해제준비 시/분 칸을 "사용" 체크박스에 다시 종속시킨다
+            if enabled:
+                for _w in self._so_grp:
+                    _sync = _w.get("_exit_prep_sync")
+                    if _sync:
+                        _sync()
 
         self._auto_prep_cb.stateChanged.connect(_update_signoff_enabled)
         _update_signoff_enabled()
@@ -1345,12 +1351,11 @@ class SettingsDialog(QDialog):
             edit.editingFinished.connect(self._apply_now)
         for w in self._so_grp:
             w["name"].editingFinished.connect(self._apply_now)
-            for key in ("start_h", "start_m", "end_h", "end_m",
+            for key in ("prep_start_h", "prep_start_m", "end_h", "end_m",
+                        "exit_prep_h", "exit_prep_m",
                         "still_trigger_sec", "exit_trigger_sec"):
                 w[key].editingFinished.connect(self._apply_now)
-            w["end_next_day"].stateChanged.connect(self._apply_now)
-            w["prep_minutes"].currentIndexChanged.connect(self._apply_now)
-            w["exit_prep_minutes"].currentIndexChanged.connect(self._apply_now)
+            w["exit_prep_use"].stateChanged.connect(self._apply_now)
             for cb in w["weekdays"]:
                 cb.stateChanged.connect(self._apply_now)
 
@@ -1398,135 +1403,75 @@ class SettingsDialog(QDialog):
 
         widgets = {"_box": box, "name": name_edit}
 
-        # 정파 시작/종료 시각
-        start_h = _int_edit(int(grp.get("start_time", "03:00").split(":")[0]), 0, 23, 36)
-        start_m = _int_edit(int(grp.get("start_time", "03:00").split(":")[1]), 0, 59, 36)
-        end_h = _int_edit(int(grp.get("end_time", "05:00").split(":")[0]), 0, 23, 36)
-        end_m = _int_edit(int(grp.get("end_time", "05:00").split(":")[1]), 0, 59, 36)
-        for _e in (start_h, start_m, end_h, end_m):
-            _e.setAlignment(Qt.AlignCenter)
-        end_next_cb = QCheckBox("익일")
-        end_next_cb.setChecked(grp.get("end_next_day", False))
-
-        time_widget = QWidget()
-        time_hl = QHBoxLayout(time_widget)
-        time_hl.setContentsMargins(0, 0, 0, 0)
-        time_hl.setSpacing(4)
-        _lbl_start = QLabel("시작")
-        _lbl_start.setObjectName("settingsDesc")
-        time_hl.addWidget(_lbl_start)
-        time_hl.addWidget(start_h)
-        time_hl.addWidget(QLabel(":"))
-        time_hl.addWidget(start_m)
-        time_hl.addSpacing(12)
-        _lbl_end = QLabel("종료")
-        _lbl_end.setObjectName("settingsDesc")
-        time_hl.addWidget(_lbl_end)
-        time_hl.addWidget(end_h)
-        time_hl.addWidget(QLabel(":"))
-        time_hl.addWidget(end_m)
-        time_hl.addWidget(end_next_cb)
-        time_hl.addStretch()
-        sl.addLayout(_row("정파 시간 구간:", time_widget,
-                          "스틸 미감지 시 시작 시각에 자동 정파 진입 (보조 수단)"))
-        widgets.update({"start_h": start_h, "start_m": start_m,
-                        "end_h": end_h, "end_m": end_m, "end_next_day": end_next_cb})
-
         day_names_ko = ["월", "화", "수", "목", "금", "토", "일"]
 
-        # 정파준비 활성화 (X분 전)
-        prep_combo = QComboBox()
-        prep_options = [(0, "사용 안 함"), (30, "30분 전"), (60, "1시간 전"),
-                        (90, "1.5시간 전"), (120, "2시간 전"), (150, "2.5시간 전"),
-                        (180, "3시간 전"), (210, "3.5시간 전"), (240, "4시간 전")]
-        cur_prep = grp.get("prep_minutes", 150)
-        for val, label in prep_options:
-            prep_combo.addItem(label, val)
-        for i in range(prep_combo.count()):
-            if prep_combo.itemData(i) == cur_prep:
-                prep_combo.setCurrentIndex(i)
-                break
-
-        prep_calc_lbl = QLabel()
-        prep_calc_lbl.setObjectName("settingsDesc")
-
-        def _update_prep_time(_, _pc=prep_combo, _sh=start_h, _sm=start_m, _lbl=prep_calc_lbl):
-            minutes = _pc.currentData()
+        # ── 3 직접 시각: 정파준비 시작 / 정파해제 / 정파해제 준비 시작 ──
+        def _hm(time_str, default):
             try:
-                sh = int(_sh.text()); sm = int(_sm.text())
-            except ValueError:
-                _lbl.setText("준비 없음")
-                _lbl.setObjectName("settingsDesc")
-                _lbl.style().unpolish(_lbl)
-                _lbl.style().polish(_lbl)
-                return
-            if not minutes:
-                _lbl.setText("준비 없음")
-                return
-            total = (sh * 60 + sm - minutes) % (24 * 60)
-            _lbl.setText(f"▶  {total // 60:02d}:{total % 60:02d} 부터")
+                h, m = time_str.split(":")
+                return int(h), int(m)
+            except (ValueError, AttributeError):
+                dh, dm = default.split(":")
+                return int(dh), int(dm)
 
-        prep_combo.currentIndexChanged.connect(_update_prep_time)
-        start_h.textChanged.connect(_update_prep_time)
-        start_m.textChanged.connect(_update_prep_time)
-        _update_prep_time(None)
+        def _time_widget(h_edit, m_edit, *, lead=None):
+            w = QWidget()
+            hl = QHBoxLayout(w)
+            hl.setContentsMargins(0, 0, 0, 0)
+            hl.setSpacing(4)
+            if lead is not None:
+                hl.addWidget(lead)
+            hl.addWidget(h_edit)
+            hl.addWidget(QLabel(":"))
+            hl.addWidget(m_edit)
+            hl.addStretch()
+            return w
 
-        prep_row_hl = QHBoxLayout()
-        prep_row_hl.setContentsMargins(0, 0, 0, 0)
-        prep_row_hl.setSpacing(10)
-        prep_row_lbl = QLabel("정파준비 활성화")
-        prep_row_lbl.setObjectName("settingsRowLabel")
-        prep_row_lbl.setFixedWidth(220)
-        prep_row_hl.addWidget(prep_row_lbl)
-        prep_row_hl.addWidget(prep_combo)
-        prep_row_hl.addWidget(prep_calc_lbl, 1)
-        sl.addLayout(prep_row_hl)
-        widgets["prep_minutes"] = prep_combo
+        # 정파준비 시작 시간
+        ps_h, ps_m = _hm(grp.get("prep_start_time", "00:30"), "00:30")
+        prep_start_h = _int_edit(ps_h, 0, 23, 36)
+        prep_start_m = _int_edit(ps_m, 0, 59, 36)
+        for _e in (prep_start_h, prep_start_m):
+            _e.setAlignment(Qt.AlignCenter)
+        sl.addLayout(_row("정파준비 시작 시간:",
+                          _time_widget(prep_start_h, prep_start_m),
+                          "이 시각부터 화면 스틸 감지로 정파 진입 대기"))
+        widgets.update({"prep_start_h": prep_start_h, "prep_start_m": prep_start_m})
 
-        # 정파해제준비 활성화
-        exit_prep_combo = QComboBox()
-        exit_prep_options = [(0, "사용 안 함"), (30, "30분 전"), (60, "1시간 전"),
-                             (120, "2시간 전"), (180, "3시간 전")]
-        cur_exit_prep = grp.get("exit_prep_minutes", 30)
-        for val, label in exit_prep_options:
-            exit_prep_combo.addItem(label, val)
-        for i in range(exit_prep_combo.count()):
-            if exit_prep_combo.itemData(i) == cur_exit_prep:
-                exit_prep_combo.setCurrentIndex(i)
-                break
+        # 정파해제 시간 (하드캡)
+        e_h, e_m = _hm(grp.get("end_time", "05:00"), "05:00")
+        end_h = _int_edit(e_h, 0, 23, 36)
+        end_m = _int_edit(e_m, 0, 59, 36)
+        for _e in (end_h, end_m):
+            _e.setAlignment(Qt.AlignCenter)
+        sl.addLayout(_row("정파해제 시간:",
+                          _time_widget(end_h, end_m),
+                          "이 시각에 무조건 정파 해제 (하드캡)"))
+        widgets.update({"end_h": end_h, "end_m": end_m})
 
-        exit_calc_lbl = QLabel()
-        exit_calc_lbl.setObjectName("settingsDesc")
+        # 정파해제 준비 시작 시간 (선택 — "사용" 체크박스로 활성/비활성)
+        ep_str = grp.get("exit_prep_start_time", "")
+        ep_h0, ep_m0 = _hm(ep_str or "04:30", "04:30")
+        exit_prep_use_cb = QCheckBox("사용")
+        exit_prep_use_cb.setChecked(bool(ep_str))
+        exit_prep_h = _int_edit(ep_h0, 0, 23, 36)
+        exit_prep_m = _int_edit(ep_m0, 0, 59, 36)
+        for _e in (exit_prep_h, exit_prep_m):
+            _e.setAlignment(Qt.AlignCenter)
 
-        def _update_exit_prep_time(_, _ec=exit_prep_combo, _eh=end_h, _em=end_m, _lbl=exit_calc_lbl):
-            minutes = _ec.currentData()
-            try:
-                eh = int(_eh.text()); em = int(_em.text())
-            except ValueError:
-                _lbl.setText("준비 없음")
-                return
-            if not minutes:
-                _lbl.setText("준비 없음")
-                return
-            total = (eh * 60 + em - minutes) % (24 * 60)
-            _lbl.setText(f"▶  {total // 60:02d}:{total % 60:02d} 부터")
+        def _sync_exit_prep(_=None, _cb=exit_prep_use_cb, _h=exit_prep_h, _m=exit_prep_m):
+            on = _cb.isChecked()
+            _h.setEnabled(on)
+            _m.setEnabled(on)
 
-        exit_prep_combo.currentIndexChanged.connect(_update_exit_prep_time)
-        end_h.textChanged.connect(_update_exit_prep_time)
-        end_m.textChanged.connect(_update_exit_prep_time)
-        _update_exit_prep_time(None)
-
-        exit_row_hl = QHBoxLayout()
-        exit_row_hl.setContentsMargins(0, 0, 0, 0)
-        exit_row_hl.setSpacing(10)
-        exit_row_lbl = QLabel("정파해제준비 활성화")
-        exit_row_lbl.setObjectName("settingsRowLabel")
-        exit_row_lbl.setFixedWidth(220)
-        exit_row_hl.addWidget(exit_row_lbl)
-        exit_row_hl.addWidget(exit_prep_combo)
-        exit_row_hl.addWidget(exit_calc_lbl, 1)
-        sl.addLayout(exit_row_hl)
-        widgets["exit_prep_minutes"] = exit_prep_combo
+        exit_prep_use_cb.stateChanged.connect(_sync_exit_prep)
+        _sync_exit_prep()
+        sl.addLayout(_row("정파해제 준비 시작 시간:",
+                          _time_widget(exit_prep_h, exit_prep_m, lead=exit_prep_use_cb),
+                          "이 시각부터 화면이 움직이면 조기 해제 (미사용 시 정파해제 시각까지 유지)"))
+        widgets.update({"exit_prep_use": exit_prep_use_cb,
+                        "exit_prep_h": exit_prep_h, "exit_prep_m": exit_prep_m,
+                        "_exit_prep_sync": _sync_exit_prep})
 
         # 정파 진입 기준 시간 (ROI 스틸 유지 시간)
         still_trig = _int_edit(int(grp.get("still_trigger_sec", 60)), 5, 300)
@@ -1910,11 +1855,11 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.4.0")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.5.0")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
-        lbl_meta = QLabel("날짜: 2026-05-31    제작: minwoo@kbs.co.kr")
+        lbl_meta = QLabel("날짜: 2026-06-07    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
 
@@ -1999,15 +1944,18 @@ class SettingsDialog(QDialog):
             w = self._so_grp[idx]
             grp = so.setdefault(f"group{gid}", {})
             grp["name"] = w["name"].text().strip()
-            sh = w["start_h"].text().zfill(2)
-            sm = w["start_m"].text().zfill(2)
+            psh = w["prep_start_h"].text().zfill(2)
+            psm = w["prep_start_m"].text().zfill(2)
             eh = w["end_h"].text().zfill(2)
             em = w["end_m"].text().zfill(2)
-            grp["start_time"] = f"{sh}:{sm}"
+            grp["prep_start_time"] = f"{psh}:{psm}"
             grp["end_time"] = f"{eh}:{em}"
-            grp["end_next_day"] = w["end_next_day"].isChecked()
-            grp["prep_minutes"] = w["prep_minutes"].currentData()
-            grp["exit_prep_minutes"] = w["exit_prep_minutes"].currentData()
+            if w["exit_prep_use"].isChecked():
+                eph = w["exit_prep_h"].text().zfill(2)
+                epm = w["exit_prep_m"].text().zfill(2)
+                grp["exit_prep_start_time"] = f"{eph}:{epm}"
+            else:
+                grp["exit_prep_start_time"] = ""
             grp["still_trigger_sec"] = int(w["still_trigger_sec"].text() or 60)
             grp["exit_trigger_sec"] = int(w["exit_trigger_sec"].text() or 5)
             grp["weekdays"] = [d for d, cb in enumerate(w["weekdays"])
@@ -2343,27 +2291,21 @@ class SettingsDialog(QDialog):
             grp = d.get(f"group{idx + 1}", {})
             w["name"].setText(grp.get("name", f"{idx + 1}TV"))
 
-            start_h, start_m = grp.get("start_time", "03:00").split(":")
-            w["start_h"].setText(str(int(start_h)))
-            w["start_m"].setText(str(int(start_m)))
+            ps_h, ps_m = grp.get("prep_start_time", "00:30").split(":")
+            w["prep_start_h"].setText(str(int(ps_h)))
+            w["prep_start_m"].setText(str(int(ps_m)))
 
             end_h, end_m = grp.get("end_time", "05:00").split(":")
             w["end_h"].setText(str(int(end_h)))
             w["end_m"].setText(str(int(end_m)))
 
-            w["end_next_day"].setChecked(grp.get("end_next_day", False))
-
-            prep_val = grp.get("prep_minutes", 150)
-            for i in range(w["prep_minutes"].count()):
-                if w["prep_minutes"].itemData(i) == prep_val:
-                    w["prep_minutes"].setCurrentIndex(i)
-                    break
-
-            exit_prep_val = grp.get("exit_prep_minutes", 30)
-            for i in range(w["exit_prep_minutes"].count()):
-                if w["exit_prep_minutes"].itemData(i) == exit_prep_val:
-                    w["exit_prep_minutes"].setCurrentIndex(i)
-                    break
+            ep_str = grp.get("exit_prep_start_time", "")
+            w["exit_prep_use"].setChecked(bool(ep_str))
+            if ep_str:
+                ep_h, ep_m = ep_str.split(":")
+                w["exit_prep_h"].setText(str(int(ep_h)))
+                w["exit_prep_m"].setText(str(int(ep_m)))
+            w["_exit_prep_sync"]()
 
             w["still_trigger_sec"].setText(str(grp.get("still_trigger_sec", 60)))
             w["exit_trigger_sec"].setText(str(grp.get("exit_trigger_sec", 5)))

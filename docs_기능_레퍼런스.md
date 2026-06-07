@@ -324,15 +324,17 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 
 | 상태 | 설명 | 자동 전환 조건 |
 |-----|------|-------------|
-| IDLE | 정파 시간대 밖 | start_time - prep_minutes 도달 |
-| PREPARATION | 정파 준비 구간 | start_time 도달 또는 enter_roi 스틸 조기 감지 |
-| SIGNOFF | 정파 중 | end_time 도달 또는 exit_prep 구간에서 비-스틸 감지 |
+| IDLE | 정파준비 윈도우 밖 | prep_start_time 도달 (→ PREPARATION) |
+| PREPARATION | 정파 준비 구간 | enter_roi 스틸 지속 감지 (→ SIGNOFF) |
+| SIGNOFF | 정파 중 | end_time 도달 또는 해제준비 구간에서 비-스틸 감지 (→ IDLE) |
 
-수동 전환: 상단바 버튼 클릭 → 시간대 인지 순환 (소리 없음). PREPARATION에서 클릭 시 정파 시간대면 SIGNOFF, 밖이면 IDLE. auto_preparation OFF면 완전 수동 모드(자동 전환 억제, `docs_signoff_운영.md §5`)
+> **진입=감지 단독, 해제=시간 기반** (스키마·근거는 `docs_signoff_운영.md §6`). 시간만으로 SIGNOFF 강제 진입하는 경로는 제거됨.
+
+수동 전환: 상단바 버튼 클릭 → 윈도우 인지 순환 (소리 없음). PREPARATION에서 클릭 시 정파준비 윈도우 안이면 SIGNOFF, 밖이면 IDLE. auto_preparation OFF면 완전 수동 모드(자동 전환 억제, `docs_signoff_운영.md §5`)
 
 **진입 사유(source) 구분:**
-- `auto-time` — 시간 창(start_time / end_time) 도달에 의한 강제 전환 (fallback 안전망)
-- `auto-detect` — enter_roi 스틸/비스틸 감지에 의한 조기 진입·해제
+- `auto-time` — 시간 기반 전환 (정파준비 윈도우 진입 IDLE→PREP, end_time 이탈 해제)
+- `auto-detect` — enter_roi 스틸/비스틸 감지에 의한 진입·조기 해제
 - `manual` — 상단바 버튼 직접 클릭
 - `restore` — 재spawn 후 UI 상태 재주입
 
@@ -340,7 +342,7 @@ UI 로그 위젯에 `그룹1: PREPARATION → SIGNOFF [감지]` 형태로 표시
 
 **수동 SIGNOFF의 자동 해제:**
 - end_time 도달(prep_window 이탈) 시 수동/자동 구분 없이 무조건 IDLE로 전환됨.
-- 시간 창 밖에서 수동으로 SIGNOFF를 진입해도 다음 1초 사이클에서 즉시 해제됨 (테스트 외 사용 비권장).
+- 정파준비 윈도우 밖에서 수동으로 SIGNOFF를 진입해도 다음 1초 사이클에서 즉시 해제됨 (테스트 외 사용 비권장).
 
 ### 5.2 히스테리시스
 
@@ -349,8 +351,9 @@ UI 로그 위젯에 `그룹1: PREPARATION → SIGNOFF [감지]` 형태로 표시
 - 비-스틸 3연속 → 타이머 리셋 (아티팩트 방지)
 
 **해제 (SIGNOFF → IDLE)**:
-- exit_prep_minutes 구간에서 비-스틸 지속 >= `exit_trigger_sec` 초 → IDLE
+- 해제준비 구간(`exit_prep_start_time`~`end_time`)에서 비-스틸 지속 >= `exit_trigger_sec` 초 → IDLE
 - 스틸 감지 시 카운터 리셋
+- `exit_prep_start_time`이 `""`(미사용)이면 조기 해제 없이 `end_time` 하드캡으로만 해제
 
 ### 5.3 정파 중 알림 억제
 
@@ -370,9 +373,10 @@ UI 로그 위젯에 `그룹1: PREPARATION → SIGNOFF [감지]` 형태로 표시
 | 파라미터 | 기본값 | 설명 |
 |--------|------|------|
 | auto_preparation | True | 자동 정파준비 활성화 |
-| prep_minutes | 150/90분 | 정파준비 선행 시간 (30분 단위) |
-| exit_prep_minutes | 180/30분 | 정파해제준비 구간 |
-| still_trigger_sec | 5초 | 진입 스틸 지속 기준 (enter_roi 스틸이 이 시간 이상 지속 시 SIGNOFF 조기 진입) |
+| prep_start_time | "00:30" | 정파준비 시작 시간 (이 시각부터 스틸 감지로 진입 대기) |
+| exit_prep_start_time | "04:30" | 정파해제 준비 시작 시간 ("" = 미사용) |
+| end_time | "05:00" | 정파해제 시간 (하드캡) |
+| still_trigger_sec | 5초 | 진입 스틸 지속 기준 (enter_roi 스틸이 이 시간 이상 지속 시 SIGNOFF 진입) |
 | exit_trigger_sec | 5초 | 조기 해제 트리거 시간 |
 | weekdays | 요일 목록 | 적용 요일 (every_day=True면 무시) |
 
@@ -583,12 +587,10 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 |------|------|-----|-----|
 | auto_preparation | True | - | - |
 | name (G1/G2) | "1TV"/"2TV" | - | - |
-| start_time | "03:00"/"02:00" | HH:MM | - |
-| end_time | "05:00" | HH:MM | - |
-| end_next_day | False | - | - |
-| prep_minutes | 150/90 | 0~180 | 분 (30 단위) |
-| exit_prep_minutes | 180/30 | 0~180 | 분 (30 단위) |
-| still_trigger_sec | 5 | 1~300 | 초 |
+| prep_start_time | "00:30" | HH:MM | 정파준비 시작 |
+| exit_prep_start_time | "04:30" | HH:MM 또는 "" | 해제준비 시작 ("" =미사용) |
+| end_time | "05:00" | HH:MM | 정파해제(하드캡) |
+| still_trigger_sec | 120 | 1~300 | 초 |
 | exit_trigger_sec | 5 | 1~300 | 초 |
 | weekdays | [0,1]/[0~6] | - | 0=월 |
 | enter_roi | None | - | 진입 트리거 ROI 라벨 (단일) |

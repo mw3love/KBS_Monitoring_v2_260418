@@ -24,17 +24,27 @@ class SignoffState(Enum):
     SIGNOFF     = "SIGNOFF"
 
 
+def _valid_hm(s: str, default: str) -> str:
+    """'HH:MM' 형식 검증 후 정규화. 실패 시 default 반환."""
+    try:
+        h, m = s.split(":")
+        h, m = int(h), int(m)
+        if 0 <= h <= 23 and 0 <= m <= 59:
+            return f"{h:02d}:{m:02d}"
+    except (ValueError, AttributeError):
+        pass
+    return default
+
+
 @dataclass
 class SignoffGroup:
     group_id: int
     name: str
     enter_roi: dict
     suppressed_labels: List[str]
-    start_time: str
-    end_time: str
-    prep_minutes: int
-    exit_prep_minutes: int
-    end_next_day: bool
+    prep_start_time: str        # 정파준비 시작 시간 "HH:MM"
+    exit_prep_start_time: str   # 정파해제 준비 시작 시간 "HH:MM" ("" = 미사용)
+    end_time: str               # 정파해제 시간 "HH:MM" (하드캡)
     every_day: bool
     weekdays: List[int]
     still_trigger_sec: float
@@ -42,17 +52,16 @@ class SignoffGroup:
 
     def to_dict(self) -> dict:
         return {
-            "name":              self.name,
-            "enter_roi":         dict(self.enter_roi),
-            "suppressed_labels": list(self.suppressed_labels),
-            "start_time":        self.start_time,
-            "end_time":          self.end_time,
-            "prep_minutes":      self.prep_minutes,
-            "exit_prep_minutes": self.exit_prep_minutes,
-            "exit_trigger_sec":  self.exit_trigger_sec,
-            "end_next_day":      self.end_next_day,
-            "every_day":         self.every_day,
-            "weekdays":          list(self.weekdays),
+            "name":                 self.name,
+            "enter_roi":            dict(self.enter_roi),
+            "suppressed_labels":    list(self.suppressed_labels),
+            "prep_start_time":      self.prep_start_time,
+            "exit_prep_start_time": self.exit_prep_start_time,
+            "end_time":             self.end_time,
+            "still_trigger_sec":    self.still_trigger_sec,
+            "exit_trigger_sec":     self.exit_trigger_sec,
+            "every_day":            self.every_day,
+            "weekdays":             list(self.weekdays),
         }
 
     @classmethod
@@ -80,10 +89,11 @@ class SignoffGroup:
         raw_weekdays = list(d.get("weekdays", [0, 1, 2, 3, 4, 5, 6]))
         every_day = d.get("every_day", len(raw_weekdays) == 7)
 
-        prep_minutes = int(d.get("prep_minutes", 30))
-        prep_minutes = max(0, min(240, (prep_minutes // 30) * 30))
-        exit_prep_minutes = int(d.get("exit_prep_minutes", 0))
-        exit_prep_minutes = max(0, min(180, (exit_prep_minutes // 30) * 30))
+        prep_start_time = _valid_hm(d.get("prep_start_time", "00:30"), "00:30")
+        end_time = _valid_hm(d.get("end_time", "05:00"), "05:00")
+        # exit_prep_start_time: "" 이면 해제준비 미사용 (파싱하지 않음)
+        raw_exit_prep = d.get("exit_prep_start_time", "04:30")
+        exit_prep_start_time = "" if not raw_exit_prep else _valid_hm(raw_exit_prep, "04:30")
         still_trigger_sec = max(1.0, float(d.get("still_trigger_sec", 60.0)))
         exit_trigger_sec = max(0.0, float(d.get("exit_trigger_sec", 5.0)))
 
@@ -92,12 +102,10 @@ class SignoffGroup:
             name=d.get("name", f"Group{group_id}"),
             enter_roi=enter_roi,
             suppressed_labels=suppressed_labels,
-            start_time=d.get("start_time", "00:30"),
-            end_time=d.get("end_time", "06:00"),
-            prep_minutes=prep_minutes,
-            exit_prep_minutes=exit_prep_minutes,
+            prep_start_time=prep_start_time,
+            exit_prep_start_time=exit_prep_start_time,
+            end_time=end_time,
             exit_trigger_sec=exit_trigger_sec,
-            end_next_day=bool(d.get("end_next_day", False)),
             every_day=every_day,
             weekdays=raw_weekdays,
             still_trigger_sec=still_trigger_sec,
@@ -188,13 +196,11 @@ class SignoffManager:
             self._exit_released[gid] = False
         elif old_group is not None:
             schedule_changed = (
-                old_group.start_time != group.start_time
+                old_group.prep_start_time != group.prep_start_time
+                or old_group.exit_prep_start_time != group.exit_prep_start_time
                 or old_group.end_time != group.end_time
                 or set(old_group.weekdays) != set(group.weekdays)
                 or old_group.every_day != group.every_day
-                or old_group.prep_minutes != group.prep_minutes
-                or old_group.exit_prep_minutes != group.exit_prep_minutes
-                or old_group.end_next_day != group.end_next_day
             )
             if schedule_changed and self._auto_preparation:
                 # auto OFF = 완전 수동 모드: 스케줄 저장 시 즉시 재평가도 억제 (수동 상태 유지)
@@ -206,22 +212,17 @@ class SignoffManager:
                 current_time = now.strftime("%H:%M")
                 current_state = self._states.get(gid, SignoffState.IDLE)
                 in_prep_window = self._is_in_prep_window(group, current_time, weekday)
-                in_signoff_window = self._is_in_signoff_window(group, current_time, weekday)
                 if current_state == SignoffState.SIGNOFF:
+                    # 진입은 감지 기반 → 시간대 이탈(prep_window 밖) 시에만 IDLE 해제
                     if not in_prep_window:
                         self._signoff_entered_at[gid] = None
                         self._transition_to(gid, SignoffState.IDLE, source="auto-time")
-                    elif not in_signoff_window:
-                        self._signoff_entered_at[gid] = None
-                        self._transition_to(gid, SignoffState.PREPARATION, source="auto-time")
                 elif current_state == SignoffState.PREPARATION:
                     if not in_prep_window:
                         self._reset_enter_timers(gid)
                         self._transition_to(gid, SignoffState.IDLE, source="auto-time")
                 elif current_state == SignoffState.IDLE:
-                    if in_signoff_window:
-                        self._transition_to(gid, SignoffState.SIGNOFF, source="auto-time")
-                    elif in_prep_window:
+                    if in_prep_window:
                         self._transition_to(gid, SignoffState.PREPARATION, source="auto-time")
 
     def get_state(self, group_id: int) -> SignoffState:
@@ -261,11 +262,12 @@ class SignoffManager:
         elif current == SignoffState.PREPARATION:
             now = datetime.datetime.now()
             group = self._groups.get(group_id)
-            in_signoff = (
+            # 정파준비 윈도우 안에서만 수동 SIGNOFF 허용(운용자 즉시 강제), 밖이면 IDLE로.
+            can_signoff = (
                 group is not None
-                and self._is_in_signoff_window(group, now.strftime("%H:%M"), now.weekday())
+                and self._is_in_prep_window(group, now.strftime("%H:%M"), now.weekday())
             )
-            if in_signoff:
+            if can_signoff:
                 self._reset_enter_timers(group_id)
                 self._transition_to(group_id, SignoffState.SIGNOFF, source="manual")
             else:
@@ -352,11 +354,9 @@ class SignoffManager:
                     return max(0.0, (candidate - now).total_seconds())
             return 0.0
         elif state == SignoffState.PREPARATION:
-            start_h, start_m = map(int, group.start_time.split(":"))
-            signoff_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
-            if signoff_dt <= now:
-                signoff_dt += datetime.timedelta(days=1)
-            return max(0.0, (signoff_dt - now).total_seconds())
+            # 정파 예정시각 개념 제거 → PREPARATION은 카운트다운 없음(UI는 "감지중" 표시).
+            # 이 값은 DIAG 진단용으로만 흘러가므로 0 반환.
+            return 0.0
         elif state == SignoffState.SIGNOFF:
             entered = self._signoff_entered_at.get(group_id)
             if entered is None:
@@ -392,8 +392,8 @@ class SignoffManager:
         if group.every_day:
             return True
         now = datetime.datetime.now()
-        start_h = int(group.start_time.split(":")[0])
-        if start_h >= 9:
+        prep_h = int(group.prep_start_time.split(":")[0])
+        if prep_h >= 9:
             check_weekday = now.weekday()
         else:
             check_weekday = (now + datetime.timedelta(days=1)).weekday()
@@ -402,11 +402,7 @@ class SignoffManager:
     # ── 내부 헬퍼 ────────────────────────────────────────────────────────────
 
     def _calc_prep_start_str(self, group: SignoffGroup) -> str:
-        if group.prep_minutes == 0:
-            return group.start_time
-        start_h, start_m = map(int, group.start_time.split(":"))
-        total_min = (start_h * 60 + start_m - group.prep_minutes) % (24 * 60)
-        return f"{total_min // 60:02d}:{total_min % 60:02d}"
+        return group.prep_start_time
 
     def _reset_enter_timers(self, gid: int):
         """IDLE 진입 시 반드시 호출 (stale 타이머 방지)."""
@@ -428,16 +424,13 @@ class SignoffManager:
         groups_snapshot = dict(self._groups)  # 순회 중 set_group() 동시 수정 방지
         for gid, group in groups_snapshot.items():
             current_state = self._states[gid]
-            in_prep_window    = self._is_in_prep_window(group, current_time, weekday)
-            in_signoff_window = self._is_in_signoff_window(group, current_time, weekday)
+            in_prep_window = self._is_in_prep_window(group, current_time, weekday)
 
             if current_state == SignoffState.IDLE:
                 if self._auto_preparation:
                     if self._exit_released.get(gid, False):
                         if not in_prep_window:
                             self._exit_released[gid] = False
-                    elif in_signoff_window:
-                        self._transition_to(gid, SignoffState.SIGNOFF, source="auto-time")
                     elif in_prep_window:
                         self._transition_to(gid, SignoffState.PREPARATION, source="auto-time")
 
@@ -447,10 +440,8 @@ class SignoffManager:
                     if not in_prep_window:
                         self._reset_enter_timers(gid)
                         self._transition_to(gid, SignoffState.IDLE, source="auto-time")
-                    elif in_signoff_window:
-                        self._reset_enter_timers(gid)
-                        self._transition_to(gid, SignoffState.SIGNOFF, source="auto-time")
                     else:
+                        # 진입은 항상 감지 기반(스틸 지속 시 SIGNOFF)
                         self._tick_preparation(gid, group)
 
             elif current_state == SignoffState.SIGNOFF:
@@ -459,7 +450,7 @@ class SignoffManager:
                     if not in_prep_window:
                         self._signoff_entered_at[gid] = None
                         self._transition_to(gid, SignoffState.IDLE, source="auto-time")
-                    elif group.exit_prep_minutes > 0:
+                    elif group.exit_prep_start_time:
                         if self._is_in_exit_prep_window(group):
                             self._tick_exit_preparation(gid, group)
 
@@ -509,10 +500,6 @@ class SignoffManager:
             self._reset_enter_timers(gid)
             self._transition_to(gid, SignoffState.SIGNOFF, source="auto-detect")
 
-    def _is_in_signoff_window(self, group: SignoffGroup, current_time: str, weekday: int) -> bool:
-        return self._is_in_time_range(group, current_time, weekday,
-                                      group.start_time, group.end_time)
-
     def _is_in_prep_window(self, group: SignoffGroup, current_time: str, weekday: int) -> bool:
         prep_start = self._calc_prep_start_str(group)
         if prep_start > group.end_time:
@@ -531,14 +518,19 @@ class SignoffManager:
                                       prep_start, group.end_time)
 
     def _is_in_exit_prep_window(self, group: SignoffGroup) -> bool:
-        if group.exit_prep_minutes == 0:
+        if not group.exit_prep_start_time:
+            return False
+        end_h, end_m = map(int, group.end_time.split(":"))
+        ep_h, ep_m = map(int, group.exit_prep_start_time.split(":"))
+        # 해제준비 시작~정파해제 사이의 길이(분). 자정 넘김 % 1440 처리.
+        gap_min = (end_h * 60 + end_m - (ep_h * 60 + ep_m)) % (24 * 60)
+        if gap_min == 0:
             return False
         now = datetime.datetime.now()
-        end_h, end_m = map(int, group.end_time.split(":"))
         end_dt = now.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
         if end_dt <= now:
             end_dt += datetime.timedelta(days=1)
-        return (end_dt - now).total_seconds() <= group.exit_prep_minutes * 60
+        return (end_dt - now).total_seconds() <= gap_min * 60
 
     def _tick_exit_preparation(self, gid: int, group: SignoffGroup):
         v_label = group.enter_roi.get("video_label", "")
@@ -573,22 +565,10 @@ class SignoffManager:
 
     def _is_in_time_range(self, group: SignoffGroup, current_time: str, weekday: int,
                            start: str, end: str) -> bool:
-        if group.end_next_day:
-            if current_time >= start:
-                if not group.every_day and weekday not in group.weekdays:
-                    return False
-                return True
-            elif current_time < end:
-                prev_weekday = (weekday - 1) % 7
-                if not group.every_day and prev_weekday not in group.weekdays:
-                    return False
-                return True
-            else:
-                return False
-        else:
-            if not group.every_day and weekday not in group.weekdays:
-                return False
-            return start <= current_time < end
+        # 같은 날(start ≤ end) 윈도우 전용. 자정 넘김은 _is_in_prep_window의 wrap 분기가 처리.
+        if not group.every_day and weekday not in group.weekdays:
+            return False
+        return start <= current_time < end
 
     def _transition_to(
         self,
