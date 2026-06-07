@@ -18,7 +18,8 @@ class DetectionState:
         self.last_alert_duration = 0.0
         self.just_resolved = False
         self.recovery_start_time: Optional[float] = None
-        self.last_check_time = time.time()
+        # 지속시간은 단조시계(monotonic) 기준 — 벽시계(time.time) NTP·수동 보정에 면역
+        self.last_check_time = time.monotonic()
         # 히스테리시스: 연속 N프레임 정상이어야 타이머 리셋
         self._not_still_count: int = 0
         self._last_reset_time: float = 0.0
@@ -35,7 +36,7 @@ class DetectionState:
                           0이면 reset_frames 히스테리시스 적용
         reset_frames: 연속 정상 프레임 수 임계값 (경보 전/후 동일 적용)
         """
-        now = time.time()
+        now = time.monotonic()
         was_alerting = self.is_alerting
 
         if is_abnormal:
@@ -87,7 +88,7 @@ class DetectionState:
     def _do_resolve(self, now: float = None):
         """알림 → 정상 전환 처리"""
         if now is None:
-            now = time.time()
+            now = time.monotonic()
         self._resolve_count += 1
         self._last_reset_from = self.alert_duration
         self._last_reset_time = now

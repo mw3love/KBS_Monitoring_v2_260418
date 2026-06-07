@@ -66,6 +66,7 @@ class Detector:
         self.embedded_alerting = False
         self._embedded_alert_start: Optional[float] = None
         self._embedded_recovery_start: Optional[float] = None
+        self._embedded_alert_duration: float = 0.0       # 마지막 무음 관측 시점 지속시간(freeze용)
         self._last_embedded_alert_duration: float = 0.0
         self.embedded_recovery_seconds: float = 2.0
         self._tone_states: Dict[str, DetectionState] = {}
@@ -296,20 +297,19 @@ class Detector:
         if silence_seconds > 0:
             self._embedded_recovery_start = None  # 복구 타이머 취소
             if self._embedded_alert_start is None:
-                self._embedded_alert_start = time.time() - silence_seconds
-            elapsed = time.time() - self._embedded_alert_start
-            if elapsed >= self.embedded_silence_duration and not self.embedded_alerting:
+                self._embedded_alert_start = time.monotonic() - silence_seconds
+            # 무음 관측 시점마다 지속시간 갱신 (블랙/스틸의 alert_duration과 동일 의미)
+            self._embedded_alert_duration = time.monotonic() - self._embedded_alert_start
+            if self._embedded_alert_duration >= self.embedded_silence_duration and not self.embedded_alerting:
                 self.embedded_alerting = True
         else:
             if self.embedded_alerting:
                 # 복구 히스테리시스: recovery_seconds 연속 정상 신호 시에만 해제
                 if self._embedded_recovery_start is None:
-                    self._embedded_recovery_start = time.time()
-                elif time.time() - self._embedded_recovery_start >= self.embedded_recovery_seconds:
-                    self._last_embedded_alert_duration = (
-                        time.time() - self._embedded_alert_start
-                        if self._embedded_alert_start is not None else 0.0
-                    )
+                    self._embedded_recovery_start = time.monotonic()
+                elif time.monotonic() - self._embedded_recovery_start >= self.embedded_recovery_seconds:
+                    # 마지막 무음 관측 시점의 지속시간을 보고 (복구 관찰창 제외 — 블랙/스틸과 동일)
+                    self._last_embedded_alert_duration = self._embedded_alert_duration
                     self._embedded_alert_start = None
                     self._embedded_recovery_start = None
                     self.embedded_alerting = False
@@ -321,6 +321,7 @@ class Detector:
     def reset_embedded_silence(self):
         self._embedded_alert_start = None
         self._embedded_recovery_start = None
+        self._embedded_alert_duration = 0.0
         self._last_embedded_alert_duration = 0.0
         self.embedded_alerting = False
 
