@@ -1468,7 +1468,7 @@ class SettingsDialog(QDialog):
         _sync_exit_prep()
         sl.addLayout(_row("정파해제 준비 시작 시간:",
                           _time_widget(exit_prep_h, exit_prep_m, lead=exit_prep_use_cb),
-                          "이 시각부터 화면이 움직이면 조기 해제 (미사용 시 정파해제 시각까지 유지)"))
+                          "이 시각 이후 움직이면 조기 해제, 이전엔 정파준비로 복귀 (미사용 시 정파해제 시각까지 복귀만)"))
         widgets.update({"exit_prep_use": exit_prep_use_cb,
                         "exit_prep_h": exit_prep_h, "exit_prep_m": exit_prep_m,
                         "_exit_prep_sync": _sync_exit_prep})
@@ -1482,7 +1482,7 @@ class SettingsDialog(QDialog):
         # 조기 해제 트리거 시간
         exit_trig = _int_edit(grp.get("exit_trigger_sec", 5), 1, 300)
         sl.addLayout(_row("조기 해제 기준 시간(초)", exit_trig,
-                          "1~300 / 화면이 바뀌면 이 시간 후 정파 종료 (기본값: 5)"))
+                          "1~300 / 화면이 바뀐 뒤 이 시간 지속 시 정파 종료 또는 정파준비 복귀 (기본값: 5)"))
         widgets["exit_trigger_sec"] = exit_trig
 
         # 요일 선택
@@ -1855,11 +1855,11 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.5.1")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.6.0")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
-        lbl_meta = QLabel("날짜: 2026-06-07    제작: minwoo@kbs.co.kr")
+        lbl_meta = QLabel("날짜: 2026-06-08    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
 

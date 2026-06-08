@@ -184,7 +184,7 @@ def _apply_config_to_telegram(telegram, cfg: dict):
 
 def run(result_queue, cmd_queue, shutdown_event,
         state_lock, frame_shm_name: str, state_shm_name: str,
-        version: str = "2.5", cmd_event=None):
+        version: str = "2.6", cmd_event=None):
     """
     Watchdog이 spawn하는 Detection 프로세스 메인 함수.
     종료 조건: shutdown_event set 또는 Shutdown 메시지 수신.
@@ -318,6 +318,29 @@ def run(result_queue, cmd_queue, shutdown_event,
                     v_lbl = group.enter_roi.get("video_label", "")
                     if v_lbl:
                         _signoff_recovery_suppress.add(v_lbl)
+            # SIGNOFF→PREPARATION 조기복귀(auto-revert) 시 텔레그램 발송.
+            # restore 경로는 위에서 early-return하므로 여기엔 auto-revert만 도달.
+            # PREPARATION에선 스틸이 계속 억제되므로 _signoff_recovery_suppress 불필요.
+            elif (msg.prev_state == SignoffState.SIGNOFF.value
+                  and msg.new_state == SignoffState.PREPARATION.value):
+                entered = _signoff_entry_time.pop(msg.group_id, 0.0)
+                elapsed_sec = (time.time() - entered) if entered else 0.0
+                group = signoff_mgr.get_groups().get(msg.group_id)
+                if group:
+                    with _last_frame_lock:
+                        snap = _last_frame.copy() if _last_frame is not None else None
+                    snap_jpeg = _encode_jpeg(snap)
+                    telegram.notify_signoff(
+                        group_name=group.name,
+                        is_entry=False,
+                        is_revert=True,
+                        trigger_label=group.enter_roi.get("video_label", ""),
+                        trigger_media=signoff_mgr._media_names.get(
+                            group.enter_roi.get("video_label", ""), ""),
+                        suppressed_labels=group.suppressed_labels,
+                        elapsed_sec=elapsed_sec,
+                        jpeg_bytes=snap_jpeg,
+                    )
         else:
             _put(result_queue, msg, _ipc_counters)
     signoff_mgr._emit = _signoff_emit_safe

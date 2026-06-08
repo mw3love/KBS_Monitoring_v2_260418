@@ -49,11 +49,15 @@
   - `CLAUDE.md` 원칙 "필요 이상 추상화 금지"와 부합
 - 향후 운영 중 오진입이 한 달에 2~3회 이상 반복되거나, 차단된 알람으로 실제 손실이 누적되면 재검토.
 
+> **2026-06-08 갱신**: 이 "빠른 해제"를 **IDLE이 아닌 PREPARATION으로 복귀**하는 변형으로 §7에서 채택했다. 재무장이라 위 "신규 실패 모드(정상 정파 오해제)"를 회피한다.
+
 ---
 
 ## 4. SIGNOFF 오진입의 자연 회복 경로
 
 오진입이 발생하더라도 시간이 지나면 자동 해제된다. 단, 즉각적이지 않음.
+
+> **2026-06-08 갱신**: §7 조기복귀 도입으로, 해제준비 시각 **전**이라면 아래의 느린 회복은 더 이상 적용되지 않는다(움직임 시 즉시 PREPARATION 복귀). 아래는 조기복귀 도입 전 동작 기록이자, 해제준비 윈도우 **안**의 해제 동작 설명으로 유효하다.
 
 ### 흐름 (5/18 케이스 기준)
 ```
@@ -143,6 +147,32 @@
 - `detection/signoff_manager.py`: `SignoffGroup`(3 시각 필드), `_is_in_prep_window`(prep_start>end wrap), `_is_in_exit_prep_window`(gap=end−exit_prep_start), `_tick_impl`(진입=감지 단독), `cycle_state`(prep 윈도우 판정).
 - `ui/top_bar.py` `update_signoff_state`(exit_detecting 분기), `ui/main_window.py` `_calc_signoff_seconds`·`_is_in_exit_prep`.
 - 설정 UI: `ui/settings_dialog.py` `_build_signoff_group_section`(직접 시각 3행 + 해제준비 "사용" 체크박스).
+
+---
+
+## 7. 조기복귀(Early-Revert) — 해제준비 시각 전 오감지 SIGNOFF 자동 회복 (2026-06-08)
+
+### 배경 — §4 문제의 능동적 해소
+§4는 오진입한 SIGNOFF가 해제준비 시각(`exit_prep_start_time`, 기본 04:30)까지 갇혀 그동안 해당 그룹 알람이 묵살되는 "느린 자연 회복"을 기술했다. 조기복귀는 이 대기 시간을 없앤다.
+
+### 동작
+- SIGNOFF 상태에서 **해제준비 시각 전**에 V영상이 비스틸(움직임)로 `exit_trigger_sec`(기본 5초) 연속 잡히면 → **IDLE이 아니라 PREPARATION으로 복귀**(재무장). 스틸 타이머가 리셋되어 다시 `still_trigger_sec` 스틸이 쌓여야 SIGNOFF 재진입.
+- **해제준비 윈도우 안(`exit_prep_start_time`~`end_time`)**에서는 기존대로 비스틸 시 → IDLE(진짜 해제). 즉 같은 "비스틸" 신호를 **해제준비 시각을 경계로** 다르게 해석한다.
+- **해제준비 미사용("") 그룹**: end_time 전까지 복귀만 적용, 진짜 해제는 `end_time` 하드캡.
+- 복귀 시 텔레그램 발송(중립 문구 "화면 움직임 감지 — 정파준비로 복귀"). `SignoffStateChange.source='auto-revert'`.
+- **수동 모드(`auto_preparation` OFF)에선 미작동**(동결) — §5 철학과 일관.
+
+### §3 "빠른 해제" 반려와의 차이 (왜 안전한가)
+§3은 "빠른 해제(→IDLE)"를 정상 정파 오해제 위험으로 반려했다. 조기복귀는 **IDLE이 아닌 PREPARATION으로만** 복귀하므로, §2 테스트영상(정파 중 움직이는 점검영상)에서도 영구 오해제가 아니라 "일시 복귀 → 테스트영상 종료 시 스틸 재감지로 자동 재진입"으로 피해가 제한된다 → §6의 "미진입 방향 수용" 원칙에 부합. 이 차이가 §3 반려를 안전하게 우회한다.
+
+### 향후 (Phase B)
+복귀 텔레그램으로 가짜 정파 실제 발생 빈도를 관찰해, 자동 모드 정확도가 충분히 확인되면 수동 모드/`cycle_state`를 제거하고 정파 버튼을 정보표시 전용으로 전환 예정.
+
+### 핵심 코드 위치
+- `detection/signoff_manager.py`: `_tick_signoff_revert`(신규), `_tick_impl` SIGNOFF 분기(해제준비 전→복귀 / 안→해제), `_transition_to`(auto-revert 문구).
+- `processes/detection_process.py`: `_signoff_emit_safe` SIGNOFF→PREPARATION 텔레그램 분기.
+- `detection/telegram_worker.py`: `notify_signoff(is_revert=...)`, `_send_signoff` 복귀 렌더.
+- 설정 UI 설명: `ui/settings_dialog.py` "정파해제 준비 시작 시간"·"조기 해제 기준 시간" 행 설명 텍스트.
 
 ---
 

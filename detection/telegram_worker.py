@@ -217,8 +217,12 @@ class TelegramWorker:
         suppressed_labels: list,
         elapsed_sec: float = 0.0,
         jpeg_bytes: bytes = None,
+        is_revert: bool = False,
     ):
-        """정파 진입/해제 알림. 쿨다운 없이 즉시 발송."""
+        """정파 진입/해제/복귀 알림. 쿨다운 없이 즉시 발송.
+
+        is_revert=True 이면 조기복귀(SIGNOFF→PREPARATION) 알림. is_entry보다 우선.
+        """
         if not _REQUESTS_AVAILABLE or not self._enabled:
             return
         if not self._notify_flags.get("정파", True):
@@ -230,6 +234,7 @@ class TelegramWorker:
             "_signoff": True,
             "group_name": group_name,
             "is_entry": is_entry,
+            "is_revert": is_revert,
             "trigger_label": trigger_label,
             "trigger_media": trigger_media,
             "suppressed_labels": list(suppressed_labels),
@@ -243,7 +248,7 @@ class TelegramWorker:
             try:
                 dropped = self._queue.get_nowait()
                 self._queue.put_nowait(item)
-                kind = "진입" if is_entry else "해제"
+                kind = "복귀" if is_revert else ("진입" if is_entry else "해제")
                 dropped_kind = "정파" if dropped.get("_signoff") else (
                     "시스템" if dropped.get("_system") else
                     f"{dropped.get('alarm_type', '?')} {dropped.get('label', '')}"
@@ -437,6 +442,7 @@ class TelegramWorker:
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         group_name = item["group_name"]
         is_entry = item["is_entry"]
+        is_revert = item.get("is_revert", False)
         trigger_label = item["trigger_label"]
         trigger_media = item.get("trigger_media", "")
         suppressed_labels = item.get("suppressed_labels", [])
@@ -453,7 +459,17 @@ class TelegramWorker:
         trigger_esc = _html.escape(trigger_str)
         suppressed_esc = _html.escape(suppressed_str)
 
-        if is_entry:
+        if is_revert:
+            text = (
+                f"<b>[KBS On-Air Monitoring \U0001F504 정파준비 복귀]</b>\n"
+                f"\U000023F0 시각: <code>{now_str}</code>\n"
+                f"\U0001F4CB 그룹: <b>{group_esc}</b>\n"
+                f"\U0001F3AF 진입 트리거: <b>{trigger_esc}</b>\n"
+                f"\U00002139 화면 움직임 감지 — 정파준비로 복귀 (정파 유지 {_fmt_dur(elapsed_sec)})\n"
+                f"\U0001F514 알림 재개: {suppressed_esc} ({suppressed_count}개 채널)"
+            )
+            log_kind = "정파준비 복귀"
+        elif is_entry:
             text = (
                 f"<b>[KBS On-Air Monitoring \U0001F534 정파]</b>\n"
                 f"\U000023F0 시각: <code>{now_str}</code>\n"

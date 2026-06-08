@@ -40,6 +40,14 @@ def _make_group(gid=1, prep_start="00:30", end="05:00", every_day=True,
     )
 
 
+def _drain(q):
+    """큐에 쌓인 메시지를 모두 꺼내 리스트로 반환."""
+    msgs = []
+    while not q.empty():
+        msgs.append(q.get_nowait())
+    return msgs
+
+
 # ── 수동 전환 ─────────────────────────────────────────────────────────────────
 
 def test_cycle_state_idle_to_prep():
@@ -286,13 +294,21 @@ def test_exit_prep_early_release():
         f"조기 해제 source 불일치: {[(m.new_state, m.source) for m in sc]}"
 
 
-def test_exit_prep_disabled_no_early_release():
-    """해제준비 미사용('')이면 비스틸이어도 조기 해제 없음 (end_time 하드캡까지 유지)."""
-    mgr, _ = _make_manager()
+def test_exit_prep_disabled_reverts_to_prep():
+    """해제준비 미사용('') 그룹도 비스틸 지속 시 PREPARATION 조기복귀.
+
+    예전 동작: 해제준비 미사용이면 end_time까지 SIGNOFF 유지.
+    조기복귀 도입 후: 해제준비 윈도우가 없으니 end_time 전 내내 복귀검사 적용
+    → 비스틸 시 PREPARATION 복귀(진짜 해제는 여전히 end_time 하드캡).
+    """
+    from ipc.messages import SignoffStateChange
+    mgr, q = _make_manager()
     grp = _make_group(prep_start="00:30", end="05:00", exit_prep_start="",
                       every_day=True, exit_trigger=5.0)
     mgr.set_group(grp)
     mgr.set_state_direct(1, "SIGNOFF")
+    while not q.empty():
+        q.get_nowait()
     mgr._latest_video["V1"] = False
     mgr._video_exit_start[1] = time.time() - 10.0
 
@@ -302,7 +318,75 @@ def test_exit_prep_disabled_no_early_release():
         mock_dt.timedelta = real_datetime.timedelta
         mgr._tick_impl()
 
-    assert mgr.get_state(1) == SignoffState.SIGNOFF, "해제준비 미사용인데 조기 해제됨"
+    assert mgr.get_state(1) == SignoffState.PREPARATION, "해제준비 미사용 그룹 조기복귀 실패"
+    sc = [m for m in _drain(q) if isinstance(m, SignoffStateChange)]
+    assert any(m.new_state == "PREPARATION" and m.source == "auto-revert" for m in sc)
+
+
+# ── 조기복귀 (Early-Revert): 해제준비 시각 전 오감지 SIGNOFF 복귀 ──────────────
+
+def test_signoff_reverts_to_prep_before_exit_prep():
+    """해제준비 시각(04:30) 전 SIGNOFF 중 비스틸 지속 → PREPARATION 조기복귀 (auto-revert)."""
+    from ipc.messages import SignoffStateChange
+    mgr, q = _make_manager()
+    grp = _make_group(prep_start="00:30", end="05:00", exit_prep_start="04:30",
+                      every_day=True, exit_trigger=5.0)
+    mgr.set_group(grp)
+    mgr.set_state_direct(1, "SIGNOFF")
+    while not q.empty():
+        q.get_nowait()
+    mgr._latest_video["V1"] = False           # 화면 다시 움직임(가짜 정파였음)
+    mgr._video_exit_start[1] = time.time() - 10.0   # 비스틸 10s 지속
+
+    fake_now = real_datetime.datetime(2026, 5, 13, 2, 0, 0)  # 해제준비(04:30) 전, prep_window 내
+    with patch("detection.signoff_manager.datetime") as mock_dt:
+        mock_dt.datetime.now.return_value = fake_now
+        mock_dt.timedelta = real_datetime.timedelta
+        mgr._tick_impl()
+
+    assert mgr.get_state(1) == SignoffState.PREPARATION, "조기복귀 실패"
+    sc = [m for m in _drain(q) if isinstance(m, SignoffStateChange)]
+    assert any(m.new_state == "PREPARATION" and m.source == "auto-revert" for m in sc), \
+        f"조기복귀 source 불일치: {[(m.new_state, m.source) for m in sc]}"
+
+
+def test_signoff_still_no_revert_before_exit_prep():
+    """SIGNOFF 중 계속 스틸이면(진짜 정파) 해제준비 전이라도 조기복귀하지 않음."""
+    mgr, _ = _make_manager()
+    grp = _make_group(prep_start="00:30", end="05:00", exit_prep_start="04:30",
+                      every_day=True, exit_trigger=5.0)
+    mgr.set_group(grp)
+    mgr.set_state_direct(1, "SIGNOFF")
+    mgr._latest_video["V1"] = True            # 스틸 유지(진짜 정파)
+
+    fake_now = real_datetime.datetime(2026, 5, 13, 2, 0, 0)
+    with patch("detection.signoff_manager.datetime") as mock_dt:
+        mock_dt.datetime.now.return_value = fake_now
+        mock_dt.timedelta = real_datetime.timedelta
+        mgr._tick_impl()
+        mgr._tick_impl()
+
+    assert mgr.get_state(1) == SignoffState.SIGNOFF, "스틸 유지인데 조기복귀됨"
+
+
+def test_auto_off_signoff_no_revert():
+    """auto OFF(완전 수동) 시 SIGNOFF는 비스틸이어도 조기복귀하지 않음(수동 동결)."""
+    mgr, _ = _make_manager()
+    mgr._auto_preparation = False
+    grp = _make_group(prep_start="00:30", end="05:00", exit_prep_start="04:30",
+                      every_day=True, exit_trigger=5.0)
+    mgr.set_group(grp)
+    mgr.set_state_direct(1, "SIGNOFF")
+    mgr._latest_video["V1"] = False
+    mgr._video_exit_start[1] = time.time() - 10.0
+
+    fake_now = real_datetime.datetime(2026, 5, 13, 2, 0, 0)  # 해제준비 전
+    with patch("detection.signoff_manager.datetime") as mock_dt:
+        mock_dt.datetime.now.return_value = fake_now
+        mock_dt.timedelta = real_datetime.timedelta
+        mgr._tick_impl()
+
+    assert mgr.get_state(1) == SignoffState.SIGNOFF, "auto OFF인데 조기복귀됨"
 
 
 # ── auto_preparation OFF = 완전 수동 모드 (W11) ───────────────────────────────
@@ -379,7 +463,10 @@ if __name__ == "__main__":
         test_still_detect_enters_signoff,
         test_signoff_auto_release_at_end_time,
         test_exit_prep_early_release,
-        test_exit_prep_disabled_no_early_release,
+        test_exit_prep_disabled_reverts_to_prep,
+        test_signoff_reverts_to_prep_before_exit_prep,
+        test_signoff_still_no_revert_before_exit_prep,
+        test_auto_off_signoff_no_revert,
         test_auto_off_signoff_persists_at_end_time,
         test_auto_off_preparation_persists_outside_window,
         test_from_dict_defaults_and_validation,

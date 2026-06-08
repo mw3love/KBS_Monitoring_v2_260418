@@ -138,6 +138,7 @@ class SignoffManager:
         self._dbg_prev_still: Dict[int, Optional[bool]] = {}
         self._dbg_last_prep_log: Dict[int, float] = {}
         self._dbg_prev_exit_still: Dict[int, Optional[bool]] = {}
+        self._dbg_prev_revert_still: Dict[int, Optional[bool]] = {}
 
         self._auto_preparation: bool = True
         self._media_names: Dict[str, str] = {}
@@ -445,14 +446,15 @@ class SignoffManager:
                         self._tick_preparation(gid, group)
 
             elif current_state == SignoffState.SIGNOFF:
-                # auto OFF = 완전 수동 모드: 자동 해제(강등/exit-prep) 억제 (수동 해제까지 유지)
+                # auto OFF = 완전 수동 모드: 자동 해제(강등/exit-prep/조기복귀) 억제 (수동 해제까지 유지)
                 if self._auto_preparation:
                     if not in_prep_window:
                         self._signoff_entered_at[gid] = None
                         self._transition_to(gid, SignoffState.IDLE, source="auto-time")
-                    elif group.exit_prep_start_time:
-                        if self._is_in_exit_prep_window(group):
-                            self._tick_exit_preparation(gid, group)
+                    elif group.exit_prep_start_time and self._is_in_exit_prep_window(group):
+                        self._tick_exit_preparation(gid, group)   # 해제준비 윈도우: 비스틸 → IDLE(진짜 해제)
+                    else:
+                        self._tick_signoff_revert(gid, group)     # 해제준비 전: 비스틸 → PREPARATION(조기복귀)
 
     def _tick_preparation(self, gid: int, group: SignoffGroup):
         v_label = group.enter_roi.get("video_label", "")
@@ -563,6 +565,47 @@ class SignoffManager:
             if self._video_exit_still[gid] >= _SIGNOFF_HYSTERESIS_TICKS:
                 self._video_exit_start[gid] = None
 
+    def _tick_signoff_revert(self, gid: int, group: SignoffGroup):
+        """해제준비 시각 전 SIGNOFF 중 비스틸이 exit_trigger_sec 지속되면
+        PREPARATION으로 조기복귀(재무장)한다.
+
+        오감지로 진입한 SIGNOFF가 해제준비 시각까지 갇혀 알람을 묵살하는
+        문제(docs_signoff_운영.md §4) 해소. 진짜 정파는 계속 스틸이라 복귀가
+        걸리지 않고, 가짜 정파는 화면이 다시 움직이면 PREPARATION으로 돌아가
+        스틸 재감지(still_trigger_sec)를 다시 수행한다.
+
+        타이머는 _tick_exit_preparation과 동일한 _video_exit_* 재사용
+        (두 검사는 해제준비 시각을 경계로 상호배타, SIGNOFF 진입 시 함께 초기화).
+        IDLE 해제와 달리 _exit_released는 건드리지 않는다(IDLE 경로 전용 플래그).
+        """
+        v_label = group.enter_roi.get("video_label", "")
+        if not v_label:
+            return
+        now = time.time()
+        is_still = self._latest_video.get(v_label, True)
+        is_not_still = not is_still
+        prev_revert_still = self._dbg_prev_revert_still.get(gid)
+        media = self._media_names.get(v_label, "")
+        lbl_str = f"{v_label}({media})" if media else v_label
+
+        if is_not_still != prev_revert_still:
+            self._dbg_prev_revert_still[gid] = is_not_still
+            if is_not_still:
+                _log.debug("REVERT-DBG [%s] %s 비스틸 감지 시작 (기준: %.0fs → 정파준비 복귀)",
+                           group.name, lbl_str, group.exit_trigger_sec)
+
+        if is_not_still:
+            self._video_exit_still[gid] = 0
+            if self._video_exit_start[gid] is None:
+                self._video_exit_start[gid] = now
+            if now - self._video_exit_start[gid] >= group.exit_trigger_sec:
+                self._video_exit_start[gid] = None
+                self._transition_to(gid, SignoffState.PREPARATION, source="auto-revert")
+        else:
+            self._video_exit_still[gid] = self._video_exit_still.get(gid, 0) + 1
+            if self._video_exit_still[gid] >= _SIGNOFF_HYSTERESIS_TICKS:
+                self._video_exit_start[gid] = None
+
     def _is_in_time_range(self, group: SignoffGroup, current_time: str, weekday: int,
                            start: str, end: str) -> bool:
         # 같은 날(start ≤ end) 윈도우 전용. 자정 넘김은 _is_in_prep_window의 wrap 분기가 처리.
@@ -604,13 +647,17 @@ class SignoffManager:
             self._preparation_entered_at[group_id] = None
             self._reset_exit_timers(group_id)    # SIGNOFF 진입 시 퇴출 타이머 초기화
             self._dbg_prev_exit_still[group_id] = None
+            self._dbg_prev_revert_still[group_id] = None
 
         group = self._groups[group_id]
         prev_str = old_state.value if old_state else "NONE"
         if new_state == SignoffState.PREPARATION:
-            msg = (f"{group.name} 정파준비모드를 시작합니다"
-                   if old_state == SignoffState.IDLE
-                   else f"{group.name} 정파모드를 해제합니다")
+            if source == "auto-revert":
+                msg = f"{group.name} 화면 움직임 감지 — 정파준비로 복귀"
+            elif old_state == SignoffState.IDLE:
+                msg = f"{group.name} 정파준비모드를 시작합니다"
+            else:
+                msg = f"{group.name} 정파모드를 해제합니다"
         elif new_state == SignoffState.SIGNOFF:
             msg = f"{group.name} 정파모드에 돌입합니다"
         else:
