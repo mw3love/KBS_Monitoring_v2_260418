@@ -158,6 +158,7 @@ kbs_monitoring_v2/
 │   ├── detector.py
 │   ├── detection_state.py
 │   ├── signoff_manager.py
+│   ├── signoff_flap.py
 │   ├── auto_recorder.py
 │   ├── telegram_worker.py
 │   └── capture_watchdog.py
