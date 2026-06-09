@@ -90,7 +90,7 @@ class BaseMsg:
 | `AlarmResolve` | `label:str`, `detection_type:str`, `duration_sec:float`, `media_name:str` | 감지 해제로 알람 종료 |
 | `LogEntry` | `level:str('info'\|'black'\|'still'\|'audio'\|'embedded'\|'error')`, `source:str`, `message:str` | Detection 측 로그 (UI 로그 위젯용 통합 표시). `error`=시스템 장애(스트림/크래시/녹화/텔레그램), `black`=블랙 감지 |
 | `DiagSnapshot` | `section:str`, `payload:dict` | 30초 주기 6개 섹션 발행 |
-| `SignoffStateChange` | `group_id:int(1\|2)`, `prev_state:str`, `new_state:str('IDLE'\|'PREPARATION'\|'SIGNOFF')`, `source:str('auto-time'\|'auto-detect'\|'auto-revert'\|'manual'\|'restore')` | 정파 상태 전환. `auto-revert`=해제준비 시각 전 오감지 SIGNOFF의 PREPARATION 조기복귀 |
+| `SignoffStateChange` | `group_id:int(1\|2)`, `prev_state:str`, `new_state:str('IDLE'\|'PREPARATION'\|'SIGNOFF')`, `source:str('auto-time'\|'auto-detect'\|'auto-revert'\|'manual'\|'restore')`, `suppress_alarm_sound:bool` | 정파 상태 전환. `auto-revert`=해제준비 시각 전 오감지 SIGNOFF의 PREPARATION 조기복귀. `suppress_alarm_sound`=플래핑 묶음 모드 중 전환 → UI가 정파 알림음 억제(docs_signoff_운영.md §8) |
 | `RecordingEvent` | `event:str('start'\|'end'\|'extend'\|'drop')`, `label:str`, `filepath:str\|None`, `reason:str\|None` | 녹화 시작/종료/버퍼 드롭 |
 | `TelegramStatus` | `event:str('sent'\|'failed'\|'retry'\|'worker_dead'\|'worker_restart')`, `message:str\|None`, `queue_size:int` | 텔레그램 워커 이벤트 |
 | `StreamError` | `source:str('video'\|'audio')`, `message:str`, `retry_count:int` | 캡처/오디오 장애 및 재연결 |

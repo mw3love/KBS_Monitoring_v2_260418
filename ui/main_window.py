@@ -27,7 +27,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.6.0"
+VERSION = "2.7.0"
 
 
 class MainWindow(QMainWindow):
@@ -59,6 +59,8 @@ class MainWindow(QMainWindow):
         alarm_cfg = self._cfg.get("alarm", {})
         self._alarm.set_sound_enabled(alarm_cfg.get("sound_enabled", True))
         self._alarm.set_volume(alarm_cfg.get("volume", 80) / 100.0)
+        # 정파 전환 알림음 경로 (정파준비 시작/정파 진입/정파 해제)
+        self._signoff_sounds = self._load_signoff_sounds(self._cfg)
 
         # UI 런타임 상태 (재spawn 시 재주입용)
         self._detection_enabled = self._cfg.get("ui_state", {}).get("detection_enabled", True)
@@ -361,6 +363,22 @@ class MainWindow(QMainWindow):
 
         self._log_widget.add_log(log_text, source="정파")
 
+        # 정파 전환 알림음 — 재주입(restore)·플래핑 묶음 중 전환은 무음.
+        #   IDLE/SIGNOFF→PREPARATION(정파준비 시작·조기복귀) → prep음
+        #   →SIGNOFF(정파 진입)                              → enter음
+        #   SIGNOFF→IDLE(정파 해제)                          → release음
+        #   PREPARATION→IDLE(정파준비 종료, 정파 없음)        → 무음
+        if msg.source != "restore" and not getattr(msg, "suppress_alarm_sound", False):
+            sound = None
+            if msg.new_state == "PREPARATION":
+                sound = self._signoff_sounds.get("prep")
+            elif msg.new_state == "SIGNOFF" and msg.prev_state != "SIGNOFF":
+                sound = self._signoff_sounds.get("enter")
+            elif msg.new_state == "IDLE" and msg.prev_state == "SIGNOFF":
+                sound = self._signoff_sounds.get("release")
+            if sound:
+                self._alarm.play_signoff_sound(sound)
+
     def _on_stream_error(self, msg):
         self._log_widget.add_log(
             f"{msg.message} (재연결 {msg.retry_count}회)",
@@ -557,6 +575,16 @@ class MainWindow(QMainWindow):
         self._settings_dlg.config_saved.connect(self._on_config_saved)
         self._settings_dlg.show()
 
+    @staticmethod
+    def _load_signoff_sounds(cfg: dict) -> dict:
+        """config의 정파 알림음 3종 경로를 추출. 키: prep/enter/release."""
+        so = cfg.get("signoff", {})
+        return {
+            "prep":    so.get("prep_alarm_sound", ""),
+            "enter":   so.get("enter_alarm_sound", ""),
+            "release": so.get("release_alarm_sound", ""),
+        }
+
     def _apply_rois_to_video_widget(self, cfg: dict):
         rois_cfg = cfg.get("rois", {})
         video_rois = [ROI(**{**r, "roi_type": "video"}) for r in rois_cfg.get("video", [])]
@@ -571,6 +599,7 @@ class MainWindow(QMainWindow):
         self._alarm.set_volume(alarm_cfg.get("volume", 80) / 100.0)
         sound_file = alarm_cfg.get("sound_file", "") or "resources/sounds/alarm.wav"
         self._alarm.set_sound_file("default", sound_file)
+        self._signoff_sounds = self._load_signoff_sounds(new_cfg)
         self._apply_rois_to_video_widget(new_cfg)
         self._refresh_summary()
         # 테스트 영상 파일이 지워지면 VideoWidget도 즉시 검은 화면으로

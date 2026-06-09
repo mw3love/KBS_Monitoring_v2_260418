@@ -167,6 +167,31 @@ class AlarmSystem(QObject):
         except OSError as e:
             _log.error("테스트 사운드 스레드 시작 실패: %s", e)
 
+    def play_signoff_sound(self, file_path: str):
+        """정파 전환(준비/진입/해제) 알림음 1회 재생.
+
+        진행 중인 감지 알람(self._sound_thread)을 **멈추지 않도록** 별도 스레드로
+        one-shot 재생한다(play_test_sound와 달리 _stop_playback 호출 안 함).
+        winsound/sounddevice는 단일 채널이라 감지 알람과 짧게 겹치면 끊김이 생길 수
+        있으나, 정파 전환은 드문 이벤트라 수용. self._sound_thread는 건드리지 않는다.
+        """
+        if not self._sound_enabled:
+            return
+        sound_file = None
+        if file_path:
+            abs_path = os.path.abspath(file_path)
+            if os.path.exists(abs_path):
+                sound_file = abs_path
+            else:
+                self._log("정파 알림음 파일 없음 → Windows 내장음으로 대체")
+        th = threading.Thread(
+            target=self._play_test_worker, args=(sound_file,), daemon=True,
+        )
+        try:
+            th.start()
+        except OSError as e:
+            _log.error("정파 알림음 스레드 시작 실패: %s", e)
+
     def _play_test_worker(self, sound_file):
         if sound_file and WINSOUND_AVAILABLE:
             try:

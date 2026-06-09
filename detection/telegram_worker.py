@@ -260,6 +260,45 @@ class TelegramWorker:
             except Exception:
                 self._log(f"알림 큐 가득참 — 정파 {'진입' if is_entry else '해제'} 손실", error=True)
 
+    def notify_signoff_flap(
+        self,
+        group_name: str,
+        phase: str,
+        count: int = 0,
+        start_str: str = "",
+        end_str: str = "",
+        current_state: str = "",
+    ):
+        """정파 플래핑 묶음 알림. 쿨다운 없이 즉시 발송.
+
+        phase='start'   — 변동 반복 감지 → 묶음 처리 시작 (1회)
+        phase='summary' — 안정화/해제 시 변동 요약 (1회)
+        """
+        if not _REQUESTS_AVAILABLE or not self._enabled:
+            return
+        if not self._notify_flags.get("정파", True):
+            return
+        self.ensure_worker_alive()
+        if not self._bot_token or not self._chat_id:
+            return
+        item = {
+            "_signoff_flap": True,
+            "group_name": group_name,
+            "phase": phase,
+            "count": count,
+            "start_str": start_str,
+            "end_str": end_str,
+            "current_state": current_state,
+        }
+        try:
+            self._queue.put_nowait(item)
+        except queue.Full:
+            try:
+                self._queue.get_nowait()
+                self._queue.put_nowait(item)
+            except Exception:
+                self._log("알림 큐 가득참 — 정파 묶음 알림 손실", error=True)
+
     # ── 연결 테스트 ───────────────────────────────────────────────────────────
 
     def test_connection(self, token: str, chat_id: str) -> tuple:
@@ -327,6 +366,10 @@ class TelegramWorker:
         # 정파 진입/해제 메시지
         if item.get("_signoff"):
             return self._send_signoff(item)
+
+        # 정파 플래핑 묶음 메시지
+        if item.get("_signoff_flap"):
+            return self._send_signoff_flap(item)
 
         # 시스템 메시지
         if item.get("_system"):
@@ -515,6 +558,88 @@ class TelegramWorker:
                     self._log(f"{log_kind} 알림 전송 완료 ({group_name})")
                     self._emit(TelegramStatus(event="sent",
                                               message=f"{log_kind} ({group_name})",
+                                              queue_size=self._queue.qsize()))
+                    return True
+                elif resp.status_code == 429:
+                    try:
+                        retry_after = int(resp.json()["parameters"]["retry_after"])
+                    except Exception:
+                        retry_after = 10
+                    sleep_sec = min(retry_after + 1, 30)
+                    self._log(f"{log_kind} Rate Limit(429) — {sleep_sec}초 대기 후 재시도", error=True)
+                    self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
+                    time.sleep(sleep_sec)
+                    if attempt >= _SEND_RETRY_COUNT:
+                        self._consecutive_failures += 1
+                        self._log_with_suppression(f"{log_kind} 전송 실패 (Rate Limit 재시도 소진)")
+                        return False
+                    continue
+                else:
+                    self._consecutive_failures += 1
+                    self._log_with_suppression(
+                        f"{log_kind} 전송 실패 {resp.status_code}: {resp.text[:120]}")
+                    self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
+                    return False
+            except Exception as exc:
+                error_desc = self._classify_error(exc)
+                if attempt < _SEND_RETRY_COUNT:
+                    self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
+                    time.sleep(_SEND_RETRY_DELAYS[attempt])
+                else:
+                    self._consecutive_failures += 1
+                    self._log_with_suppression(
+                        f"{log_kind} 전송 실패 (재시도 소진): {error_desc} — {exc}")
+                    self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
+                    return False
+        self._consecutive_failures += 1
+        self._log_with_suppression(f"{log_kind} 전송 실패 (재시도 횟수 소진)")
+        return False
+
+    def _send_signoff_flap(self, item: dict) -> bool:
+        """정파 플래핑 묶음 시작/요약 텍스트 메시지 발송."""
+        if not _REQUESTS_AVAILABLE:
+            return False
+        from ipc.messages import TelegramStatus
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        group_esc = _html.escape(item["group_name"])
+        phase = item.get("phase")
+
+        if phase == "start":
+            text = (
+                f"<b>[KBS On-Air Monitoring \U0001F501 정파 변동 반복]</b>\n"
+                f"\U000023F0 시각: <code>{now_str}</code>\n"
+                f"\U0001F4CB 그룹: <b>{group_esc}</b>\n"
+                f"\U00002139 정파 진입/복귀가 반복 감지됨 (본사 테스트영상 추정).\n"
+                f"\U0001F515 개별 전환 알림을 묶음 처리합니다 — 안정화 시 요약을 보냅니다."
+            )
+            log_kind = "정파 변동 묶음 시작"
+        else:  # summary
+            cur = _html.escape(item.get("current_state", ""))
+            count = item.get("count", 0)
+            span = ""
+            if item.get("start_str") and item.get("end_str"):
+                span = f"\n\U000023F1 변동 구간: {item['start_str']} ~ {item['end_str']}"
+            text = (
+                f"<b>[KBS On-Air Monitoring \U00002705 정파 변동 안정화]</b>\n"
+                f"\U000023F0 시각: <code>{now_str}</code>\n"
+                f"\U0001F4CB 그룹: <b>{group_esc}</b>\n"
+                f"\U0001F501 변동 <b>{count}</b>회 후 안정화 — 현재 <b>{cur}</b>{span}"
+            )
+            log_kind = "정파 변동 요약"
+
+        base = self._API_BASE.format(token=self._bot_token)
+        timeout = (10.0, 20.0)
+        for attempt in range(1 + _SEND_RETRY_COUNT):
+            try:
+                resp = _requests.post(
+                    f"{base}/sendMessage",
+                    json={"chat_id": self._chat_id, "text": text, "parse_mode": "HTML"},
+                    timeout=timeout,
+                )
+                if resp.status_code == 200:
+                    self._log(f"{log_kind} 전송 완료 ({item['group_name']})")
+                    self._emit(TelegramStatus(event="sent",
+                                              message=f"{log_kind} ({item['group_name']})",
                                               queue_size=self._queue.qsize()))
                     return True
                 elif resp.status_code == 429:

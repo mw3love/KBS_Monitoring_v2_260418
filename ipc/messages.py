@@ -63,6 +63,7 @@ class SignoffStateChange(BaseMsg):
     prev_state: str = ""
     new_state: str = ""         # 'IDLE' | 'PREPARATION' | 'SIGNOFF'
     source: str = ""            # 'auto' | 'manual' | 'trigger'
+    suppress_alarm_sound: bool = False  # 플래핑 묶음 모드 중 전환 — UI 정파 알림음 억제
 
 
 @dataclass

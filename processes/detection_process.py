@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import struct
+import datetime
 import threading
 import logging
 import traceback
@@ -184,7 +185,7 @@ def _apply_config_to_telegram(telegram, cfg: dict):
 
 def run(result_queue, cmd_queue, shutdown_event,
         state_lock, frame_shm_name: str, state_shm_name: str,
-        version: str = "2.6", cmd_event=None):
+        version: str = "2.7", cmd_event=None):
     """
     Watchdog이 spawn하는 Detection 프로세스 메인 함수.
     종료 조건: shutdown_event set 또는 Shutdown 메시지 수신.
@@ -242,6 +243,7 @@ def run(result_queue, cmd_queue, shutdown_event,
     from detection.auto_recorder import AutoRecorder
     from detection.telegram_worker import TelegramWorker
     from detection.capture_watchdog import CaptureLossWatchdog
+    from detection.signoff_flap import SignoffFlapTracker
 
     roi_mgr   = ROIManager()
     detector  = Detector()
@@ -259,90 +261,129 @@ def run(result_queue, cmd_queue, shutdown_event,
     _signoff_recovery_suppress: set = set()
     # SIGNOFF 진입 시각 추적 (_signoff_entered_at은 _transition_to 직전에 None으로 리셋되므로 별도 관리)
     _signoff_entry_time: Dict[int, float] = {}
+    # 정파 플래핑(SIGNOFF⇄정파준비 반복) 묶음 처리 추적기
+    _flap = SignoffFlapTracker()
+
+    def _signoff_snap_jpeg():
+        with _last_frame_lock:
+            snap = _last_frame.copy() if _last_frame is not None else None
+        return _encode_jpeg(snap)
+
+    def _signoff_trigger_args(group):
+        v_lbl = group.enter_roi.get("video_label", "")
+        return v_lbl, signoff_mgr._media_names.get(v_lbl, "")
+
+    def _send_signoff_entry(group):
+        v_lbl, media = _signoff_trigger_args(group)
+        telegram.notify_signoff(
+            group_name=group.name, is_entry=True,
+            trigger_label=v_lbl, trigger_media=media,
+            suppressed_labels=group.suppressed_labels,
+            jpeg_bytes=_signoff_snap_jpeg(),
+        )
+
+    def _send_signoff_revert(group, elapsed_sec):
+        v_lbl, media = _signoff_trigger_args(group)
+        telegram.notify_signoff(
+            group_name=group.name, is_entry=False, is_revert=True,
+            trigger_label=v_lbl, trigger_media=media,
+            suppressed_labels=group.suppressed_labels,
+            elapsed_sec=elapsed_sec, jpeg_bytes=_signoff_snap_jpeg(),
+        )
+
+    def _send_signoff_release(group, elapsed_sec):
+        v_lbl, media = _signoff_trigger_args(group)
+        telegram.notify_signoff(
+            group_name=group.name, is_entry=False,
+            trigger_label=v_lbl, trigger_media=media,
+            suppressed_labels=group.suppressed_labels,
+            elapsed_sec=elapsed_sec, jpeg_bytes=_signoff_snap_jpeg(),
+        )
+
+    def _mark_recovery_suppress(group):
+        # 정파 해제 후 그룹 내 라벨의 다음 1회 복구 알림 차단
+        for lbl in (group.suppressed_labels or []):
+            _signoff_recovery_suppress.add(lbl)
+        v_lbl = group.enter_roi.get("video_label", "")
+        if v_lbl:
+            _signoff_recovery_suppress.add(v_lbl)
+
+    def _send_flap_summary(group, summary, current_state):
+        start_str = datetime.datetime.fromtimestamp(summary["start_ts"]).strftime("%H:%M")
+        end_str = datetime.datetime.fromtimestamp(summary["end_ts"]).strftime("%H:%M")
+        telegram.notify_signoff_flap(
+            group_name=group.name, phase="summary",
+            count=summary["count"], start_str=start_str, end_str=end_str,
+            current_state=current_state,
+        )
 
     def _signoff_emit_safe(msg):
         from ipc.messages import SignoffStateChange
         from detection.signoff_manager import SignoffState
-        if isinstance(msg, SignoffStateChange):
-            _put_nodrop(result_queue, msg)
-            # source="restore"는 재spawn 후 UI 재주입 — 텔레그램 중복 발송 방지.
-            # 진입 시각은 set_state_direct에서 이미 복원됨. 로컬 추적 dict만 동기화.
-            if msg.source == "restore":
-                if msg.new_state == SignoffState.SIGNOFF.value:
-                    entered = signoff_mgr._signoff_entered_at.get(msg.group_id)
-                    if entered:
-                        _signoff_entry_time[msg.group_id] = entered
-                elif msg.new_state == SignoffState.IDLE.value:
-                    _signoff_entry_time.pop(msg.group_id, None)
-                return
-            # SIGNOFF 진입 시 텔레그램 발송 + 진입 시각 기록
-            if msg.new_state == SignoffState.SIGNOFF.value:
-                _signoff_entry_time[msg.group_id] = time.time()
-                group = signoff_mgr.get_groups().get(msg.group_id)
-                if group:
-                    with _last_frame_lock:
-                        snap = _last_frame.copy() if _last_frame is not None else None
-                    snap_jpeg = _encode_jpeg(snap)
-                    telegram.notify_signoff(
-                        group_name=group.name,
-                        is_entry=True,
-                        trigger_label=group.enter_roi.get("video_label", ""),
-                        trigger_media=signoff_mgr._media_names.get(
-                            group.enter_roi.get("video_label", ""), ""),
-                        suppressed_labels=group.suppressed_labels,
-                        jpeg_bytes=snap_jpeg,
-                    )
-            # SIGNOFF→IDLE 전환 시 텔레그램 발송 + 그룹 라벨 1회 차단 마킹
-            elif (msg.prev_state == SignoffState.SIGNOFF.value
-                  and msg.new_state == SignoffState.IDLE.value):
-                entered = _signoff_entry_time.pop(msg.group_id, 0.0)
-                elapsed_sec = (time.time() - entered) if entered else 0.0
-                group = signoff_mgr.get_groups().get(msg.group_id)
-                if group:
-                    with _last_frame_lock:
-                        snap = _last_frame.copy() if _last_frame is not None else None
-                    snap_jpeg = _encode_jpeg(snap)
-                    telegram.notify_signoff(
-                        group_name=group.name,
-                        is_entry=False,
-                        trigger_label=group.enter_roi.get("video_label", ""),
-                        trigger_media=signoff_mgr._media_names.get(
-                            group.enter_roi.get("video_label", ""), ""),
-                        suppressed_labels=group.suppressed_labels,
-                        elapsed_sec=elapsed_sec,
-                        jpeg_bytes=snap_jpeg,
-                    )
-                    # 정파 해제 후 그룹 내 라벨의 다음 1회 복구 알림 차단
-                    for lbl in (group.suppressed_labels or []):
-                        _signoff_recovery_suppress.add(lbl)
-                    v_lbl = group.enter_roi.get("video_label", "")
-                    if v_lbl:
-                        _signoff_recovery_suppress.add(v_lbl)
-            # SIGNOFF→PREPARATION 조기복귀(auto-revert) 시 텔레그램 발송.
-            # restore 경로는 위에서 early-return하므로 여기엔 auto-revert만 도달.
-            # PREPARATION에선 스틸이 계속 억제되므로 _signoff_recovery_suppress 불필요.
-            elif (msg.prev_state == SignoffState.SIGNOFF.value
-                  and msg.new_state == SignoffState.PREPARATION.value):
-                entered = _signoff_entry_time.pop(msg.group_id, 0.0)
-                elapsed_sec = (time.time() - entered) if entered else 0.0
-                group = signoff_mgr.get_groups().get(msg.group_id)
-                if group:
-                    with _last_frame_lock:
-                        snap = _last_frame.copy() if _last_frame is not None else None
-                    snap_jpeg = _encode_jpeg(snap)
-                    telegram.notify_signoff(
-                        group_name=group.name,
-                        is_entry=False,
-                        is_revert=True,
-                        trigger_label=group.enter_roi.get("video_label", ""),
-                        trigger_media=signoff_mgr._media_names.get(
-                            group.enter_roi.get("video_label", ""), ""),
-                        suppressed_labels=group.suppressed_labels,
-                        elapsed_sec=elapsed_sec,
-                        jpeg_bytes=snap_jpeg,
-                    )
-        else:
+        if not isinstance(msg, SignoffStateChange):
             _put(result_queue, msg, _ipc_counters)
+            return
+
+        # source="restore"는 재spawn 후 UI 재주입 — 텔레그램/사운드 모두 억제.
+        # 진입 시각은 set_state_direct에서 이미 복원됨. 로컬 추적 dict만 동기화.
+        if msg.source == "restore":
+            _put_nodrop(result_queue, msg)
+            if msg.new_state == SignoffState.SIGNOFF.value:
+                entered = signoff_mgr._signoff_entered_at.get(msg.group_id)
+                if entered:
+                    _signoff_entry_time[msg.group_id] = entered
+            elif msg.new_state == SignoffState.IDLE.value:
+                _signoff_entry_time.pop(msg.group_id, None)
+            return
+
+        gid = msg.group_id
+        now = time.time()
+        is_enter = (msg.new_state == SignoffState.SIGNOFF.value
+                    and msg.prev_state != SignoffState.SIGNOFF.value)
+        is_revert = (msg.prev_state == SignoffState.SIGNOFF.value
+                     and msg.new_state == SignoffState.PREPARATION.value)
+        is_release = (msg.prev_state == SignoffState.SIGNOFF.value
+                      and msg.new_state == SignoffState.IDLE.value)
+
+        # 플래핑 판정 (enter/revert만 집계). 묶음 모드 중 전환은 현장음 억제 플래그 ON.
+        flap_info = None
+        if is_enter or is_revert:
+            flap_info = _flap.record_transition(gid, now)
+            msg.suppress_alarm_sound = flap_info["flapping"]
+
+        _put_nodrop(result_queue, msg)
+
+        if msg.new_state == SignoffState.SIGNOFF.value:
+            _signoff_entry_time[gid] = now
+
+        group = signoff_mgr.get_groups().get(gid)
+        if group is None:
+            return
+
+        if is_enter:
+            if flap_info["just_entered"]:
+                telegram.notify_signoff_flap(group_name=group.name, phase="start")
+            elif not flap_info["flapping"]:
+                _send_signoff_entry(group)
+            # else: 묶음 모드 중 → 개별 진입 알림 침묵
+        elif is_revert:
+            entered = _signoff_entry_time.pop(gid, 0.0)
+            elapsed_sec = (now - entered) if entered else 0.0
+            if flap_info["just_entered"]:
+                telegram.notify_signoff_flap(group_name=group.name, phase="start")
+            elif not flap_info["flapping"]:
+                _send_signoff_revert(group, elapsed_sec)
+            # else: 묶음 모드 중 → 개별 복귀 알림 침묵
+        elif is_release:
+            entered = _signoff_entry_time.pop(gid, 0.0)
+            elapsed_sec = (now - entered) if entered else 0.0
+            summary = _flap.finish_on_release(gid, now)
+            if summary:
+                _send_flap_summary(group, summary, current_state="해제")
+            else:
+                _send_signoff_release(group, elapsed_sec)
+            _mark_recovery_suppress(group)
+        # 그 외(IDLE→PREP 정파준비 시작, PREP→IDLE 정파준비 종료)은 텔레그램 없음(기존과 동일)
     signoff_mgr._emit = _signoff_emit_safe
 
     # 설정 적용
@@ -544,6 +585,24 @@ def run(result_queue, cmd_queue, shutdown_event,
         except Exception as e:
             try:
                 log_error(f"cmd 처리 오류: {traceback.format_exc()}")
+            except Exception:
+                pass
+
+        # ── 정파 플래핑 안정화 체크 (독립 try-except) ─────────────────────
+        try:
+            _now_flap = time.time()
+            for _gid in list(signoff_mgr.get_groups().keys()):
+                _summary = _flap.check_stabilized(_gid, _now_flap)
+                if _summary:
+                    _grp = signoff_mgr.get_groups().get(_gid)
+                    if _grp:
+                        _cur = signoff_mgr.get_state(_gid).value
+                        _cur_ko = {"SIGNOFF": "정파중", "PREPARATION": "정파준비",
+                                   "IDLE": "해제"}.get(_cur, _cur)
+                        _send_flap_summary(_grp, _summary, current_state=_cur_ko)
+        except Exception:
+            try:
+                log_error(f"정파 플래핑 체크 오류: {traceback.format_exc()}")
             except Exception:
                 pass
 

@@ -95,7 +95,7 @@ class SignoffGroup:
         raw_exit_prep = d.get("exit_prep_start_time", "04:30")
         exit_prep_start_time = "" if not raw_exit_prep else _valid_hm(raw_exit_prep, "04:30")
         still_trigger_sec = max(1.0, float(d.get("still_trigger_sec", 60.0)))
-        exit_trigger_sec = max(0.0, float(d.get("exit_trigger_sec", 5.0)))
+        exit_trigger_sec = max(0.0, float(d.get("exit_trigger_sec", 30.0)))
 
         return cls(
             group_id=group_id,

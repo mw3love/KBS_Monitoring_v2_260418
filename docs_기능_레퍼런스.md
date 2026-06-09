@@ -156,10 +156,10 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
   - **"정파 감지영역" 버튼** → 팝업 다이얼로그:
     - **진입 트리거**: 단일 드롭다운 — 선택한 비디오 ROI가 스틸 상태 지속 시 SIGNOFF 조기 진입 (enter_roi)
     - **알림 억제 대상**: 비디오/오디오 ROI 다중 체크박스 — SIGNOFF 중 해당 ROI 알림 억제 (suppressed_labels)
-- **정파 알림음** (3종, 각 파일 선택+테스트):
-  - 정파준비 시작 (prep_alarm_sound)
-  - 정파모드 진입 (enter_alarm_sound)
-  - 정파 해제 (release_alarm_sound)
+- **정파 알림음** (3종, 각 파일 선택+테스트): 정파 상태 전환 시 1회 재생 (감지 알람음을 끊지 않는 별도 재생). 플래핑 묶음 모드 중에는 억제 (docs_signoff_운영.md §8)
+  - 정파준비 시작 (prep_alarm_sound) — IDLE→정파준비, 조기복귀(SIGNOFF→정파준비) 포함
+  - 정파모드 진입 (enter_alarm_sound) — →SIGNOFF
+  - 정파 해제 (release_alarm_sound) — SIGNOFF→IDLE
 - "정파설정 전체 초기화" 버튼
 
 #### 탭 6: 알림설정
@@ -377,7 +377,7 @@ UI 로그 위젯에 `그룹1: PREPARATION → SIGNOFF [감지]` 형태로 표시
 | exit_prep_start_time | "04:30" | 정파해제 준비 시작 시간 ("" = 미사용) |
 | end_time | "05:00" | 정파해제 시간 (하드캡) |
 | still_trigger_sec | 5초 | 진입 스틸 지속 기준 (enter_roi 스틸이 이 시간 이상 지속 시 SIGNOFF 진입) |
-| exit_trigger_sec | 5초 | 조기 해제 트리거 시간 |
+| exit_trigger_sec | 30초 | 조기 해제 트리거 시간 |
 | weekdays | 요일 목록 | 적용 요일 (every_day=True면 무시) |
 
 ---
@@ -591,7 +591,7 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 | exit_prep_start_time | "04:30" | HH:MM 또는 "" | 해제준비 시작 ("" =미사용) |
 | end_time | "05:00" | HH:MM | 정파해제(하드캡) |
 | still_trigger_sec | 120 | 1~300 | 초 |
-| exit_trigger_sec | 5 | 1~300 | 초 |
+| exit_trigger_sec | 30 | 1~300 | 초 |
 | weekdays | [0,1]/[0~6] | - | 0=월 |
 | enter_roi | None | - | 진입 트리거 ROI 라벨 (단일) |
 | suppressed_labels | [] | - | 알림 억제 대상 ROI 라벨 목록 |

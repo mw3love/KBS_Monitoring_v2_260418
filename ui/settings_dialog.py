@@ -1480,9 +1480,9 @@ class SettingsDialog(QDialog):
         widgets["still_trigger_sec"] = still_trig
 
         # 조기 해제 트리거 시간
-        exit_trig = _int_edit(grp.get("exit_trigger_sec", 5), 1, 300)
+        exit_trig = _int_edit(grp.get("exit_trigger_sec", 30), 1, 300)
         sl.addLayout(_row("조기 해제 기준 시간(초)", exit_trig,
-                          "1~300 / 화면이 바뀐 뒤 이 시간 지속 시 정파 종료 또는 정파준비 복귀 (기본값: 5)"))
+                          "1~300 / 화면이 바뀐 뒤 이 시간 지속 시 정파 종료 또는 정파준비 복귀 (기본값: 30)"))
         widgets["exit_trigger_sec"] = exit_trig
 
         # 요일 선택
@@ -1855,11 +1855,11 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.6.0")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.7.0")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
-        lbl_meta = QLabel("날짜: 2026-06-08    제작: minwoo@kbs.co.kr")
+        lbl_meta = QLabel("날짜: 2026-06-09    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
 
@@ -1957,7 +1957,7 @@ class SettingsDialog(QDialog):
             else:
                 grp["exit_prep_start_time"] = ""
             grp["still_trigger_sec"] = int(w["still_trigger_sec"].text() or 60)
-            grp["exit_trigger_sec"] = int(w["exit_trigger_sec"].text() or 5)
+            grp["exit_trigger_sec"] = int(w["exit_trigger_sec"].text() or 30)
             grp["weekdays"] = [d for d, cb in enumerate(w["weekdays"])
                                if cb.isChecked()]
             grp["enter_roi"] = w["_enter_roi"]
@@ -2308,7 +2308,7 @@ class SettingsDialog(QDialog):
             w["_exit_prep_sync"]()
 
             w["still_trigger_sec"].setText(str(grp.get("still_trigger_sec", 60)))
-            w["exit_trigger_sec"].setText(str(grp.get("exit_trigger_sec", 5)))
+            w["exit_trigger_sec"].setText(str(grp.get("exit_trigger_sec", 30)))
 
             target_days = set(grp.get("weekdays", list(range(7))))
             for d_idx, cb in enumerate(w["weekdays"]):

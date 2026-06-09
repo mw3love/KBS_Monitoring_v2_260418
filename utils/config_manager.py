@@ -103,7 +103,7 @@ DEFAULT_CONFIG = {
             "exit_prep_start_time": "04:30",
             "end_time": "05:00",
             "still_trigger_sec": 120,
-            "exit_trigger_sec": 5,
+            "exit_trigger_sec": 30,
             "weekdays": [0, 1],
         },
         "group2": {
@@ -114,7 +114,7 @@ DEFAULT_CONFIG = {
             "exit_prep_start_time": "04:30",
             "end_time": "05:00",
             "still_trigger_sec": 120,
-            "exit_trigger_sec": 5,
+            "exit_trigger_sec": 30,
             "weekdays": [0, 1, 2, 3, 4, 5, 6],
         },
     },

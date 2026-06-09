@@ -156,7 +156,7 @@
 §4는 오진입한 SIGNOFF가 해제준비 시각(`exit_prep_start_time`, 기본 04:30)까지 갇혀 그동안 해당 그룹 알람이 묵살되는 "느린 자연 회복"을 기술했다. 조기복귀는 이 대기 시간을 없앤다.
 
 ### 동작
-- SIGNOFF 상태에서 **해제준비 시각 전**에 V영상이 비스틸(움직임)로 `exit_trigger_sec`(기본 5초) 연속 잡히면 → **IDLE이 아니라 PREPARATION으로 복귀**(재무장). 스틸 타이머가 리셋되어 다시 `still_trigger_sec` 스틸이 쌓여야 SIGNOFF 재진입.
+- SIGNOFF 상태에서 **해제준비 시각 전**에 V영상이 비스틸(움직임)로 `exit_trigger_sec`(기본 30초) 연속 잡히면 → **IDLE이 아니라 PREPARATION으로 복귀**(재무장). 스틸 타이머가 리셋되어 다시 `still_trigger_sec` 스틸이 쌓여야 SIGNOFF 재진입.
 - **해제준비 윈도우 안(`exit_prep_start_time`~`end_time`)**에서는 기존대로 비스틸 시 → IDLE(진짜 해제). 즉 같은 "비스틸" 신호를 **해제준비 시각을 경계로** 다르게 해석한다.
 - **해제준비 미사용("") 그룹**: end_time 전까지 복귀만 적용, 진짜 해제는 `end_time` 하드캡.
 - 복귀 시 텔레그램 발송(중립 문구 "화면 움직임 감지 — 정파준비로 복귀"). `SignoffStateChange.source='auto-revert'`.
@@ -173,6 +173,48 @@
 - `processes/detection_process.py`: `_signoff_emit_safe` SIGNOFF→PREPARATION 텔레그램 분기.
 - `detection/telegram_worker.py`: `notify_signoff(is_revert=...)`, `_send_signoff` 복귀 렌더.
 - 설정 UI 설명: `ui/settings_dialog.py` "정파해제 준비 시작 시간"·"조기 해제 기준 시간" 행 설명 텍스트.
+
+---
+
+## 8. 정파 변동 묶음 처리 · 정파 알림음 배선 · exit_trigger_sec 둔감화 (2026-06-09)
+
+### 배경 — 본사 테스트영상에 의한 플래핑
+2026-06-09 새벽, 본사 송출부가 2TV에 **테스트영상(움직이는 영상)** 을 송출하며 점검 → 진입 트리거 V5가 정지↔움직임을 반복 → 상태기계가 SIGNOFF ⇄ 정파준비를 밤새 **10회** 왕복(진입 10·복귀 9·해제 1). 텔레그램 정파 알림이 **약 20건** 폭주(`fix/20260609_ui.txt`).
+
+- **원인 비대칭**: 진입은 `still_trigger_sec`=120초(스틸), 해제(조기복귀)는 `exit_trigger_sec`=5초(움직임). 5초짜리 움직임 블립에 즉시 정파준비로 튕겨나가고 → 120초 스틸이면 다시 빨려듦.
+- 동작 자체는 §7 조기복귀가 의도대로 작동한 결과(가짜 정파 재무장). 문제는 **알림 볼륨**.
+
+### 세 갈래 대응 (상호보완)
+1. **`exit_trigger_sec` 5초 → 30초 (근원 둔감화)**: 짧은 테스트영상 깜빡임에 더는 조기복귀하지 않음 → 왕복 빈도 자체 감소. 진짜 해제(04:45 본방송 복귀)는 *연속* 움직임이라 30초도 즉시 걸리고, `end_time` 하드캡도 유지. IDLE이 아닌 PREPARATION 복귀라 §3 "빠른 해제 반려"·§2 테스트영상 예외와 일관(안전).
+2. **텔레그램 묶음 처리**: 짧은 시간 전환 반복을 "묶음 모드"로 묶어 개별 알림 억제 + 요약.
+3. **정파 알림음 배선**: `prep/enter/release_alarm_sound` 3종은 설정창·config엔 있으나 **재생 코드가 없어 한 번도 울리지 않던 미배선(dead) 설정**이었음(플래핑 중 들린 소리는 정파음이 아니라 억제 해제로 되살아난 블랙/오디오 감지음). 이번에 정파 전환 시 1회 재생되도록 배선, 묶음 모드 중에는 텔레그램과 동일 억제.
+
+### 묶음 처리 판정 (`SignoffFlapTracker`)
+- 집계 대상 전환: enter(→SIGNOFF) / revert(SIGNOFF→PREPARATION).
+- **묶음 진입**: 10분(`FLAP_WINDOW_SEC`) 안에 전환 **3회**(`FLAP_ENTER_COUNT`) 이상 → 묶음 모드 ON, "정파 변동 반복 감지" 텔레그램 1회.
+- **묶음 중**: 개별 진입/복귀 텔레그램·정파음 침묵.
+- **안정화**: 전환 없이 **25분**(`FLAP_STABLE_SEC`) 경과 또는 정파 해제 시 → "변동 N회 후 안정화, 현재 [정파중/정파준비/해제], 변동 구간 HH:MM~HH:MM" 요약 1회 후 묶음 종료.
+- 정상 정파(플래핑 없음)는 전환 3회 임계 미도달 → 기존대로 진입 1·해제 1만 발송(**거동 무변**).
+- **25분 결정 근거**: 6/9 로그 시뮬레이션 — 15분이면 17분짜리 짧은 안정 구간을 끊어 요약 중복(20→12건), 25분이면 병합(20→8건). 8건이 그날 바닥(01:39~03:49 **2시간 안정 구간**으로 플래핑 에피소드가 둘로 갈렸기 때문). 정상 정파 시작/해제는 보존하는 설계상 더 못 줄임.
+
+### 정파 알림음 매핑 (전환 → 음)
+- IDLE/SIGNOFF→PREPARATION → `prep`(조기복귀 포함) / →SIGNOFF → `enter` / SIGNOFF→IDLE → `release` / PREPARATION→IDLE(정파 없이 종료)·restore(재주입) → 무음.
+- 감지 알람음(`alarm.wav`)을 끊지 않는 별도 one-shot(`AlarmSystem.play_signoff_sound`). 두 소리가 겹치면 단일 채널 특성상 짧은 끊김 가능(드문 이벤트라 수용).
+
+### 파라미터 (상수, 설정 노출 없음 — `detection/signoff_flap.py`)
+| 상수 | 값 | 의미 |
+|---|---|---|
+| `FLAP_WINDOW_SEC` | 600 | 변동 집계 창(10분) |
+| `FLAP_ENTER_COUNT` | 3 | 묶음 진입 임계 |
+| `FLAP_STABLE_SEC` | 1500 | 안정화 판정(25분) |
+
+### 핵심 코드 위치
+- `detection/signoff_flap.py`(신규): `SignoffFlapTracker`, `FLAP_*` 상수.
+- `processes/detection_process.py`: `_signoff_emit_safe`(묶음 판정·텔레그램 분기·`suppress_alarm_sound` 태깅) + 메인 루프 안정화 폴링.
+- `detection/telegram_worker.py`: `notify_signoff_flap`/`_send_signoff_flap`.
+- `ipc/messages.py`: `SignoffStateChange.suppress_alarm_sound`.
+- `ui/main_window.py`: `_on_signoff_state_changed`(전환 시 정파음) + `_load_signoff_sounds`.
+- `ui/alarm.py`: `play_signoff_sound`(감지음 비차단 1회 재생).
 
 ---
 
