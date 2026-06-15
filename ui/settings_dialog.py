@@ -65,8 +65,18 @@ def _int_edit(val: int, lo: int = 0, hi: int = 99999, w: int = 80) -> QLineEdit:
     return e
 
 
+def _fmt_num(val) -> str:
+    """숫자를 일관 표시: 정수값이면 소수점 제거(2.0→'2'), 진짜 소수는 그대로(0.2→'0.2').
+    값 타입(int/float)이 저장 경로마다 달라 표시가 들쭉날쭉하던 문제를 단일 지점에서 정규화."""
+    try:
+        f = float(val)
+    except (TypeError, ValueError):
+        return str(val)
+    return str(int(f)) if f == int(f) else str(f)
+
+
 def _float_edit(val: float, w: int = 90) -> QLineEdit:
-    e = QLineEdit(str(val))
+    e = QLineEdit(_fmt_num(val))
     e.setFixedWidth(w)
     return e
 
@@ -1855,11 +1865,11 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.7.0")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.7.1")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
-        lbl_meta = QLabel("날짜: 2026-06-09    제작: minwoo@kbs.co.kr")
+        lbl_meta = QLabel("날짜: 2026-06-15    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
 
@@ -2229,13 +2239,13 @@ class SettingsDialog(QDialog):
         d = src.get("detection", {})
         p = src.get("performance", {})
         self._black_thresh.setText(str(d.get("black_threshold", 5)))
-        self._black_ratio.setText(str(d.get("black_dark_ratio", 98.0)))
-        self._black_suppress.setText(str(d.get("black_motion_suppress_ratio", 0.2)))
+        self._black_ratio.setText(_fmt_num(d.get("black_dark_ratio", 98.0)))
+        self._black_suppress.setText(_fmt_num(d.get("black_motion_suppress_ratio", 0.2)))
         self._black_dur.setText(str(d.get("black_duration", 20)))
         self._black_alarm_dur.setText(str(d.get("black_alarm_duration", 60)))
 
         self._still_thresh.setText(str(d.get("still_threshold", 4)))
-        self._still_changed.setText(str(d.get("still_changed_ratio", 10.0)))
+        self._still_changed.setText(_fmt_num(d.get("still_changed_ratio", 10.0)))
         self._still_reset.setText(str(d.get("still_reset_frames", 3)))
         self._still_dur.setText(str(d.get("still_duration", 120)))
         self._still_alarm_dur.setText(str(d.get("still_alarm_duration", 60)))
@@ -2243,15 +2253,15 @@ class SettingsDialog(QDialog):
         self._hsv_h.set_range(d.get("audio_hsv_h_min", 40), d.get("audio_hsv_h_max", 95))
         self._hsv_s.set_range(d.get("audio_hsv_s_min", 80), d.get("audio_hsv_s_max", 255))
         self._hsv_v.set_range(d.get("audio_hsv_v_min", 60), d.get("audio_hsv_v_max", 255))
-        self._audio_pixel_ratio.setText(str(d.get("audio_pixel_ratio", 5.0)))
-        self._audio_level_dur.setText(str(d.get("audio_level_duration", 20)))
+        self._audio_pixel_ratio.setText(_fmt_num(d.get("audio_pixel_ratio", 5.0)))
+        self._audio_level_dur.setText(str(d.get("audio_level_duration", 60)))
         self._audio_level_alarm_dur.setText(str(d.get("audio_level_alarm_duration", 60)))
-        self._audio_recovery.setText(str(d.get("audio_level_recovery_seconds", 2.0)))
+        self._audio_recovery.setText(_fmt_num(d.get("audio_level_recovery_seconds", 2.0)))
 
         self._emb_thresh.setText(str(d.get("embedded_silence_threshold", -50)))
-        self._emb_dur.setText(str(d.get("embedded_silence_duration", 20)))
+        self._emb_dur.setText(str(d.get("embedded_silence_duration", 60)))
         self._emb_alarm_dur.setText(str(d.get("embedded_alarm_duration", 60)))
-        self._emb_recovery.setText(str(d.get("embedded_recovery_seconds", 2.0)))
+        self._emb_recovery.setText(_fmt_num(d.get("embedded_recovery_seconds", 2.0)))
 
         for i in range(self._detect_interval_combo.count()):
             if self._detect_interval_combo.itemData(i) == p.get("detection_interval", 200):

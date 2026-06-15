@@ -19,11 +19,11 @@
     "audio_hsv_v_min": 60,
     "audio_hsv_v_max": 255,
     "audio_pixel_ratio": 5,
-    "audio_level_duration": 20,
+    "audio_level_duration": 60,
     "audio_level_alarm_duration": 60,
     "audio_level_recovery_seconds": 2,
     "embedded_silence_threshold": -50,
-    "embedded_silence_duration": 20,
+    "embedded_silence_duration": 60,
     "embedded_alarm_duration": 60,
     "embedded_recovery_seconds": 2
   },
