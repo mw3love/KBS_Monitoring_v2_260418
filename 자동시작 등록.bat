@@ -1,11 +1,10 @@
 @echo off
-chcp 65001 >nul
-REM â”€â”€ KBS Monitoring v2 ìžë™ ì‹œìž‘ ë“±ë¡ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-REM ì‹œìž‘í”„ë¡œê·¸ëž¨ í´ë”(shell:startup)ì— ì‹¤í–‰.bat ë°”ë¡œê°€ê¸°ë¥¼ ë§Œë“¤ì–´
-REM PC ë¡œê·¸ì¸ ì‹œ í”„ë¡œê·¸ëž¨ì´ ìžë™ìœ¼ë¡œ ì¼œì§€ë„ë¡ í•©ë‹ˆë‹¤.
-REM ê´€ë¦¬ìž ê¶Œí•œ ë¶ˆí•„ìš”. í•´ì œí•˜ë ¤ë©´ "ìžë™ì‹œìž‘ í•´ì œ.bat" ì‹¤í–‰.
+REM ¦¡¦¡ KBS Monitoring v2 ÀÚµ¿ ½ÃÀÛ µî·Ï ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+REM ½ÃÀÛÇÁ·Î±×·¥ Æú´õ(shell:startup)¿¡ ½ÇÇà.bat ¹Ù·Î°¡±â¸¦ ¸¸µé¾î
+REM PC ·Î±×ÀÎ ½Ã ÇÁ·Î±×·¥ÀÌ ÀÚµ¿À¸·Î ÄÑÁöµµ·Ï ÇÕ´Ï´Ù.
+REM °ü¸®ÀÚ ±ÇÇÑ ºÒÇÊ¿ä. ÇØÁ¦ÇÏ·Á¸é "ÀÚµ¿½ÃÀÛ ÇØÁ¦.bat" ½ÇÇà.
 
-set "TARGET=%~dp0ì‹¤í–‰.bat"
+set "TARGET=%~dp0½ÇÇà.bat"
 set "WORKDIR=%~dp0"
 set "LNK=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\KBS Monitoring v2.lnk"
 
@@ -15,17 +14,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$lnk.TargetPath = '%TARGET%';" ^
   "$lnk.WorkingDirectory = '%WORKDIR%';" ^
   "$lnk.WindowStyle = 7;" ^
-  "$lnk.Description = 'KBS Monitoring v2 ìžë™ ì‹œìž‘';" ^
+  "$lnk.Description = 'KBS Monitoring v2 ÀÚµ¿ ½ÃÀÛ';" ^
   "$lnk.Save()"
 
 if %errorlevel%==0 (
     echo.
-    echo  [ì™„ë£Œ] ìžë™ ì‹œìž‘ì´ ë“±ë¡ë˜ì—ˆìŠµë‹ˆë‹¤.
-    echo         ë‹¤ìŒ PC ë¡œê·¸ì¸ë¶€í„° í”„ë¡œê·¸ëž¨ì´ ìžë™ìœ¼ë¡œ ì‹¤í–‰ë©ë‹ˆë‹¤.
+    echo  [¿Ï·á] ÀÚµ¿ ½ÃÀÛÀÌ µî·ÏµÇ¾ú½À´Ï´Ù.
+    echo         ´ÙÀ½ PC ·Î±×ÀÎºÎÅÍ ÇÁ·Î±×·¥ÀÌ ÀÚµ¿À¸·Î ½ÇÇàµË´Ï´Ù.
     echo.
 ) else (
     echo.
-    echo  [ì‹¤íŒ¨] ë“±ë¡ ì¤‘ ì˜¤ë¥˜ê°€ ë°œìƒí–ˆìŠµë‹ˆë‹¤. ë‹´ë‹¹ìžì—ê²Œ ë¬¸ì˜í•˜ì„¸ìš”.
+    echo  [½ÇÆÐ] µî·Ï Áß ¿À·ù°¡ ¹ß»ýÇß½À´Ï´Ù. ´ã´çÀÚ¿¡°Ô ¹®ÀÇÇÏ¼¼¿ä.
     echo.
 )
 pause

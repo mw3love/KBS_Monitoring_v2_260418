@@ -38,6 +38,11 @@ _HEARTBEAT_PATH   = os.path.join(_ROOT, "data", "heartbeat.dat")
 _CONFIG_PATH      = os.path.join(_ROOT, "config", "kbs_config.json")
 _DEFAULT_CFG_PATH = os.path.join(_ROOT, "config", "default_config.json")
 _HB_STALE_SEC     = 10.0
+# spawn 직후 grace: 새 Detection이 첫 heartbeat를 쓸 시간을 보장한다.
+# heartbeat.dat는 프로세스 사망·앱 재시작을 넘어 남으므로, grace 없이 검사하면
+# 직전 세션의 묵은 timestamp를 "신규 Detection이 stale"로 오인해 재spawn 폭풍이 난다.
+# Detection heartbeat 주기 5초 + startup 여유 → 15초 (stale 10초보다 크게).
+_HB_GRACE_SEC     = 15.0
 # UI(main) 크래시 시 Detection 고아 시간 단축 위해 30 → 10초 (psutil.pid_exists 부하 미미)
 _PARENT_CHECK_SEC = 10.0
 _SPAWN_COOLDOWN   = 5.0
@@ -236,7 +241,8 @@ def run(
                     log_err(f"재spawn 쿨다운 대기 ({_SPAWN_COOLDOWN - elapsed:.1f}초)")
 
         # ── heartbeat 감시 ────────────────────────────────────────
-        if now - last_hb_check >= 2.0:
+        # spawn 직후 grace 동안은 검사 건너뜀 (신규 Detection의 첫 heartbeat 대기).
+        if (now - last_spawn_time >= _HB_GRACE_SEC) and (now - last_hb_check >= 2.0):
             last_hb_check = now
             hb_time = _read_heartbeat()
             if hb_time > 0 and (now - hb_time) > _HB_STALE_SEC:
