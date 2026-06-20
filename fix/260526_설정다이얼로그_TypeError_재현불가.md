@@ -1,7 +1,8 @@
 # 설정 다이얼로그 TypeError (재현불가) — 260526
 
-> **상태**: 재현불가 1회성 발생. **코드 수정 없음**. 재발 시 단서 확보용으로 `sys.excepthook` 만 추가.
-> **버전**: v2.2.7 (다른 PC), 본 PC(v2.2.8 / 동일 코드 베이스)에선 미발생.
+> **상태**: **2건 발생** (260526, 260620). 코드 버그 아님 확정에 가까움 — 런타임/네이티브 손상.
+> 260620 발생분 + 계측 보강은 **§10** 참조.
+> **버전**: 1차 v2.2.7 / 2차 v2.7.1. 동일 코드 베이스, 다른 PC.
 > **결론**: 코드 버그 아닌 런타임 손상(C 확장 / GC / 하드웨어) 의심. 재발 시 본 문서 + 새 로그 함께 검토.
 
 ---
@@ -126,3 +127,30 @@ if (res != Py_None) {
 
 - 본 1건만으로는 코드/환경 어느 쪽이 원인인지 단정 불가 → **추가 발생 시점까지 코드 수정 보류**.
 - excepthook 외에는 어떠한 방어 코드도 추가하지 않음(원인 미상 상태에서 try/except 둘러싸기는 진단을 더 어렵게 함).
+
+## 10. 2차 발생 (2026-06-20, v2.7.1) + 계측 보강
+
+### 10-1. 증상·신규 증거
+- **장소**: 운영 PC(전주). 6/15 16:49 기동 후 **약 4.7일 연속 가동**(무재시작) → 6/20 **08:10경 손상 시작**, 09:03 설정 클릭 시 표면화.
+- **1차 때 없던 결정적 증거** (UI HEALTH 스냅샷 + excepthook 덕분):
+  - `20260620_ui.txt` 08:00 `RSS=292MB handles=1308`(정상) → **08:10 `RSS=-1 handles=-1`** 로 전환. `threads=2`(순수 파이썬 `threading.active_count`)는 정상 → **C 확장(psutil)·네이티브 호출만 죽고 파이썬 바이트코드는 생존**.
+  - 09:03 excepthook: `TypeError("__init__() should return None, not 'NoneType'")` + **`traceback` 표준 모듈 자체가 `'NoneType' object has no attribute 'partition'`로 포매팅 실패** → 인터프리터/네이티브 레벨 손상.
+  - `fault.log` **0바이트** → faulthandler가 C레벨 segfault/abort를 못 잡음 = **하드 크래시 없이 "절뚝거린" 상태**(별개 segfault 문제 아님).
+- **패턴 공통점**: 1차도 "장시간 무재시작", 2차도 4.7일 연속 → **장기 가동 누적 손상**이 가장 강한 공통 변수.
+
+### 10-2. 관측 공백 발견
+- detection/watchdog는 자기 건강상태(rss)를 **큐로만 UI에 보내고 파일엔 영속 안 함** → 손상 창에서 detection이 같이 망가졌는지 **사후 확인 불가**. ("UI 국소 손상 vs 시스템 전체"를 가를 데이터가 없음.)
+- detection 파일 로거(`AppLogger`)는 날짜 로테이션 정상이나, detection은 기동·캡처상실·에러만 파일 기록 → 6/16~6/20 무사건이라 일별 파일 자체가 안 생성됨(정상 동작, 손상 무관).
+
+### 10-3. 계측 보강 (코드 변경, "블랙박스 3개로 통일")
+> 재현 전략은 유지(예약재시작 끈 채 자연 발생 대기 — [[settings-dialog-corruption-repro]] 합의). **막지 않고 카메라만 증설**.
+- **UI(`main.py`)**: HEALTH 스냅샷이 지금까지 `except: pass`로 버리던 **psutil 예외 원문을 기록**. psutil 실패(RSS=-1)로 *첫 전환*되는 순간 1회 **onset 심층덤프**: 인터프리터 무결성 프로브(None 싱글톤·객체생성·gc) + `faulthandler.dump_traceback(all_threads)` → `logs/fault.log`.
+- **detection(`processes/detection_process.py`)**: 10분 주기 `HEALTH DETECTION` 줄을 **자기 파일에 영속**(RSS/threads/handles/loop). onset 시 동일 프로브 + 스레드덤프 → `logs/fault_detection.log`(UI와 분리, 동시쓰기 충돌 방지).
+- **watchdog(`processes/watchdog_process.py`)**: 10분 주기 `HEALTH WATCHDOG` + onset 프로브/덤프 → `logs/fault_watchdog.log`.
+- 효과: **다음 재현 때 세 프로세스를 08:10 시점에 나란히 비교** → "UI만 vs 시스템 전체" 확정. onset의 `none_singleton_ok=False` 나 `fault_*.log` 스레드덤프로 손상 부위 특정. (객체생성 프로브는 손상 상태 SIGSEGV 위험·try/except 무력이라 제외 — 객체 init 손상 신호는 설정 클릭 시 excepthook TypeError로 어차피 포착.)
+- 검증: 3파일 `py_compile` 통과 + onset 경로 정상상태 스모크(프로브 기대값·스레드덤프 기록 확인). **실손상 캡처는 미검증(프록시) — 운영 PC 재발 시 실조건 확인.**
+
+### 10-4. 남은 권장(미실행)
+- **환경 진단**(운영 PC): `mdsched`(RAM), 패키지 버전 dev 대조, 백신 실시간스캔. RAM 불량이면 이 경로로 종결 가능.
+- **예약 재시작**: 근본원인 규명 후로 보류(최후의 보루). 켜면 재현 기회 소멸.
+- **가속재현(dev)**: 보류 — dev≠운영 환경이라 false-negative 오진 위험(재현 실패=무죄 아님).

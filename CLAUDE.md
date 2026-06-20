@@ -213,6 +213,8 @@ if __name__ == '__main__':
 - Watchdog: `logs/YYYYMMDD_watchdog.txt`
 - UI 로그 위젯(`log_widget`)은 Detection 로그를 `result_queue` 메시지로도 받아 화면에 통합 표시 (파일 따로, 화면 통합)
 - 각 프로세스의 `utils/logger.py` 인스턴스는 자기 파일에만 기록
+- **HEALTH 스냅샷**: 세 프로세스 모두 10분 주기로 `RSS/threads/handles`를 자기 로그에 기록 (장기 누수·손상 추세 가시화). psutil 쿼리 실패(`RSS=-1`)로 전환되는 순간 1회 onset 심층덤프(인터프리터 프로브 + 전체 스레드 덤프).
+- **faulthandler 덤프 파일** (프로세스별 분리, 동시 쓰기 충돌 방지): UI=`logs/fault.log`, Detection=`logs/fault_detection.log`, Watchdog=`logs/fault_watchdog.log`. 배경: `fix/260526_설정다이얼로그_TypeError_재현불가.md`
 
 ### 메모리 버퍼 상한
 - `auto_recorder` 순환버퍼: 채널당 `pre_seconds × fps × 프레임크기` 계산값 상한, 초과분 drop 시 로그 기록

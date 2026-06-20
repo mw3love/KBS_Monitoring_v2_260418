@@ -376,11 +376,38 @@ def main():
 
     # ── 헬스 스냅샷 (누적 추세 가시화: 스레드 수·핸들·RSS) ───────────
     # 며칠에 걸쳐 threads/handles가 꾸준히 늘면 누수의 직접 단서가 된다.
+    # psutil 쿼리가 실패(RSS=-1)로 *전환*되는 순간 = 네이티브 손상 추정 시점 →
+    # 그 1회에 한해 전체 스레드 덤프 + 인터프리터 무결성 프로브를 남긴다.
+    # (fix/260526 설정다이얼로그 TypeError 의 onset 포착용)
+    _health_degraded = [False]
+
+    def _capture_onset_dump(ts, psutil_err):
+        """psutil 쿼리 실패 첫 전환 시 1회 심층 덤프. 어떤 예외도 밖으로 내지 않는다."""
+        parts = [f"{ts} [ERROR] HEALTH ONSET (UI): 네이티브 쿼리 실패 감지 "
+                 f"(psutil_err={psutil_err})\n"]
+        # 주의: 객체 생성 프로브(type(...)())는 손상 상태에서 SIGSEGV 위험(try/except로
+        # 못 막음) → 의도적으로 제외. 무할당 프로브(None 싱글톤·gc)만 둔다.
+        try:
+            none_ok = (None is None) and (type(None).__name__ == "NoneType")
+            import gc
+            parts.append(f"  PROBE: none_singleton_ok={none_ok} gc_counts={gc.get_count()}\n")
+        except Exception as _e:
+            parts.append(f"  PROBE 실패: {_e!r}\n")
+        try:
+            faulthandler.dump_traceback(file=fault_log, all_threads=True)
+            fault_log.flush()
+            parts.append("  THREAD DUMP: logs/fault.log 에 기록\n")
+        except Exception as _e:
+            parts.append(f"  THREAD DUMP 실패: {_e!r}\n")
+        parts.append("\n")
+        return "".join(parts)
+
     def _log_health_snapshot():
         try:
             ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             nthreads = threading.active_count()
             rss_mb = handles = -1
+            psutil_err = ""
             try:
                 import psutil
                 p = psutil.Process()
@@ -389,10 +416,21 @@ def main():
                     handles = p.num_handles()  # Windows 전용
                 except Exception:
                     handles = -1
-            except Exception:
-                pass
-            _append_ui_log(
-                f"{ts} [INFO] HEALTH UI: RSS={rss_mb}MB threads={nthreads} handles={handles}\n")
+            except Exception as _pe:
+                psutil_err = repr(_pe)
+            line = (f"{ts} [INFO] HEALTH UI: RSS={rss_mb}MB "
+                    f"threads={nthreads} handles={handles}")
+            if psutil_err:
+                line += f" psutil_err={psutil_err}"
+            _append_ui_log(line + "\n")
+
+            # onset 캡처: psutil 실패로 처음 전환되는 순간 1회 심층 덤프
+            degraded_now = (rss_mb == -1)
+            if degraded_now and not _health_degraded[0]:
+                _health_degraded[0] = True
+                _append_ui_log(_capture_onset_dump(ts, psutil_err))
+            elif not degraded_now and _health_degraded[0]:
+                _health_degraded[0] = False  # 회복 시 다음 전환도 재포착
         except Exception:
             pass
 

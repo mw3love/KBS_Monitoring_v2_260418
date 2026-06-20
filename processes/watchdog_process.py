@@ -123,6 +123,15 @@ def run(
     from utils.logger import AppLogger
     logger = AppLogger(suffix="_watchdog")
 
+    # faulthandler: 네이티브 폴트/스레드 덤프 전용 파일 (프로세스별 분리).
+    import faulthandler
+    try:
+        os.makedirs(os.path.join(_ROOT, "logs"), exist_ok=True)
+        _fault_fp = open(os.path.join(_ROOT, "logs", "fault_watchdog.log"), "a", encoding="utf-8")
+        faulthandler.enable(file=_fault_fp)
+    except Exception:
+        _fault_fp = None
+
     def log(msg: str):
         logger.info(msg)
 
@@ -198,6 +207,61 @@ def run(
         except Exception:
             return 0.0
 
+    # ── HEALTH 블랙박스 (UI/detection HEALTH 의 watchdog 짝) ──────────────
+    _health_last_t = time.time()
+    _health_interval = 600.0   # 10분
+    _health_degraded = [False]
+
+    def _capture_onset_watchdog(psutil_err):
+        try:
+            log_err(f"HEALTH ONSET (WATCHDOG): 네이티브 쿼리 실패 감지 (psutil_err={psutil_err})")
+            # 객체생성 프로브는 SIGSEGV 위험(try/except로 못 막음)이라 제외 — 무할당만.
+            try:
+                none_ok = (None is None) and (type(None).__name__ == "NoneType")
+                import gc
+                log_err(f"  PROBE: none_singleton_ok={none_ok} gc_counts={gc.get_count()}")
+            except Exception as _e:
+                log_err(f"  PROBE 실패: {_e!r}")
+            if _fault_fp is not None:
+                try:
+                    faulthandler.dump_traceback(file=_fault_fp, all_threads=True)
+                    _fault_fp.flush()
+                    log_err("  THREAD DUMP: logs/fault_watchdog.log 에 기록")
+                except Exception as _e:
+                    log_err(f"  THREAD DUMP 실패: {_e!r}")
+        except Exception:
+            pass
+
+    def _log_health_watchdog():
+        """watchdog 자기 파일에 주기적 건강 스냅샷."""
+        try:
+            import threading as _th
+            nthreads = _th.active_count()
+            rss_mb = handles = -1
+            psutil_err = ""
+            try:
+                if PSUTIL_AVAILABLE:
+                    p = psutil.Process()
+                    rss_mb = int(p.memory_info().rss / (1024 * 1024))
+                    try:
+                        handles = p.num_handles()
+                    except Exception:
+                        handles = -1
+            except Exception as _pe:
+                psutil_err = repr(_pe)
+            msg = f"HEALTH WATCHDOG: RSS={rss_mb}MB threads={nthreads} handles={handles}"
+            if psutil_err:
+                msg += f" psutil_err={psutil_err}"
+            log(msg)
+            degraded_now = (rss_mb == -1 and PSUTIL_AVAILABLE)
+            if degraded_now and not _health_degraded[0]:
+                _health_degraded[0] = True
+                _capture_onset_watchdog(psutil_err)
+            elif not degraded_now and _health_degraded[0]:
+                _health_degraded[0] = False
+        except Exception:
+            pass
+
     # 최초 Detection spawn
     detection_proc = _spawn_detection()
     last_hb_check = time.time()
@@ -261,6 +325,11 @@ def run(
                         _spawn_count += 1
                         tg(f"KBS On-Air Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
                         last_hb_value = 0.0
+
+        # ── HEALTH 파일 스냅샷 (10분 주기) ────────────────────────
+        if now - _health_last_t >= _health_interval:
+            _health_last_t = now
+            _log_health_watchdog()
 
         time.sleep(1.0)
 

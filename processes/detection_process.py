@@ -193,6 +193,16 @@ def run(result_queue, cmd_queue, shutdown_event,
     from utils.logger import AppLogger
     logger = AppLogger(suffix="_detection")
 
+    # faulthandler: 네이티브 폴트/스레드 덤프 전용 파일 (UI의 logs/fault.log 와 분리 —
+    # Windows 동시 쓰기 충돌 방지). HEALTH onset 시 전체 스레드 덤프 대상.
+    import faulthandler
+    try:
+        os.makedirs("logs", exist_ok=True)
+        _fault_fp = open(os.path.join("logs", "fault_detection.log"), "a", encoding="utf-8")
+        faulthandler.enable(file=_fault_fp)
+    except Exception:
+        _fault_fp = None
+
     def log_debug(msg: str):
         logger.debug(msg)
         from ipc.messages import LogEntry
@@ -501,6 +511,64 @@ def run(result_queue, cmd_queue, shutdown_event,
     _diag_last_t = time.time()  # 첫 루프 즉시 DIAG 방지 (DetectionReady 이후 stale 오판 예방)
     _diag_interval = 30.0
     _loop_count = 0
+
+    # ── HEALTH 블랙박스 (UI HEALTH 의 detection 짝 — 자기 파일에 영속 기록) ──
+    # detection 도 손상되는지(=UI 국소 vs 시스템 전체) 다음 재현 때 비교 가능하게.
+    _health_last_t = time.time()
+    _health_interval = 600.0   # 10분 (UI HEALTH 와 동일 주기)
+    _health_degraded = [False]
+
+    def _capture_onset_detection(psutil_err):
+        try:
+            logger.error(f"HEALTH ONSET (DETECTION): 네이티브 쿼리 실패 감지 (psutil_err={psutil_err})")
+            # 객체생성 프로브는 SIGSEGV 위험(try/except로 못 막음)이라 제외 — 무할당만.
+            try:
+                none_ok = (None is None) and (type(None).__name__ == "NoneType")
+                import gc
+                logger.error(f"  PROBE: none_singleton_ok={none_ok} gc_counts={gc.get_count()}")
+            except Exception as _e:
+                logger.error(f"  PROBE 실패: {_e!r}")
+            if _fault_fp is not None:
+                try:
+                    faulthandler.dump_traceback(file=_fault_fp, all_threads=True)
+                    _fault_fp.flush()
+                    logger.error("  THREAD DUMP: logs/fault_detection.log 에 기록")
+                except Exception as _e:
+                    logger.error(f"  THREAD DUMP 실패: {_e!r}")
+        except Exception:
+            pass
+
+    def _log_health_detection():
+        """detection 자기 파일에 주기적 건강 스냅샷. psutil 실패(RSS=-1) 첫 전환 시
+        스레드 덤프 + 인터프리터 프로브 1회.
+        (루프 freeze는 본 HEALTH 줄이 끊기는 것으로 드러나므로 loop 카운터 불필요.)"""
+        try:
+            nthreads = threading.active_count()
+            rss_mb = handles = -1
+            psutil_err = ""
+            try:
+                import psutil
+                p = psutil.Process()
+                rss_mb = int(p.memory_info().rss / (1024 * 1024))
+                try:
+                    handles = p.num_handles()
+                except Exception:
+                    handles = -1
+            except Exception as _pe:
+                psutil_err = repr(_pe)
+            msg = (f"HEALTH DETECTION: RSS={rss_mb}MB threads={nthreads} "
+                   f"handles={handles}")
+            if psutil_err:
+                msg += f" psutil_err={psutil_err}"
+            logger.info(msg)
+            degraded_now = (rss_mb == -1)
+            if degraded_now and not _health_degraded[0]:
+                _health_degraded[0] = True
+                _capture_onset_detection(psutil_err)
+            elif not degraded_now and _health_degraded[0]:
+                _health_degraded[0] = False
+        except Exception:
+            pass
     _drop_count_snap = 0
     # 캡처 워커 응답성 감시: cap.read() hang 시 heartbeat 중단 → Watchdog 재spawn 유도
     _CAPTURE_FREEZE_SEC = 15.0
@@ -569,6 +637,15 @@ def run(result_queue, cmd_queue, shutdown_event,
                 log_error(f"DIAG 오류: {traceback.format_exc()}")
             except Exception:
                 pass
+
+        # ── HEALTH 파일 스냅샷 (독립 try-except, 10분 주기) ────────────────
+        try:
+            _now_h = time.time()
+            if _now_h - _health_last_t >= _health_interval:
+                _health_last_t = _now_h
+                _log_health_detection()
+        except Exception:
+            pass
 
         # ── cmd_queue 처리 (독립 try-except) ──────────────────────────────
         try:
