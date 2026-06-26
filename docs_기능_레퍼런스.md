@@ -107,6 +107,7 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 | audio | AUDIO | 초록 #1f7a1f | AUDIO |
 | embedded | EMBED | 파랑 #1e5a9e | AUDIO |
 | error (시스템 장애) | ERROR | 주황 #e8730a | ERROR |
+| recovery (복구) | 복구 | 청록 #1aa68a (행 배경 알파 0.10, 에러보다 옅게) | INFO |
 | info | INFO | QSS 테마색 | INFO |
 
 **필터 버튼**: `ALL | VIDEO | AUDIO | ERROR | INFO` — 매체 단위로 그룹화하여 운영 시점에 매체별로 빠르게 좁혀볼 수 있다. `ERROR`는 스트림 장애·Detection 크래시·녹화 실패·텔레그램 실패 등 시스템 장애성 에러 통합.
@@ -187,11 +188,13 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 
 **모션 억제**: 블랙 판정 후 `changed_ratio >= black_motion_suppress_ratio`이면 블랙 취소 (스크롤 자막 오감지 방지)
 
+**관측 로그**: 블랙 알람 발생 시 로그에 그 시점의 어두운 픽셀 비율을 함께 표시 (예: `... black 감지 (어두움 99.34%)`) — `black_dark_ratio` 임계값 튜닝용. 로고만 남은 블랙(=의도된 블랙) vs 진짜 블랙의 % 분포를 운영 중 직접 관찰.
+
 | 파라미터 | 기본값 | 범위 | 설명 |
 |--------|------|-----|------|
 | black_threshold | 5 | 0~255 | 어두움 기준 픽셀값 |
 | black_dark_ratio | 98.0 | 0~100% | 어두운 픽셀 비율 기준 |
-| black_duration | 20 | 1~300초 | 알림 발생까지 지속 시간 |
+| black_duration | 5 | 1~300초 | 알림 발생까지 지속 시간 |
 | black_alarm_duration | 60 | 1~300초 | 알림 지속 시간 |
 | black_motion_suppress_ratio | 0.2 | 0~100% | 모션 억제 비율 |
 
@@ -509,7 +512,7 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 |------|------|-----|-----|
 | black_threshold | 5 | 0~255 | 픽셀값 |
 | black_dark_ratio | 98.0 | 0~100 | % |
-| black_duration | 20 | 1~300 | 초 |
+| black_duration | 5 | 1~300 | 초 |
 | black_alarm_duration | 60 | 1~300 | 초 |
 | black_motion_suppress_ratio | 0.2 | 0~100 | % |
 | still_threshold | 4 | 0~255 | 픽셀값 |

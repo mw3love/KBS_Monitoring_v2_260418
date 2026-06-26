@@ -117,7 +117,7 @@ def _apply_config_to_detector(detector, cfg: dict):
     det = cfg.get("detection", {})
     detector.black_threshold            = det.get("black_threshold", 10)
     detector.black_dark_ratio           = det.get("black_dark_ratio", 95.0)
-    detector.black_duration             = det.get("black_duration", 20)
+    detector.black_duration             = det.get("black_duration", 5)
     detector.black_alarm_duration       = det.get("black_alarm_duration", 60)
     detector.black_motion_suppress_ratio = det.get("black_motion_suppress_ratio", 0.2)
     detector.still_threshold            = det.get("still_threshold", 4)
@@ -988,6 +988,7 @@ def _process_alarms(
                          AlarmTrigger(label=lbl, detection_type=det_type,
                                       roi_type="video",
                                       media_name=media,
+                                      dark_ratio=res.get("dark_ratio", -1.0),
                                       snapshot_jpeg=snap_jpeg),
                          ipc_counters)
                     telegram.notify(

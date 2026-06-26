@@ -33,6 +33,7 @@ class AlarmTrigger(BaseMsg):
     detection_type: str = ""
     roi_type: str = ""
     media_name: str = ""
+    dark_ratio: float = -1.0    # 블랙 알람 시점의 어두운 픽셀 비율(%) — 임계값 튜닝 관측용. 비-블랙은 -1.0
     snapshot_jpeg: Optional[bytes] = None
 
 

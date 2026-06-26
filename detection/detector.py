@@ -31,7 +31,7 @@ class Detector:
 
         self.black_threshold = 5
         self.black_dark_ratio = 98.0
-        self.black_duration = 10.0
+        self.black_duration = 5.0
         self.black_alarm_duration = 10.0
         self.black_motion_suppress_ratio = 0.2
 
@@ -213,6 +213,7 @@ class Detector:
                 results[label] = {
                     "black": is_black,
                     "still": is_still,
+                    "dark_ratio": dark_ratio,
                     "black_alerting": black_alerting,
                     "still_alerting": still_alerting,
                     "black_duration": black_state.alert_duration,

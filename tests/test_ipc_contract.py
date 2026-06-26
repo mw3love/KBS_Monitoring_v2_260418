@@ -21,11 +21,11 @@ import ipc.messages as M
 RESULT_CONTRACT = {
     "DetectionResult": {"label", "roi_type", "media_name", "detection_type",
                         "active", "duration_sec", "meta"},
-    "AlarmTrigger":    {"label", "detection_type", "roi_type", "media_name", "snapshot_jpeg"},
+    "AlarmTrigger":    {"label", "detection_type", "roi_type", "media_name", "dark_ratio", "snapshot_jpeg"},
     "AlarmResolve":    {"label", "detection_type", "duration_sec", "media_name"},
     "LogEntry":        {"level", "source", "message"},
     "DiagSnapshot":    {"section", "payload"},
-    "SignoffStateChange": {"group_id", "prev_state", "new_state", "source"},
+    "SignoffStateChange": {"group_id", "prev_state", "new_state", "source", "suppress_alarm_sound"},
     # source 가능값: 'auto-time'(시간 강제), 'auto-detect'(스틸/비스틸 감지),
     #               'manual'(버튼 클릭), 'restore'(재spawn 재주입)
     "RecordingEvent":  {"event", "label", "filepath", "reason"},

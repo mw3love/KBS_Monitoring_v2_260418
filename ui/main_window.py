@@ -27,7 +27,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.7.2"
+VERSION = "2.7.3"
 
 
 class MainWindow(QMainWindow):
@@ -254,8 +254,12 @@ class MainWindow(QMainWindow):
         self._video_widget.set_alert_state(msg.label, True)
         lbl_str = (f"{msg.label} ({msg.media_name})"
                    if msg.media_name and msg.media_name != msg.label else msg.label)
+        # 블랙은 어두움 % 동반 표시 (임계값 튜닝 관측용 — 로고만 있는 블랙 vs 진짜 블랙 구분)
+        suffix = ""
+        if msg.detection_type == "black" and msg.dark_ratio >= 0:
+            suffix = f" (어두움 {msg.dark_ratio:.2f}%)"
         self._log_widget.add_log(
-            f"{lbl_str} {msg.detection_type} 감지",
+            f"{lbl_str} {msg.detection_type} 감지{suffix}",
             log_type=self._detect_type_to_log_type(msg.detection_type),
             source="알람",
         )
@@ -276,6 +280,7 @@ class MainWindow(QMainWindow):
                    if msg.media_name and msg.media_name != msg.label else msg.label)
         self._log_widget.add_log(
             f"{lbl_str} {msg.detection_type} ({_fmt_dur(msg.duration_sec)})",
+            log_type="recovery",
             source="복구",
         )
         self._refresh_summary()

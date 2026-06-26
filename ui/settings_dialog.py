@@ -999,7 +999,7 @@ class SettingsDialog(QDialog):
         self._black_thresh = _int_edit(det.get("black_threshold", 5), 0, 255)
         self._black_ratio = _float_edit(det.get("black_dark_ratio", 98.0))
         self._black_suppress = _float_edit(det.get("black_motion_suppress_ratio", 0.2))
-        self._black_dur = _int_edit(det.get("black_duration", 20), 1, 300)
+        self._black_dur = _int_edit(det.get("black_duration", 5), 1, 300)
         self._black_alarm_dur = _int_edit(det.get("black_alarm_duration", 60), 1, 300)
         sl1.addLayout(_row("밝기 임계값", self._black_thresh,
                            "0~255 / 이 값 이하면 어두운 픽셀로 판단 (기본값: 5)"))
@@ -1865,11 +1865,11 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.7.2")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.7.3")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
-        lbl_meta = QLabel("날짜: 2026-06-20    제작: minwoo@kbs.co.kr")
+        lbl_meta = QLabel("날짜: 2026-06-27    제작: minwoo@kbs.co.kr")
         lbl_meta.setObjectName("aboutCardMeta")
         about_vl.addWidget(lbl_meta)
 
@@ -1908,7 +1908,7 @@ class SettingsDialog(QDialog):
         det["black_threshold"] = int(self._black_thresh.text() or 10)
         det["black_dark_ratio"] = float(self._black_ratio.text() or 95.0)
         det["black_motion_suppress_ratio"] = float(self._black_suppress.text() or 0.2)
-        det["black_duration"] = int(self._black_dur.text() or 20)
+        det["black_duration"] = int(self._black_dur.text() or 5)
         det["black_alarm_duration"] = int(self._black_alarm_dur.text() or 60)
 
         det["still_threshold"] = int(self._still_thresh.text() or 8)
@@ -2241,7 +2241,7 @@ class SettingsDialog(QDialog):
         self._black_thresh.setText(str(d.get("black_threshold", 5)))
         self._black_ratio.setText(_fmt_num(d.get("black_dark_ratio", 98.0)))
         self._black_suppress.setText(_fmt_num(d.get("black_motion_suppress_ratio", 0.2)))
-        self._black_dur.setText(str(d.get("black_duration", 20)))
+        self._black_dur.setText(str(d.get("black_duration", 5)))
         self._black_alarm_dur.setText(str(d.get("black_alarm_duration", 60)))
 
         self._still_thresh.setText(str(d.get("still_threshold", 4)))

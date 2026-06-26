@@ -50,6 +50,7 @@ class LogRowDelegate(QStyledItemDelegate):
         "audio":    ("#1f7a1f", "#ffffff"),
         "embedded": ("#1e5a9e", "#ffffff"),
         "error":    ("#e8730a", "#ffffff"),
+        "recovery": ("#1aa68a", "#ffffff"),
         "info":     (None,      "#b8b9bd"),
         "debug":    (None,      "#555565"),
     }
@@ -62,6 +63,7 @@ class LogRowDelegate(QStyledItemDelegate):
         "audio":    ("#1f7a1f", "#1a1a1a", "#ffffff"),
         "embedded": ("#1e5a9e", "#1a1a1a", "#ffffff"),
         "error":    ("#e8730a", "#1a1a1a", "#ffffff"),
+        "recovery": ("#1aa68a", "#1a1a1a", "#ffffff"),
         "info":     (None,      "#3a3a3a", "#3a3a3a"),
         "debug":    (None,      "#888888", "#888888"),
     }
@@ -103,6 +105,7 @@ class LogRowDelegate(QStyledItemDelegate):
         "audio":    "AUDIO",
         "embedded": "EMBED",
         "error":    "ERROR",
+        "recovery": "복구",
         "info":     "INFO ",
         "debug":    "DEBUG",
     }
@@ -131,7 +134,11 @@ class LogRowDelegate(QStyledItemDelegate):
         bg_hex, fg_hex, badge_fg_hex = self._type_color(data.log_type)
         if bg_hex:
             row_bg = QColor(bg_hex)
-            row_bg.setAlphaF(0.18 if self._dark else 0.14)
+            # 복구는 에러보다 옅은 톤 (좋은 소식 — 구별되되 경보만큼 강하지 않게)
+            if data.log_type == "recovery":
+                row_bg.setAlphaF(0.10 if self._dark else 0.08)
+            else:
+                row_bg.setAlphaF(0.18 if self._dark else 0.14)
             painter.fillRect(rect, row_bg)
 
         # ── pulse 하이라이트 ──
@@ -244,7 +251,7 @@ class LogWidget(QWidget):
         "VIDEO": {"black", "still"},
         "AUDIO": {"audio", "embedded"},
         "ERROR": {"error"},
-        "INFO":  {"info"},
+        "INFO":  {"info", "recovery"},
     }
 
     log_cleared = Signal()
