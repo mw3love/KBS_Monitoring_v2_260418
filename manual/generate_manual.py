@@ -753,7 +753,7 @@ kbd {{
       <tr><td>밝기 임계값</td><td>0~255</td><td>5</td><td>이 값 이하이면 "어두운 픽셀"로 판정</td></tr>
       <tr><td>어두운 픽셀 비율</td><td>50~100%</td><td>98%</td><td>이 비율 이상이면 블랙으로 판정</td></tr>
       <tr><td>움직임 무시 기준</td><td>0.0~5.0%</td><td>0.2%</td><td>화면 전환 오감지 방지 (변화 픽셀 비율)</td></tr>
-      <tr><td>알람 발생 기준</td><td>초</td><td>20초</td><td>이 시간 지속 시 알람 발생</td></tr>
+      <tr><td>알람 발생 기준</td><td>초</td><td>5초</td><td>이 시간 지속 시 알람 발생</td></tr>
       <tr><td>알림음 지속</td><td>초</td><td>60초</td><td>알림음이 울리는 최대 시간</td></tr>
     </tbody>
   </table>
@@ -765,7 +765,7 @@ kbd {{
       <tr><td>픽셀 차이 임계값</td><td>0~255</td><td>4</td><td>프레임 간 픽셀 변화 감지 최소값</td></tr>
       <tr><td>블록 변화 비율</td><td>%</td><td>10%</td><td>이 비율 미만이면 정지 화면으로 판정</td></tr>
       <tr><td>연속 정상 프레임</td><td>프레임</td><td>3</td><td>정상 복귀 판정에 필요한 연속 정상 프레임 수</td></tr>
-      <tr><td>알람 발생 기준</td><td>초</td><td>60초</td><td>이 시간 지속 시 알람 발생</td></tr>
+      <tr><td>알람 발생 기준</td><td>초</td><td>120초</td><td>이 시간 지속 시 알람 발생</td></tr>
     </tbody>
   </table>
 
@@ -786,7 +786,7 @@ kbd {{
     <thead><tr><th>파라미터</th><th>기본값</th><th>설명</th></tr></thead>
     <tbody>
       <tr><td>무음 임계값</td><td>-50 dB</td><td>이 값 이하이면 무음으로 판정</td></tr>
-      <tr><td>알람 발생 기준</td><td>20초</td><td>이 시간 지속 시 알람 발생</td></tr>
+      <tr><td>알람 발생 기준</td><td>60초</td><td>이 시간 지속 시 알람 발생</td></tr>
     </tbody>
   </table>
 
@@ -983,7 +983,7 @@ kbd {{
 
   <div class="faq-item">
     <div class="faq-q" onclick="toggleFaq(this)">Q. 오감지가 너무 많습니다.</div>
-    <div class="faq-a">① 감도설정에서 <strong>알람 발생 기준 시간</strong>을 늘리세요 (예: 블랙 20초 → 30초). ② 블랙 감지의 <strong>움직임 무시 기준값</strong>을 높여 화면 전환 오감지를 줄이세요. ③ 스틸 감지의 <strong>블록 변화 비율</strong>을 낮추세요.</div>
+    <div class="faq-a">① 감도설정에서 <strong>알람 발생 기준 시간</strong>을 늘리세요 (예: 블랙 5초 → 15초). ② 블랙 감지의 <strong>움직임 무시 기준값</strong>을 높여 화면 전환 오감지를 줄이세요. ③ 스틸 감지의 <strong>블록 변화 비율</strong>을 낮추세요.</div>
   </div>
 
   <div class="faq-item">

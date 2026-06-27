@@ -260,7 +260,7 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 | audio_hsv_s_min/max | 80/255 | 0~255 | Saturation 범위 |
 | audio_hsv_v_min/max | 60/255 | 0~255 | Value 범위 |
 | audio_pixel_ratio | 5.0 | 0~100% | 활성 픽셀 비율 기준 |
-| audio_level_duration | 20 | 1~300초 | 알림 발생까지 지속 시간 |
+| audio_level_duration | 60 | 1~300초 | 알림 발생까지 지속 시간 |
 | audio_level_alarm_duration | 60 | 1~300초 | 알림 지속 시간 |
 | audio_level_recovery_seconds | 2.0 | 0~30초 | 복구 딜레이 |
 
@@ -279,7 +279,7 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 | 파라미터 | 기본값 | 범위 | 설명 |
 |--------|------|-----|------|
 | embedded_silence_threshold | -50 | -60~0 dB | 무음 기준 |
-| embedded_silence_duration | 20 | 1~300초 | 알림 발생까지 지속 시간 |
+| embedded_silence_duration | 60 | 1~300초 | 알림 발생까지 지속 시간 |
 | embedded_alarm_duration | 60 | 1~300초 | 알림 지속 시간 |
 
 ---
@@ -527,11 +527,11 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 | audio_hsv_v_min | 60 | 0~255 | - |
 | audio_hsv_v_max | 255 | 0~255 | - |
 | audio_pixel_ratio | 5.0 | 0~100 | % |
-| audio_level_duration | 20 | 1~300 | 초 |
+| audio_level_duration | 60 | 1~300 | 초 |
 | audio_level_alarm_duration | 60 | 1~300 | 초 |
 | audio_level_recovery_seconds | 2.0 | 0~30 | 초 |
 | embedded_silence_threshold | -50 | -60~0 | dB |
-| embedded_silence_duration | 20 | 1~300 | 초 |
+| embedded_silence_duration | 60 | 1~300 | 초 |
 | embedded_alarm_duration | 60 | 1~300 | 초 |
 | embedded_recovery_seconds | 2.0 | 0~30 | 초 |
 

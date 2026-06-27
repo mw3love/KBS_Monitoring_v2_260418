@@ -1008,7 +1008,7 @@ class SettingsDialog(QDialog):
         sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준", self._black_suppress,
                            "0~1 / 변화 비율이 이 값 이상이면 화면 전환으로 보아 블랙 무시 (기본값: 0.2)"))
         sl1.addLayout(_row("알림 발생 기준(초)", self._black_dur,
-                           "1~300 / 블랙이 이 시간(초) 이상 지속 시 알림 (기본값: 20)"))
+                           "1~300 / 블랙이 이 시간(초) 이상 지속 시 알림 (기본값: 5)"))
         sl1.addLayout(_row("알림음 지속(초)", self._black_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생 (기본값: 60)"))
         vl.addWidget(box1)
@@ -1059,7 +1059,7 @@ class SettingsDialog(QDialog):
         self._hsv_v.set_range(det.get("audio_hsv_v_min", 60),
                                det.get("audio_hsv_v_max", 255))
         self._audio_pixel_ratio = _float_edit(det.get("audio_pixel_ratio", 5.0))
-        self._audio_level_dur = _int_edit(det.get("audio_level_duration", 20), 1, 300)
+        self._audio_level_dur = _int_edit(det.get("audio_level_duration", 60), 1, 300)
         self._audio_level_alarm_dur = _int_edit(
             det.get("audio_level_alarm_duration", 60), 1, 300)
         self._audio_recovery = _float_edit(det.get("audio_level_recovery_seconds", 2.0))
@@ -1107,7 +1107,7 @@ class SettingsDialog(QDialog):
         sl3.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
                            "0~100% / 설정 색상 픽셀 비율이 이 값 이하면 오디오 레벨 미검출 판정 (기본값: 5%)"))
         sl3.addLayout(_row("알림 발생 기준(초)", self._audio_level_dur,
-                           "1~300 / 레벨 이상이 이 시간(초) 이상 지속 시 알림 (기본값: 20)"))
+                           "1~300 / 레벨 이상이 이 시간(초) 이상 지속 시 알림 (기본값: 60)"))
         sl3.addLayout(_row("알림음 지속(초)", self._audio_level_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생 (기본값: 60)"))
         sl3.addLayout(_row("복구 대기(초)", self._audio_recovery,
@@ -1129,13 +1129,13 @@ class SettingsDialog(QDialog):
         # ── 임베디드 오디오 감지 ──────────────────────────
         box4, sl4 = _section("임베디드 오디오 감지 (무음)", enable_cb=self._emb_enabled_cb)
         self._emb_thresh = _int_edit(det.get("embedded_silence_threshold", -50), -60, 0)
-        self._emb_dur = _int_edit(det.get("embedded_silence_duration", 20), 1, 300)
+        self._emb_dur = _int_edit(det.get("embedded_silence_duration", 60), 1, 300)
         self._emb_alarm_dur = _int_edit(det.get("embedded_alarm_duration", 60), 1, 300)
         self._emb_recovery = _float_edit(det.get("embedded_recovery_seconds", 2.0))
         sl4.addLayout(_row("무음 임계값(dB)", self._emb_thresh,
                            "-60~0 / 이 값 이하일 때 무음 판정 (기본값: -50)"))
         sl4.addLayout(_row("알림 발생 기준(초)", self._emb_dur,
-                           "1~300 / 무음이 이 시간(초) 이상 지속 시 알림 (기본값: 20)"))
+                           "1~300 / 무음이 이 시간(초) 이상 지속 시 알림 (기본값: 60)"))
         sl4.addLayout(_row("알림음 지속(초)", self._emb_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생 (기본값: 60)"))
         sl4.addLayout(_row("복구 대기(초)", self._emb_recovery,
@@ -1865,7 +1865,7 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.7.3")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.7.4")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
@@ -1927,12 +1927,12 @@ class SettingsDialog(QDialog):
         det["audio_hsv_v_min"] = v_lo
         det["audio_hsv_v_max"] = v_hi
         det["audio_pixel_ratio"] = float(self._audio_pixel_ratio.text() or 5.0)
-        det["audio_level_duration"] = int(self._audio_level_dur.text() or 20)
+        det["audio_level_duration"] = int(self._audio_level_dur.text() or 60)
         det["audio_level_alarm_duration"] = int(self._audio_level_alarm_dur.text() or 60)
         det["audio_level_recovery_seconds"] = float(self._audio_recovery.text() or 2.0)
 
         det["embedded_silence_threshold"] = int(self._emb_thresh.text() or -50)
-        det["embedded_silence_duration"] = int(self._emb_dur.text() or 20)
+        det["embedded_silence_duration"] = int(self._emb_dur.text() or 60)
         det["embedded_alarm_duration"] = int(self._emb_alarm_dur.text() or 60)
         det["embedded_recovery_seconds"] = float(self._emb_recovery.text() or 2.0)
 

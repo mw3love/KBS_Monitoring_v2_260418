@@ -132,11 +132,11 @@ def _apply_config_to_detector(detector, cfg: dict):
     detector.audio_hsv_v_min            = det.get("audio_hsv_v_min", 60)
     detector.audio_hsv_v_max            = det.get("audio_hsv_v_max", 255)
     detector.audio_pixel_ratio          = det.get("audio_pixel_ratio", 5)
-    detector.audio_level_duration       = det.get("audio_level_duration", 20)
+    detector.audio_level_duration       = det.get("audio_level_duration", 60)
     detector.audio_level_alarm_duration = det.get("audio_level_alarm_duration", 60)
     detector.audio_level_recovery_seconds = det.get("audio_level_recovery_seconds", 2)
     detector.embedded_silence_threshold  = det.get("embedded_silence_threshold", -50)
-    detector.embedded_silence_duration   = det.get("embedded_silence_duration", 20)
+    detector.embedded_silence_duration   = det.get("embedded_silence_duration", 60)
     detector.embedded_alarm_duration     = det.get("embedded_alarm_duration", 60)
     detector.embedded_recovery_seconds   = det.get("embedded_recovery_seconds", 2.0)
 
