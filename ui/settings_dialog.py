@@ -1001,6 +1001,7 @@ class SettingsDialog(QDialog):
         self._black_suppress = _float_edit(det.get("black_motion_suppress_ratio", 0.2))
         self._black_dur = _int_edit(det.get("black_duration", 5), 1, 300)
         self._black_alarm_dur = _int_edit(det.get("black_alarm_duration", 60), 1, 300)
+        self._black_recovery = _float_edit(det.get("black_recovery_seconds", 2.0))
         sl1.addLayout(_row("밝기 임계값", self._black_thresh,
                            "0~255 / 이 값 이하면 어두운 픽셀로 판단 (기본값: 5)"))
         sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
@@ -1011,11 +1012,13 @@ class SettingsDialog(QDialog):
                            "1~300 / 블랙이 이 시간(초) 이상 지속 시 알림 (기본값: 5)"))
         sl1.addLayout(_row("알림음 지속(초)", self._black_alarm_dur,
                            "1~300 / 알림음이 최대 이 시간 동안 재생 (기본값: 60)"))
+        sl1.addLayout(_row("복구 대기(초)", self._black_recovery,
+                           "0~30 / 정상 복귀 후 이 시간이 지나야 알림 해제 — 블랙 경계 깜빡임 오복구 방지 (기본값: 2)"))
         vl.addWidget(box1)
         self._black_section_lbl = box1.findChild(QLabel, "settingsSectionLabel")
         self._black_section_widgets = (
             self._black_thresh, self._black_ratio, self._black_suppress,
-            self._black_dur, self._black_alarm_dur,
+            self._black_dur, self._black_alarm_dur, self._black_recovery,
         )
         self._toggle_section_widgets(self._black_section_widgets,
                                      self._black_enabled_cb.isChecked())
@@ -1910,6 +1913,7 @@ class SettingsDialog(QDialog):
         det["black_motion_suppress_ratio"] = float(self._black_suppress.text() or 0.2)
         det["black_duration"] = int(self._black_dur.text() or 5)
         det["black_alarm_duration"] = int(self._black_alarm_dur.text() or 60)
+        det["black_recovery_seconds"] = float(self._black_recovery.text() or 2.0)
 
         det["still_threshold"] = int(self._still_thresh.text() or 8)
         det["still_changed_ratio"] = float(self._still_changed.text() or 2.0)
@@ -2243,6 +2247,7 @@ class SettingsDialog(QDialog):
         self._black_suppress.setText(_fmt_num(d.get("black_motion_suppress_ratio", 0.2)))
         self._black_dur.setText(str(d.get("black_duration", 5)))
         self._black_alarm_dur.setText(str(d.get("black_alarm_duration", 60)))
+        self._black_recovery.setText(_fmt_num(d.get("black_recovery_seconds", 2.0)))
 
         self._still_thresh.setText(str(d.get("still_threshold", 4)))
         self._still_changed.setText(_fmt_num(d.get("still_changed_ratio", 10.0)))

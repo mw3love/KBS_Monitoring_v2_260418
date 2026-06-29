@@ -120,6 +120,7 @@ def _apply_config_to_detector(detector, cfg: dict):
     detector.black_duration             = det.get("black_duration", 5)
     detector.black_alarm_duration       = det.get("black_alarm_duration", 60)
     detector.black_motion_suppress_ratio = det.get("black_motion_suppress_ratio", 0.2)
+    detector.black_recovery_seconds     = det.get("black_recovery_seconds", 2.0)
     detector.still_threshold            = det.get("still_threshold", 4)
     detector.still_changed_ratio        = det.get("still_changed_ratio", 10.0)
     detector.still_duration             = det.get("still_duration", 120)

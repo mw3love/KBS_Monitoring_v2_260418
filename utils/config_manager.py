@@ -16,6 +16,7 @@ DEFAULT_CONFIG = {
         "black_duration": 5,
         "black_alarm_duration": 60,
         "black_motion_suppress_ratio": 0.2,
+        "black_recovery_seconds": 2.0,
         "still_threshold": 4,
         "still_changed_ratio": 10.0,
         "still_duration": 120,

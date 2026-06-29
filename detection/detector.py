@@ -34,6 +34,7 @@ class Detector:
         self.black_duration = 5.0
         self.black_alarm_duration = 10.0
         self.black_motion_suppress_ratio = 0.2
+        self.black_recovery_seconds = 2.0
 
         self.still_threshold = 4
         self.still_changed_ratio = 10.0
@@ -187,7 +188,8 @@ class Detector:
                 black_state = self._black_states[label]
                 still_state = self._still_states[label]
 
-                black_alerting = black_state.update(is_black, self.black_duration)
+                black_alerting = black_state.update(is_black, self.black_duration,
+                                                    self.black_recovery_seconds)
                 prev_reset_time = still_state._last_reset_time
                 still_alerting = still_state.update(is_still, self.still_duration,
                                                     reset_frames=self.still_reset_frames)
