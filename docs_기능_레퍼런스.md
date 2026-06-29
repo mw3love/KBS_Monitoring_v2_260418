@@ -184,7 +184,7 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 
 **감지 조건**: ROI 영역의 어두운 픽셀 비율 >= `black_dark_ratio`% 지속
 
-**히스테리시스**: 없음 (단일 정상 프레임으로 복구)
+**히스테리시스**: `black_recovery_seconds`초 연속 정상이어야 복구 선언 (블랙 임계 경계에서의 깜빡임으로 인한 조기·반복 복구 방지). 0이면 단일 정상 프레임으로 즉시 복구.
 
 **모션 억제**: 블랙 판정 후 `changed_ratio >= black_motion_suppress_ratio`이면 블랙 취소 (스크롤 자막 오감지 방지)
 
@@ -197,6 +197,7 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 | black_duration | 5 | 1~300초 | 알림 발생까지 지속 시간 |
 | black_alarm_duration | 60 | 1~300초 | 알림 지속 시간 |
 | black_motion_suppress_ratio | 0.2 | 0~100% | 모션 억제 비율 |
+| black_recovery_seconds | 2.0 | 0~30초 | 복구 딜레이 (연속 정상 지속 시간) |
 
 ---
 
@@ -515,6 +516,7 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 | black_duration | 5 | 1~300 | 초 |
 | black_alarm_duration | 60 | 1~300 | 초 |
 | black_motion_suppress_ratio | 0.2 | 0~100 | % |
+| black_recovery_seconds | 2.0 | 0~30 | 초 |
 | still_threshold | 4 | 0~255 | 픽셀값 |
 | still_changed_ratio | 10.0 | 0~100 | % |
 | still_duration | 120 | 1~300 | 초 |
