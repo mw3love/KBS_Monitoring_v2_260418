@@ -1004,14 +1004,14 @@ class SettingsDialog(QDialog):
         self._black_alarm_dur = _int_edit(det.get("black_alarm_duration", 60), 1, 300)
         self._black_recovery = _float_edit(det.get("black_recovery_seconds", 2.0))
         sl1.addLayout(_row("밝기 임계값", self._black_thresh,
-                           "0~255 / 이 값 이하면 어두운 픽셀로 판단 (기본값: 5)"))
+                           "0~255 / 이 값 미만이면 어두운 픽셀로 판단 (기본값: 5)"))
         sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
                            "50~100% / 이 비율 이상이면 블랙 판정 (기본값: 98%)"))
         sl1.addLayout(_row("블록별 어두움 기준(%)", self._black_block_ratio,
                            "0~100% / 화면을 5×5 블록으로 나눠 모든 블록이 이 값 이상 어두워야 블랙 인정 "
                            "— 우상단 로고 등 밝은 부분이 한 블록에 있으면 블랙 취소. 0=끔 (기본값: 92%)"))
-        sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준", self._black_suppress,
-                           "0~1 / 변화 비율이 이 값 이상이면 화면 전환으로 보아 블랙 무시 (기본값: 0.2)"))
+        sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준(%)", self._black_suppress,
+                           "0~100% / 화면 변화 픽셀 비율이 이 값 이상이면 화면 전환으로 보아 블랙 무시 (기본값: 0.2%)"))
         sl1.addLayout(_row("알림 발생 기준(초)", self._black_dur,
                            "1~300 / 블랙이 이 시간(초) 이상 지속 시 알림 (기본값: 5)"))
         sl1.addLayout(_row("알림음 지속(초)", self._black_alarm_dur,
@@ -1038,7 +1038,8 @@ class SettingsDialog(QDialog):
         sl2.addLayout(_row("픽셀 차이 임계값", self._still_thresh,
                            "0~255 / 프레임 차이 기준 (기본값: 4)"))
         sl2.addLayout(_row("블록 변화 비율(%)", self._still_changed,
-                           "1~100% / 전체 블록 중 변화 비율이 이 값 미만이면 스틸 판정 (기본값: 10%)"))
+                           "1~100% / 화면을 5×5 블록으로 나눠 모든 블록의 변화 픽셀 비율이 이 값 미만이어야 스틸 판정 "
+                           "— 작은 시계·자막 등 일부 영역만 움직이면 스틸 아님 (기본값: 10%)"))
         sl2.addLayout(_row("연속 정상 프레임 수", self._still_reset,
                            "1~10 / 이 수 이상 정상 프레임 연속 시 스틸 해제 — 일시적 화면 흔들림 오감지 방지 (기본값: 3)"))
         sl2.addLayout(_row("알림 발생 기준(초)", self._still_dur,
@@ -1113,7 +1114,7 @@ class SettingsDialog(QDialog):
         sl3.addLayout(_row_s)
         sl3.addLayout(_row_v)
         sl3.addLayout(_row("감지 픽셀 비율(%)", self._audio_pixel_ratio,
-                           "0~100% / 설정 색상 픽셀 비율이 이 값 이하면 오디오 레벨 미검출 판정 (기본값: 5%)"))
+                           "0~100% / 설정 색상 픽셀 비율(최근 5프레임 평균)이 이 값 미만이면 오디오 레벨 미검출 판정 (기본값: 5%)"))
         sl3.addLayout(_row("알림 발생 기준(초)", self._audio_level_dur,
                            "1~300 / 레벨 이상이 이 시간(초) 이상 지속 시 알림 (기본값: 60)"))
         sl3.addLayout(_row("알림음 지속(초)", self._audio_level_alarm_dur,
