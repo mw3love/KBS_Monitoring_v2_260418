@@ -51,6 +51,10 @@ class LogRowDelegate(QStyledItemDelegate):
         "embedded": ("#1e5a9e", "#ffffff"),
         "error":    ("#e8730a", "#ffffff"),
         "recovery": ("#1aa68a", "#ffffff"),
+        # 정파 3상태 — 전용 앰버 단일색(배지 준비/정파/해제로 상태 구분)
+        "sign_prep":  ("#C89B3C", "#ffffff"),
+        "sign_enter": ("#C89B3C", "#ffffff"),
+        "sign_rel":   ("#C89B3C", "#ffffff"),
         "info":     (None,      "#b8b9bd"),
         "debug":    (None,      "#555565"),
     }
@@ -64,6 +68,9 @@ class LogRowDelegate(QStyledItemDelegate):
         "embedded": ("#1e5a9e", "#1a1a1a", "#ffffff"),
         "error":    ("#e8730a", "#1a1a1a", "#ffffff"),
         "recovery": ("#1aa68a", "#1a1a1a", "#ffffff"),
+        "sign_prep":  ("#C89B3C", "#1a1a1a", "#ffffff"),
+        "sign_enter": ("#C89B3C", "#1a1a1a", "#ffffff"),
+        "sign_rel":   ("#C89B3C", "#1a1a1a", "#ffffff"),
         "info":     (None,      "#3a3a3a", "#3a3a3a"),
         "debug":    (None,      "#888888", "#888888"),
     }
@@ -106,6 +113,9 @@ class LogRowDelegate(QStyledItemDelegate):
         "embedded": "EMBED",
         "error":    "ERROR",
         "recovery": "복구",
+        "sign_prep":  "준비",
+        "sign_enter": "정파",
+        "sign_rel":   "해제",
         "info":     "INFO ",
         "debug":    "DEBUG",
     }
@@ -134,9 +144,12 @@ class LogRowDelegate(QStyledItemDelegate):
         bg_hex, fg_hex, badge_fg_hex = self._type_color(data.log_type)
         if bg_hex:
             row_bg = QColor(bg_hex)
-            # 복구는 에러보다 옅은 톤 (좋은 소식 — 구별되되 경보만큼 강하지 않게)
-            if data.log_type == "recovery":
+            # 복구·정파준비·정파해제는 옅은 톤(구별되되 경보만큼 강하지 않게).
+            # 정파돌입(sign_enter)은 '정파 중' 상태 강조를 위해 진하게.
+            if data.log_type in ("recovery", "sign_prep", "sign_rel"):
                 row_bg.setAlphaF(0.10 if self._dark else 0.08)
+            elif data.log_type == "sign_enter":
+                row_bg.setAlphaF(0.24 if self._dark else 0.18)
             else:
                 row_bg.setAlphaF(0.18 if self._dark else 0.14)
             painter.fillRect(rect, row_bg)
@@ -251,7 +264,7 @@ class LogWidget(QWidget):
         "VIDEO": {"black", "still"},
         "AUDIO": {"audio", "embedded"},
         "ERROR": {"error"},
-        "INFO":  {"info", "recovery"},
+        "INFO":  {"info", "recovery", "sign_prep", "sign_enter", "sign_rel"},
     }
 
     log_cleared = Signal()

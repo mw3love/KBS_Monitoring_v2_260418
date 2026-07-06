@@ -35,6 +35,7 @@ clip_*.png
 
 # 로컬 전용 파일 (개발 환경 전용 — 배포에 포함 안 됨)
 error_log.txt
+debug_error.txt
 images/
 presentation/
 

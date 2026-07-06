@@ -27,7 +27,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.7.5"
+VERSION = "2.7.6"
 
 
 class MainWindow(QMainWindow):
@@ -358,15 +358,19 @@ class MainWindow(QMainWindow):
             labels = self._signoff_suppressed_labels[msg.group_id]
             label_str = "·".join(labels) if labels else "-"
             log_text = f"그룹{msg.group_id}: SIGNOFF 진입 [{src_ko}] — 억제: {label_str}"
+            log_type = "sign_enter"
         elif msg.prev_state == "SIGNOFF" and msg.new_state != "SIGNOFF":
             entered_at = self._signoff_entered_at.get(msg.group_id, 0.0)
             elapsed = (time.time() - entered_at) if entered_at > 0 else 0.0
             elapsed_str = f" ({_fmt_dur(elapsed)})" if elapsed > 0 else ""
             log_text = f"그룹{msg.group_id}: SIGNOFF 해제 [{src_ko}]{elapsed_str}"
+            log_type = "sign_rel"
         else:
             log_text = f"그룹{msg.group_id}: {msg.prev_state} → {msg.new_state} [{src_ko}]"
+            # 정파준비 돌입만 앰버 강조, 그 외 전환(예: 정파준비 종료)은 중립 info
+            log_type = "sign_prep" if msg.new_state == "PREPARATION" else "info"
 
-        self._log_widget.add_log(log_text, source="정파")
+        self._log_widget.add_log(log_text, log_type=log_type, source="정파")
 
         # 정파 전환 알림음 — 재주입(restore)·플래핑 묶음 중 전환은 무음.
         #   IDLE/SIGNOFF→PREPARATION(정파준비 시작·조기복귀) → prep음
