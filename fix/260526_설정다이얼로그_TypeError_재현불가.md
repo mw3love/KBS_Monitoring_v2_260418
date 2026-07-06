@@ -154,3 +154,36 @@ if (res != Py_None) {
 - **환경 진단**(운영 PC): `mdsched`(RAM), 패키지 버전 dev 대조, 백신 실시간스캔. RAM 불량이면 이 경로로 종결 가능.
 - **예약 재시작**: 근본원인 규명 후로 보류(최후의 보루). 켜면 재현 기회 소멸.
 - **가속재현(dev)**: 보류 — dev≠운영 환경이라 false-negative 오진 위험(재현 실패=무죄 아님).
+
+## 11. 3차 발생 (2026-07-06, v2.7.5) + PYTHONMALLOC=debug 배포
+
+> **상태 갱신**: **3건 발생**. 이번에 §10-3 계측이 결정적 데이터를 잡음 → **UI 프로세스 단독 손상 확정**. 관찰 전략은 소임 완수, 여기서 **범인 특정을 위해 디버그 할당자로 접근 전환**.
+
+### 11-1. 결정적 증거 — UI 프로세스 국소 손상 확정
+- **장소/가동**: 운영 PC(전주). 07-01 13:41 기동 → 07-06 16:41 손상 시작 = **약 5.1일 연속 가동**. (1차 장기 / 2차 4.7일 / 3차 5.1일 → **~5일 누적 패턴 3회 일관**.)
+- **§10-3에서 증설한 3프로세스 HEALTH 계측이 처음으로 나란히 비교 데이터 확보**:
+  | 프로세스 | 손상 창(16:41~19:14) 상태 | 판정 |
+  |---|---|---|
+  | UI(main) | 16:31 `RSS=274MB`(정상) → **16:41 `RSS=-1` + `psutil_err=TypeError("__init__() should return None, not 'NoneType'")`**, 이후 고정. onset 프로브도 동일 에러로 실패. | **손상** |
+  | Detection | 내내 `RSS~230MB threads=8 handles=798`, 에러 0 | **완벽 정상** |
+  | Watchdog | 내내 `RSS=66MB threads=1 handles=329`, 에러 0 | **완벽 정상** |
+  - → **손상은 UI 프로세스에 국소**. Detection/Watchdog 무사 → **시스템 전체(RAM 하드웨어) 가설 크게 약화**(비트플립이 2.5시간+ 동안 오직 UI만 선택적으로 오염시키는 건 RAM 고장 양상이 아님).
+- **`fault.log` 이번엔 내용 있음**(§10-3 onset 덤프 작동): `QueueFeederThread`/`UIBridge`/`main` 정상 스택, 행·데드락 없음 → **힙/None 싱글톤 손상**과 일치. faulthandler `dump_traceback`일 뿐 크래시 핸들러 아님 = **세그폴트 아닌 "절뚝거림"**.
+- 19:13~19:14 설정 클릭 → excepthook에 동일 `TypeError` 4회 + `traceback` 표준모듈 자체가 `str.partition` None 반환으로 포매팅 실패(§10-1 2차와 동일 서명).
+- **환경**: dev·운영 **둘 다 Python 3.14.2** → 파이썬 버전은 두 PC 간 차이 아님(단 3.14는 양쪽 다 최신예 → C 확장 안정성은 공통 리스크). `pycaw`는 dev 미설치/운영 설치 → UI 고유 네이티브 표면(**PySide6 / pycaw(COM) / psutil / GPUtil**) 중 후보.
+
+### 11-2. 접근 전환 — 관찰만으론 범인 특정 불가 (구조적 한계)
+- HEALTH 스냅샷·excepthook은 **"언제 표면화됐나"만** 알려줄 뿐, **"어느 확장이 언제 힙을 깼나"는 구조적으로 못 잡음**(관찰 시점엔 이미 오염이 몇 시간 전 종료). 3번째 계측 추가 후 4번째 발생 대기 = 같은 막다른 길(스턱-루프).
+- → **다른 메커니즘: `PYTHONMALLOC=debug`(CPython 디버그 할당자).** 모든 할당 앞뒤 가드바이트(`0xFD`), 매 `malloc`/`free` 검사 → wild write를 **오염 직후** fatal 검출 + faulthandler 덤프. "조용한 5일 절뚝거림" → "오염 지점 근처 즉시 큰 소리로 죽음". 오염이 연속적이면 5일 안 기다리고 조기 검출 가능성.
+- **안전망(onset 자가치유)·예약재시작 모두 OFF 결정**: 손상된 프로세스 자체가 해부할 표본 → 재시작하면 증거 소멸·디버그 할당자 fatal과 충돌. 운영 연속성은 이 시점 목표 아님(**테스트 기간, 사용자 명시** — [[settings-dialog-corruption-repro]]).
+
+### 11-3. 코드 변경 (런처만, 앱 코드 무변경)
+- **`실행.bat`**: `set PYTHONMALLOC=debug` + main.py stderr를 `logs\stderr_debug.txt`에 캡처(디버그 할당자의 C 위반 메시지·주소는 stderr로 나오므로 보존). **자동시작이 `실행.bat`을 등록**하므로 운영 PC 자동 적용.
+- **`디버그실행.bat`**: `PYTHONMALLOC=debug` 추가(로컬 디버그 일관성).
+- `PYTHONDEVMODE`는 **배제**(경고 stderr 스팸이 핵심 위반 메시지를 파묻음). `ConfigManager`/`SettingsDialog`/main.py 등 앱 코드 무변경.
+- **검증(프록시)**: `PYTHONMALLOC=debug` 인터프리터 정상 기동(3.14.2), `bogus` 값은 `preconfig_init_allocator` fatal → 변수 파싱 확인. **실손상 fatal 경로는 운영 재발 시 실조건 확인(미검증).**
+
+### 11-4. 다음 재발 시 (체크리스트)
+- [ ] `logs\fault.log`(파이썬 스택) + `logs\stderr_debug.txt`(C 위반 종류·블록 주소) 두 파일 = **범인 특정 단서**.
+- [ ] **배포 필수**: 운영 PC 로컬 복사본(`C:\Users\user\Desktop\...`)에 `실행.bat` 덮어쓰기 + **재기동**(5일 카운터 리셋 → 다음 재현까지 또 최대 ~5일).
+- [ ] 디버그 할당자 덤프가 파이썬 스택까지만 주고 확장 특정이 애매하면 **에스컬레이션: Windows PageHeap(gflags/Application Verifier) on python.exe** → wild write 인스트럭션에서 C 레벨 스택.
