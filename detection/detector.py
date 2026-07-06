@@ -31,6 +31,7 @@ class Detector:
 
         self.black_threshold = 5
         self.black_dark_ratio = 98.0
+        self.black_block_dark_ratio = 92.0
         self.black_duration = 5.0
         self.black_alarm_duration = 10.0
         self.black_motion_suppress_ratio = 0.2
@@ -74,6 +75,26 @@ class Detector:
 
         self._last_raw: Dict[str, dict] = {}
         self._near_miss_start: Dict[str, float] = {}
+
+    def _check_black_by_blocks(self, gray: np.ndarray) -> bool:
+        """5×5 블록이 모두 어두워야 블랙으로 인정한다.
+        한 블록이라도 밝은 내용(우상단 방송사 로고 등)이 있으면 False → 블랙 아님.
+        (스틸의 _check_still_by_blocks와 대칭 — 넓은 ROI에서 작은 로고가 비율에 희석돼
+        의도된 블랙 장면을 오감지하던 문제를 막는다.)"""
+        bh, bw = gray.shape[:2]
+        rows, cols = 5, 5
+        row_edges = np.linspace(0, bh, rows + 1, dtype=int)
+        col_edges = np.linspace(0, bw, cols + 1, dtype=int)
+        for r in range(rows):
+            for c in range(cols):
+                block = gray[row_edges[r]:row_edges[r + 1],
+                             col_edges[c]:col_edges[c + 1]]
+                if block.size == 0:
+                    continue
+                block_dark = float(np.mean(block < self.black_threshold)) * 100.0
+                if block_dark < self.black_block_dark_ratio:
+                    return False
+        return True
 
     def _check_still_by_blocks(self, changed_mask: np.ndarray) -> bool:
         bh, bw = changed_mask.shape[:2]
@@ -152,6 +173,10 @@ class Detector:
                     gray = crop if len(crop.shape) == 2 else crop.mean(axis=2)
                     dark_ratio = float(np.mean(gray < self.black_threshold)) * 100.0
                     is_black = dark_ratio >= self.black_dark_ratio
+                    # 블록 가드: 한 블록이라도 밝은 로고가 있으면 블랙 취소 (단조적 억제)
+                    if is_black and self.black_block_dark_ratio > 0:
+                        if not self._check_black_by_blocks(gray):
+                            is_black = False
 
                 changed_ratio = -1.0
                 is_still = False

@@ -92,6 +92,48 @@ def test_black_motion_suppress():
     assert "black" in results.get("V1", {})
 
 
+def _black_with_corner_logo(h=200, w=200):
+    """거의 완전 블랙이지만 우상단에 밝은 로고 블록이 있는 프레임."""
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    frame[5:35, w - 45:w - 15] = 255   # 우상단 코너 30x30 흰색
+    return frame
+
+
+def test_black_block_guard_suppresses_corner_logo():
+    """우상단 로고가 있는 블랙 프레임은 블록 가드로 is_black=False (오감지 방지)."""
+    d = Detector()
+    d.black_threshold = 5
+    d.black_dark_ratio = 95.0
+    d.black_block_dark_ratio = 92.0
+    roi = _make_roi(w=200, h=200)   # 프레임 전체를 ROI로 (우상단 로고 포함)
+    results = d.detect_frame(_black_with_corner_logo(), [roi])
+    # 전체 dark 비율은 95% 이상이라 구 로직이면 블랙이지만, 로고 블록 때문에 취소돼야 함
+    assert results["V1"]["dark_ratio"] >= 95.0
+    assert results["V1"]["black"] is False
+
+
+def test_black_block_guard_off_with_zero():
+    """black_block_dark_ratio=0 이면 가드 비활성 → 로고 있어도 블랙(구 동작)."""
+    d = Detector()
+    d.black_threshold = 5
+    d.black_dark_ratio = 95.0
+    d.black_block_dark_ratio = 0    # 가드 끔
+    roi = _make_roi(w=200, h=200)
+    results = d.detect_frame(_black_with_corner_logo(), [roi])
+    assert results["V1"]["black"] is True
+
+
+def test_black_block_guard_allows_full_black():
+    """완전 블랙(로고 없음)은 가드가 켜져 있어도 정상 감지."""
+    d = Detector()
+    d.black_threshold = 5
+    d.black_dark_ratio = 95.0
+    d.black_block_dark_ratio = 92.0
+    roi = _make_roi()
+    results = d.detect_frame(_black_frame(), [roi])
+    assert results["V1"]["black"] is True
+
+
 # ── 스틸 감지 ─────────────────────────────────────────────────────────────────
 
 def test_still_detected_on_identical_frames():
@@ -231,6 +273,9 @@ if __name__ == "__main__":
         test_black_alert_fires_after_duration,
         test_black_disabled_skips_detection,
         test_black_motion_suppress,
+        test_black_block_guard_suppresses_corner_logo,
+        test_black_block_guard_off_with_zero,
+        test_black_block_guard_allows_full_black,
         test_still_detected_on_identical_frames,
         test_still_not_detected_on_changing_frames,
         test_still_disabled_skips_detection,

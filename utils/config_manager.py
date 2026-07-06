@@ -13,6 +13,7 @@ DEFAULT_CONFIG = {
     "detection": {
         "black_threshold": 5,
         "black_dark_ratio": 98.0,
+        "black_block_dark_ratio": 92.0,
         "black_duration": 5,
         "black_alarm_duration": 60,
         "black_motion_suppress_ratio": 0.2,

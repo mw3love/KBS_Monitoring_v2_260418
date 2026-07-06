@@ -998,6 +998,7 @@ class SettingsDialog(QDialog):
         box1, sl1 = _section("블랙 감지", enable_cb=self._black_enabled_cb)
         self._black_thresh = _int_edit(det.get("black_threshold", 5), 0, 255)
         self._black_ratio = _float_edit(det.get("black_dark_ratio", 98.0))
+        self._black_block_ratio = _float_edit(det.get("black_block_dark_ratio", 92.0))
         self._black_suppress = _float_edit(det.get("black_motion_suppress_ratio", 0.2))
         self._black_dur = _int_edit(det.get("black_duration", 5), 1, 300)
         self._black_alarm_dur = _int_edit(det.get("black_alarm_duration", 60), 1, 300)
@@ -1006,6 +1007,9 @@ class SettingsDialog(QDialog):
                            "0~255 / 이 값 이하면 어두운 픽셀로 판단 (기본값: 5)"))
         sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
                            "50~100% / 이 비율 이상이면 블랙 판정 (기본값: 98%)"))
+        sl1.addLayout(_row("블록별 어두움 기준(%)", self._black_block_ratio,
+                           "0~100% / 화면을 5×5 블록으로 나눠 모든 블록이 이 값 이상 어두워야 블랙 인정 "
+                           "— 우상단 로고 등 밝은 부분이 한 블록에 있으면 블랙 취소. 0=끔 (기본값: 92%)"))
         sl1.addLayout(_row("움직임 감지 시 블랙 무시 기준", self._black_suppress,
                            "0~1 / 변화 비율이 이 값 이상이면 화면 전환으로 보아 블랙 무시 (기본값: 0.2)"))
         sl1.addLayout(_row("알림 발생 기준(초)", self._black_dur,
@@ -1017,8 +1021,9 @@ class SettingsDialog(QDialog):
         vl.addWidget(box1)
         self._black_section_lbl = box1.findChild(QLabel, "settingsSectionLabel")
         self._black_section_widgets = (
-            self._black_thresh, self._black_ratio, self._black_suppress,
-            self._black_dur, self._black_alarm_dur, self._black_recovery,
+            self._black_thresh, self._black_ratio, self._black_block_ratio,
+            self._black_suppress, self._black_dur, self._black_alarm_dur,
+            self._black_recovery,
         )
         self._toggle_section_widgets(self._black_section_widgets,
                                      self._black_enabled_cb.isChecked())
@@ -1910,6 +1915,7 @@ class SettingsDialog(QDialog):
         det = cfg.setdefault("detection", {})
         det["black_threshold"] = int(self._black_thresh.text() or 10)
         det["black_dark_ratio"] = float(self._black_ratio.text() or 95.0)
+        det["black_block_dark_ratio"] = float(self._black_block_ratio.text() or 92.0)
         det["black_motion_suppress_ratio"] = float(self._black_suppress.text() or 0.2)
         det["black_duration"] = int(self._black_dur.text() or 5)
         det["black_alarm_duration"] = int(self._black_alarm_dur.text() or 60)
@@ -2244,6 +2250,7 @@ class SettingsDialog(QDialog):
         p = src.get("performance", {})
         self._black_thresh.setText(str(d.get("black_threshold", 5)))
         self._black_ratio.setText(_fmt_num(d.get("black_dark_ratio", 98.0)))
+        self._black_block_ratio.setText(_fmt_num(d.get("black_block_dark_ratio", 92.0)))
         self._black_suppress.setText(_fmt_num(d.get("black_motion_suppress_ratio", 0.2)))
         self._black_dur.setText(str(d.get("black_duration", 5)))
         self._black_alarm_dur.setText(str(d.get("black_alarm_duration", 60)))

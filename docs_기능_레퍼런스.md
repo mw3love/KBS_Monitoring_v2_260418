@@ -184,6 +184,8 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 
 **감지 조건**: ROI 영역의 어두운 픽셀 비율 >= `black_dark_ratio`% 지속
 
+**블록 가드 (`black_block_dark_ratio`)**: 위 조건을 만족해 블랙 후보가 된 경우에만, ROI를 **5×5 블록**으로 나눠 **모든 블록이 각각 이 값 이상 어두운지** 추가 검사한다. 한 블록이라도 미달(밝은 내용 존재)이면 블랙을 취소한다(단조적 억제 — 새 오탐을 만들지 않고 억제만 함). 넓은 ROI에서 우상단 방송사 로고 같은 작은 밝은 부분이 전체 비율에 희석돼 **의도된 블랙 장면(로고 살아있음)** 을 오감지하던 문제를 막는다. 스틸의 블록 검사(`_check_still_by_blocks`)와 대칭 구조. **0이면 가드 비활성**(구 동작). 기준값 근거: 로고 블록 실측 dark ≈ 82~85%, 순수 블랙 블록 ≈ 99% → 그 사이 92% 기본값. 운영 환경별 튜닝 권장.
+
 **히스테리시스**: `black_recovery_seconds`초 연속 정상이어야 복구 선언 (블랙 임계 경계에서의 깜빡임으로 인한 조기·반복 복구 방지). 0이면 단일 정상 프레임으로 즉시 복구.
 
 **모션 억제**: 블랙 판정 후 `changed_ratio >= black_motion_suppress_ratio`이면 블랙 취소 (스크롤 자막 오감지 방지)
@@ -194,6 +196,7 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 |--------|------|-----|------|
 | black_threshold | 5 | 0~255 | 어두움 기준 픽셀값 |
 | black_dark_ratio | 98.0 | 0~100% | 어두운 픽셀 비율 기준 |
+| black_block_dark_ratio | 92.0 | 0~100% | 5×5 블록별 어두움 기준 (0=끔) — 로고 있는 블랙 오감지 방지 |
 | black_duration | 5 | 1~300초 | 알림 발생까지 지속 시간 |
 | black_alarm_duration | 60 | 1~300초 | 알림 지속 시간 |
 | black_motion_suppress_ratio | 0.2 | 0~100% | 모션 억제 비율 |
@@ -513,6 +516,7 @@ CPU/RAM/GPU 2초 주기 갱신 (TopBar)
 |------|------|-----|-----|
 | black_threshold | 5 | 0~255 | 픽셀값 |
 | black_dark_ratio | 98.0 | 0~100 | % |
+| black_block_dark_ratio | 92.0 | 0~100 | % |
 | black_duration | 5 | 1~300 | 초 |
 | black_alarm_duration | 60 | 1~300 | 초 |
 | black_motion_suppress_ratio | 0.2 | 0~100 | % |
