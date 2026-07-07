@@ -153,6 +153,7 @@
 
 ### P3 — 코어 감지 정확도
 - [x] **W13** detector 엣지케이스 감사 (블록 경계=`block.size==0` 스킵·부분 블랙=`dark_ratio≥98%`+motion_suppress·임베디드=진입/복구 양방향 히스테리시스·ROI별 try-except 격리 → 모두 이미 견고. 후보 기각, 수정 불필요)
+- [x] **W13-정정(v2.7.9)** 위 W13의 "motion_suppress 견고·수정 불필요" 판정은 오류였음. 블랙 경로를 단독으로만 감사해 '스틸 OFF' 교차 설정을 놓침 — 스틸 OFF 시 `changed_ratio`가 계산 안 돼 움직임 억제가 조용히 무력화되던 결함을 v2.7.9에서 수정(테스트 추가). 교훈: 감사 시 기능 간 커플링·토글 교차 케이스를 반드시 포함할 것.
 - [x] **W14** 알람 상태머신 감사 (`AlarmSystem.resolve`는 `not _active_alarms`(전체 해제) 시에만 깜빡임/소리 중단 → 일부 resolve로 조기 OFF 없음. 집합 기반 다중 ROI 안전. 후보 기각, 수정 불필요)
 - [ ] **W15** 회귀(`pytest tests/test_regression.py`)/24h(`tests/test_24h_monitor.py`) 테스트 실행 + 발견 케이스 추가
   - 회귀 실행: 6/6 PASS. **발견·수정**: `test_s3_signoff_transition`이 시각 의존(그룹 23:30~06:00 밖이면 PREPARATION→IDLE 강등으로 거짓 실패) → `datetime.now()`를 23:15로 mock해 시각 독립화 (SignoffManager 코드는 정상)
