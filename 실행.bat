@@ -13,6 +13,10 @@ set "PYTHONMALLOC=debug"
 set "PYEXE=python"
 where py >nul 2>nul && set "PYEXE=py"
 
+REM logs 폴더가 없으면 아래 stderr 리다이렉트가 실패해 python이 시작조차 못 함.
+REM (GitHub 신규 다운로드 시 logs\ 는 .gitignore 라 존재하지 않음)
+if not exist "%~dp0logs" mkdir "%~dp0logs"
+
 :loop
 %PYEXE% "%~dp0main.py" 2>> "%~dp0logs\stderr_debug.txt"
 if %errorlevel%==42 (
