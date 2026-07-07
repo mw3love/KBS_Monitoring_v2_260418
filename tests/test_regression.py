@@ -95,7 +95,8 @@ def _collect(q, type_filter=None):
 def test_s1_black_alarm_and_recovery():
     """블랙 프레임이 black_duration 이상 지속 → alerting=True; 밝은 프레임 복구 → alerting=False."""
     d = Detector()
-    d.black_duration = 0.05   # 빠른 테스트
+    d.black_duration = 0.05          # 빠른 테스트
+    d.black_recovery_seconds = 0.0   # 복구 히스테리시스 제거(실제 기본 2초 → 즉시 복구로 테스트)
     d.still_detection_enabled = False
     roi = _roi()
     d.update_roi_list([roi])
@@ -111,7 +112,7 @@ def test_s1_black_alarm_and_recovery():
         time.sleep(0.005)
     assert alerting, "블랙 지속 후 alerting=True 미발생"
 
-    # 밝은 프레임으로 복구 — still_reset_frames=3 기본값이므로 3회 주입
+    # 밝은 프레임으로 복구 (recovery_seconds=0 이므로 첫 정상 프레임에 해제)
     for _ in range(5):
         r = d.detect_frame(_bright(), [roi])
     assert not r["V1"]["black_alerting"], "밝은 프레임 복구 후 alerting=True 잔류"

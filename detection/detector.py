@@ -180,10 +180,13 @@ class Detector:
 
                 changed_ratio = -1.0
                 is_still = False
-                should_calc_still = self.still_detection_enabled or (
+                still_wanted = self.still_detection_enabled or (
                     force_still_labels is not None and label in force_still_labels
                 )
-                if should_calc_still:
+                # 블랙 움직임 억제도 프레임 diff가 필요 — 스틸 OFF여도 diff는 계산한다.
+                # (단, is_still/스틸 알람은 still_wanted일 때만 → 스틸 OFF에 스틸 알람이 살아나는 역결함 방지)
+                motion_wanted = is_black and self.black_motion_suppress_ratio > 0
+                if still_wanted or motion_wanted:
                     if label in self._prev_frames:
                         prev = self._prev_frames[label]
                         crop_f = crop.astype(np.float32)
@@ -191,7 +194,8 @@ class Detector:
                             diff = np.abs(crop_f - prev)
                             changed_mask = diff > self.still_threshold
                             changed_ratio = float(np.mean(changed_mask)) * 100.0
-                            is_still = self._check_still_by_blocks(changed_mask)
+                            if still_wanted:
+                                is_still = self._check_still_by_blocks(changed_mask)
                     self._prev_frames[label] = crop.astype(np.float32)
                 else:
                     self._prev_frames.pop(label, None)

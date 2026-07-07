@@ -92,6 +92,29 @@ def test_black_motion_suppress():
     assert "black" in results.get("V1", {})
 
 
+def test_black_motion_suppress_works_when_still_disabled():
+    """스틸 감지를 꺼도 '움직임 시 블랙 무시'는 독립 동작해야 한다.
+    회귀: changed_ratio 계산이 스틸 경로에 묶여, 스틸 OFF 시 억제가 죽던 버그."""
+    d = Detector()
+    d.still_detection_enabled = False        # 스틸 OFF
+    d.black_detection_enabled = True
+    d.black_threshold = 10
+    d.black_dark_ratio = 95.0
+    d.black_motion_suppress_ratio = 0.05     # 0.05% 이상 움직이면 블랙 무시
+    roi = _make_roi()
+
+    def _dark_moving(bright):
+        """대부분 어둡지만 작은 밝은 블록이 움직이는(밝기 변하는) 프레임."""
+        f = np.zeros((200, 200, 3), dtype=np.uint8)
+        f[10:25, 10:25] = bright   # 225px 밝은 블록 → dark_ratio ~99.4% (여전히 블랙 조건)
+        return f
+
+    d.detect_frame(_dark_moving(150), [roi])           # prev 채우기
+    results = d.detect_frame(_dark_moving(250), [roi])  # 블록 밝기 변화 = 움직임
+    assert results["V1"]["black"] is False, "스틸 OFF에서 움직임 억제가 동작하지 않음"
+    assert results["V1"]["still"] is False, "스틸 OFF인데 스틸이 켜짐(역결함)"
+
+
 def _black_with_corner_logo(h=200, w=200):
     """거의 완전 블랙이지만 우상단에 밝은 로고 블록이 있는 프레임."""
     frame = np.zeros((h, w, 3), dtype=np.uint8)
@@ -273,6 +296,7 @@ if __name__ == "__main__":
         test_black_alert_fires_after_duration,
         test_black_disabled_skips_detection,
         test_black_motion_suppress,
+        test_black_motion_suppress_works_when_still_disabled,
         test_black_block_guard_suppresses_corner_logo,
         test_black_block_guard_off_with_zero,
         test_black_block_guard_allows_full_black,
