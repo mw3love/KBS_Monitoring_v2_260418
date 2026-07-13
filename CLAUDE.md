@@ -97,6 +97,7 @@ Watchdog Process  (Detection의 spawn 주체)
   ├─ heartbeat.dat 감시 → 10초 무응답 시 Detection kill 후 재spawn
   ├─ 텔레그램 알림 직접 발송 (UI가 죽어도 알림 보장)
   ├─ main(UI) 생존 확인 (10초 주기 psutil.pid_exists) → 죽으면 Detection 정리 + 자신 종료
+  ├─ data/ui_degraded.flag 감시 (1초) → UI 자기손상 통보 대행 (아래 "UI 손상 통보" 참조)
   └─ shutdown_event set 시 "의도된 종료" 플래그 ON → false-positive respawn 방지
 
 Detection Process (PySide6 임포트 금지 — 세부 규칙은 detection/CLAUDE.md)
@@ -144,7 +145,8 @@ kbs_monitoring_v2/
 ├── main.py
 ├── data/
 │   ├── heartbeat.dat
-│   └── last_exit.json
+│   ├── last_exit.json
+│   └── ui_degraded.flag      # UI 자기손상 감지 시에만 생성 (Watchdog이 읽고 통보)
 ├── processes/
 │   ├── detection_process.py
 │   └── watchdog_process.py
@@ -215,6 +217,16 @@ if __name__ == '__main__':
 - 각 프로세스의 `utils/logger.py` 인스턴스는 자기 파일에만 기록
 - **HEALTH 스냅샷**: 세 프로세스 모두 10분 주기로 `RSS/threads/handles`를 자기 로그에 기록 (장기 누수·손상 추세 가시화). psutil 쿼리 실패(`RSS=-1`)로 전환되는 순간 1회 onset 심층덤프(인터프리터 프로브 + 전체 스레드 덤프).
 - **faulthandler 덤프 파일** (프로세스별 분리, 동시 쓰기 충돌 방지): UI=`logs/fault.log`, Detection=`logs/fault_detection.log`, Watchdog=`logs/fault_watchdog.log`. 배경: `fix/260526_설정다이얼로그_TypeError_재현불가.md`
+
+### UI 손상 통보 (onset → Watchdog 대행 발송)
+
+장기 가동 시 UI 프로세스만 힙이 손상되어 **순수 파이썬 클래스의 `__init__` 호출이 전부 실패**하는 사고가 4회 발생했다(설정창·알림음·조작 전멸, 창은 정상으로 보임). 상세: `fix/260526_설정다이얼로그_TypeError_재현불가.md` §12.
+
+- ⚠ **손상된 UI는 텔레그램을 직접 못 보낸다.** `requests`가 내부적으로 파이썬 객체를 다수 생성하므로 같은 `TypeError`로 실패한다(4차 로그: onset 프로브가 `import gc`에서 이미 실패).
+- **그래서 통보 주체를 분리한다**:
+  - **UI(`main.py`)**: onset 감지 시 `data/ui_degraded.flag`에 `open()+write()`로 시각·에러만 기록. (손상 상태에서 42시간 작동이 실증된 유일한 경로가 파일 쓰기다.) 기동 시·회복 시 플래그 삭제.
+  - **Watchdog(`processes/watchdog_process.py`)**: 1초 루프에서 플래그 존재를 확인 → **1회만** `[SYSTEM]` 텔레그램 발송. 플래그가 사라지면 재무장(다음 onset도 통보).
+- **이 플래그 파일 경로는 두 프로세스에 하드코딩된 계약이다.** 한쪽만 바꾸면 통보가 조용히 죽으므로 반드시 동시 수정할 것 (`main.py:_DEGRADED_FLAG` ↔ `watchdog_process.py:_UI_DEGRADED_FLAG`).
 
 ### 메모리 버퍼 상한
 - `auto_recorder` 순환버퍼: 채널당 `pre_seconds × fps × 프레임크기` 계산값 상한, 초과분 drop 시 로그 기록

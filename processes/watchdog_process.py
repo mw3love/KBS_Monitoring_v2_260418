@@ -37,6 +37,9 @@ except ImportError:
 _HEARTBEAT_PATH   = os.path.join(_ROOT, "data", "heartbeat.dat")
 _CONFIG_PATH      = os.path.join(_ROOT, "config", "kbs_config.json")
 _DEFAULT_CFG_PATH = os.path.join(_ROOT, "config", "default_config.json")
+# UI가 자기 손상(onset)을 감지하면 여기에 플래그를 떨어뜨린다. 손상된 UI는 requests를
+# 쓸 수 없으므로(순수 파이썬 객체 생성 전면 실패) 통보는 건강한 Watchdog이 대행한다.
+_UI_DEGRADED_FLAG = os.path.join(_ROOT, "data", "ui_degraded.flag")
 _HB_STALE_SEC     = 10.0
 # spawn 직후 grace: 새 Detection이 첫 heartbeat를 쓸 시간을 보장한다.
 # heartbeat.dat는 프로세스 사망·앱 재시작을 넘어 남으므로, grace 없이 검사하면
@@ -262,6 +265,31 @@ def run(
         except Exception:
             pass
 
+    # ── UI 손상 플래그 감시 ───────────────────────────────────────
+    _ui_degraded_notified = False
+
+    def _check_ui_degraded():
+        """UI가 남긴 손상 플래그를 읽어 1회만 텔레그램 통보. 회복 시 재무장."""
+        nonlocal _ui_degraded_notified
+        try:
+            exists = os.path.exists(_UI_DEGRADED_FLAG)
+            if exists and not _ui_degraded_notified:
+                _ui_degraded_notified = True
+                detail = ""
+                try:
+                    with open(_UI_DEGRADED_FLAG, "r", encoding="utf-8") as f:
+                        detail = f.read().strip().replace("\n", " / ")
+                except OSError:
+                    pass
+                log_err(f"UI 프로세스 손상 감지 (플래그) — {detail}")
+                tg(f"KBS On-Air Monitoring v{version} ⚠ UI 프로세스 손상 감지 — "
+                   f"알림음·설정창·조작이 모두 먹통입니다. 감지/정파/텔레그램은 계속 동작하나 "
+                   f"현장 경보음은 울리지 않습니다. 즉시 앱 재시작 필요. ({detail})")
+            elif not exists and _ui_degraded_notified:
+                _ui_degraded_notified = False   # 재시작·회복 → 다음 onset도 통보
+        except Exception:
+            pass
+
     # 최초 Detection spawn
     detection_proc = _spawn_detection()
     last_hb_check = time.time()
@@ -325,6 +353,9 @@ def run(
                         _spawn_count += 1
                         tg(f"KBS On-Air Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
                         last_hb_value = 0.0
+
+        # ── UI 손상 플래그 감시 ───────────────────────────────────
+        _check_ui_degraded()
 
         # ── HEALTH 파일 스냅샷 (10분 주기) ────────────────────────
         if now - _health_last_t >= _health_interval:

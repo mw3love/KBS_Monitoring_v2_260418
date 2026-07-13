@@ -180,6 +180,28 @@ class BaseMsg:
 - UI 프로세스(=main) 크래시 시 Watchdog은 `shutdown_event` 미set 상태에서 `os.getppid()` (자신의 부모=main)가 사라짐을 감지 → Detection 정리 후 자신도 종료 + 텔레그램 "전체 프로그램 비정상 종료" 발송.
 - Linux: `prctl(PR_SET_PDEATHSIG)` 대안 없음(Windows). 대신 30초 주기로 parent 존재 확인 (`psutil.pid_exists(parent_pid)`).
 
+### 3.5 UI "생존하되 손상" 대응 — 파일 기반 통보 채널
+
+§3.4는 UI가 **죽는** 경우다. 그런데 UI가 **살아 있으면서 내부만 손상**되는 사고가 4회 발생했다 — 창·프레임·로그는 정상인데 순수 파이썬 클래스의 `__init__`이 전부 실패해 설정창·알림음·모든 조작이 먹통이 된다. Watchdog의 `pid_exists`로는 **절대 감지되지 않는다**(프로세스는 멀쩡히 살아 있다). 배경: `fix/260526_설정다이얼로그_TypeError_재현불가.md` §12.
+
+**채널** (Queue·SharedMemory가 아닌 **파일**인 이유: 손상된 UI가 쓸 수 있는 유일하게 검증된 수단)
+
+| 항목 | 값 |
+|---|---|
+| 경로 | `data/ui_degraded.flag` |
+| 생산자 | UI(`main.py`) — `_DEGRADED_FLAG` |
+| 소비자 | Watchdog(`processes/watchdog_process.py`) — `_UI_DEGRADED_FLAG` |
+| 내용 | 1행: onset 시각 `YYYY-MM-DD HH:MM:SS` / 2행: `psutil_err` 원문 |
+| 폴링 | Watchdog 1초 루프 |
+
+**계약**
+1. UI는 기동 시 이 파일을 **삭제**한다(이전 세션 잔재로 인한 오탐 방지).
+2. UI는 HEALTH 스냅샷에서 psutil 쿼리 실패로 *처음 전환*되는 순간 `open()+write()`로 파일을 쓴다. **`requests`·객체 생성이 필요한 어떤 수단도 쓰면 안 된다** — 손상 상태에서 전부 실패한다.
+3. UI가 회복하면(psutil 재성공) 파일을 삭제한다.
+4. Watchdog은 파일이 **새로 나타난 순간 1회만** `[SYSTEM]` 텔레그램을 보낸다. 파일이 사라지면 재무장한다.
+
+⚠ **경로는 두 파일에 하드코딩된 계약이다.** 한쪽만 바꾸면 통보가 예외 없이 조용히 죽는다(테스트로도 안 잡힌다). 변경 시 반드시 동시 수정 + 경로 일치 검증.
+
 ---
 
 ## 4. 구현 체크리스트 (Phase 0-B)

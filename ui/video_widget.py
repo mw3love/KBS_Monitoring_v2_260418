@@ -152,7 +152,13 @@ class VideoWidget(QWidget):
     def _display_numpy(self, frame: np.ndarray, roi_overlays: list = None):
         h, w, ch = frame.shape
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image = QImage(rgb.tobytes(), w, h, ch * w, QImage.Format_RGB888)
+        # QImage는 버퍼를 복사하지 않고 포인터만 잡는다. 과거엔 QImage(rgb.tobytes(), ...)
+        # 처럼 이름 없는 임시 bytes를 넘겼는데, 그 임시는 이 줄이 끝나면 해제될 수 있어
+        # 아래 fromImage()가 해제된 메모리를 읽을 위험이 있었다(PySide6 대표 함정).
+        # 지역변수로 붙들어 fromImage()가 복사를 끝낼 때까지 살려 둔다.
+        # 배경: fix/260526_설정다이얼로그_TypeError_재현불가.md (Round 1 실험 arm)
+        buf = rgb.tobytes()
+        image = QImage(buf, w, h, ch * w, QImage.Format_RGB888)
 
         lw = self._label.width()
         lh = self._label.height()

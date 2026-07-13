@@ -115,6 +115,8 @@
     "scheduled_restart_enabled": false,
     "scheduled_restart_base_time": "03:00",
     "scheduled_restart_interval_hours": 24,
-    "scheduled_restart_exclude": ""
+    "scheduled_restart_exclude": "",
+    "sysmon_gpu_enabled": false,
+    "sysmon_interval_ms": 10000
   }
 }

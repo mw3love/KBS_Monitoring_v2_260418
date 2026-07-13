@@ -39,10 +39,14 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 
 ### 2.2 상단 바 구성
 
-#### 시스템 성능 수치 (2초 주기 갱신)
+#### 시스템 성능 수치 (기본 10초 주기 갱신 — `system.sysmon_interval_ms`)
 - **CPU 사용률**: psutil 기반
 - **RAM 사용률**: psutil 기반
 - **GPU 사용률**: GPUtil 또는 nvidia-smi (미설치 시 "N/A")
+  - ⚠ **v2.8.0부터 기본 OFF** (`system.sysmon_gpu_enabled = false` → "GPU OFF" 표시).
+    GPUtil·nvidia-smi 모두 호출마다 **새 프로세스를 띄우므로**(2초 주기면 5일에 약 21만 회),
+    UI 프로세스 장기가동 손상의 실험 arm으로 차단했다.
+    배경·복구 조건: `fix/260526_설정다이얼로그_TypeError_재현불가.md` §12
 
 #### Health Check 인디케이터
 - 감지 루프 중단 감지 (5초 이상 응답 없음)
@@ -454,7 +458,7 @@ UI 로그 위젯에 `그룹1: PREPARATION → SIGNOFF [감지]` 형태로 표시
 
 ### 8.1 시스템 수치
 
-CPU/RAM/GPU 2초 주기 갱신 (TopBar)
+CPU/RAM 10초 주기 갱신 (TopBar). GPU는 v2.8.0부터 기본 OFF — §2.2 참조.
 
 ### 8.2 Heartbeat + DIAG 로그 (약 30초 주기)
 

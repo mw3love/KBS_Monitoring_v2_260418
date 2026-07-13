@@ -8,6 +8,7 @@ import os
 import time
 import logging
 import datetime
+import platform
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication,
@@ -27,7 +28,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.7.9"
+VERSION = "2.8.0"
 
 
 class MainWindow(QMainWindow):
@@ -89,6 +90,16 @@ class MainWindow(QMainWindow):
 
         self._logger.info(f"SYSTEM - KBS On-Air Monitoring v{VERSION} 시작")
 
+        # Round 1 실험 arm 기록 — 5일 뒤 재발 여부를 판정할 때 "어느 빌드가 돌았나"를
+        # 기억이 아니라 로그로 확인하기 위함. 실험이 끝나면 이 줄은 유지해도 무해하다.
+        _sys_cfg = self._cfg.get("system", {})
+        self._logger.info(
+            "SYSTEM - EXPERIMENT: "
+            f"sysmon_gpu={_sys_cfg.get('sysmon_gpu_enabled', False)} "
+            f"sysmon_interval_ms={_sys_cfg.get('sysmon_interval_ms', 10000)} "
+            f"qimage_buf_pinned=True python={platform.python_version()}"
+        )
+
     # ── UI 구성 ────────────────────────────────────────────────────
 
     def _setup_ui(self):
@@ -98,7 +109,14 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        self._top_bar = TopBar()
+        # 폴백값은 config_manager.DEFAULT_CONFIG와 일치시킨다. 운영 PC의
+        # kbs_config.json은 gitignore 대상이라 새 키가 없지만, ConfigManager._merge_defaults가
+        # 1단계 깊이로 기본값을 채워 주므로 실험 설정이 그대로 적용된다.
+        _sys_cfg = self._cfg.get("system", {})
+        self._top_bar = TopBar(
+            sysmon_gpu_enabled=_sys_cfg.get("sysmon_gpu_enabled", False),
+            sysmon_interval_ms=_sys_cfg.get("sysmon_interval_ms", 10000),
+        )
         main_layout.addWidget(self._top_bar)
 
         self._splitter = QSplitter(Qt.Horizontal)

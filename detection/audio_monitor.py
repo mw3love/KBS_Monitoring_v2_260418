@@ -141,6 +141,12 @@ class AudioMonitorWorker(threading.Thread):
                 chunk_duration = self.CHUNK / self.SAMPLE_RATE
                 consecutive_errors = 0
                 _MAX_CONSECUTIVE_ERRORS = 10
+                # 패스스루 출력 전용 상태: 입력 스트림과 독립적으로 죽을 수 있고,
+                # 죽으면 아무도 모른 채 영구 무음이 된다 → 별도로 세고 별도로 되살린다.
+                _out_errors = 0
+                _MAX_OUT_ERRORS = 10
+                _out_retry_t = 0.0
+                _OUT_RETRY_SEC = 30.0
 
                 while self._running:
                     try:
@@ -161,6 +167,28 @@ class AudioMonitorWorker(threading.Thread):
                         with self._lock:
                             muted = self._muted
                             volume = self._volume
+
+                        # 출력 스트림이 죽어 None이면 주기적으로 되살린다.
+                        # (기동 시 출력 오픈 실패한 경우도 여기서 복구된다)
+                        if output_stream is None and not muted and volume > 0:
+                            _now = time.time()
+                            if _now - _out_retry_t >= _OUT_RETRY_SEC:
+                                _out_retry_t = _now
+                                try:
+                                    output_stream = sd.RawOutputStream(
+                                        samplerate=self.SAMPLE_RATE,
+                                        blocksize=self.CHUNK,
+                                        channels=self.CHANNELS,
+                                        dtype="int16",
+                                    )
+                                    output_stream.start()
+                                    _out_errors = 0
+                                    self._emit(LogEntry(
+                                        level="info", source="audio",
+                                        message="패스스루 출력 스트림 복구 (재오픈 성공)"))
+                                except Exception:
+                                    output_stream = None
+
                         if output_stream is not None and not muted and volume > 0:
                             if volume < 1.0:
                                 out_f = samples.astype(np.float32) * volume
@@ -169,8 +197,42 @@ class AudioMonitorWorker(threading.Thread):
                                 out_samples = samples
                             try:
                                 output_stream.write(out_samples.tobytes())
-                            except Exception:
-                                pass
+                                _out_errors = 0
+                            except Exception as _oe:
+                                # 과거엔 `except: pass` 였다. 출력 스트림이 죽어도 로그도
+                                # 복구도 없어 패스스루가 영구 무음이 됐다(4차 42시간 무음의
+                                # 유력 원인). 이제 연속 실패를 세어 재오픈하고 반드시 알린다.
+                                # 청크가 초당 ~43개라 시간 제한 없이는 로그·재오픈이 폭주한다.
+                                _out_errors += 1
+                                _now = time.time()
+                                if (_out_errors >= _MAX_OUT_ERRORS
+                                        and _now - _out_retry_t >= _OUT_RETRY_SEC):
+                                    _out_retry_t = _now
+                                    self._emit(LogEntry(
+                                        level="error", source="audio",
+                                        message=f"패스스루 출력 실패 {_out_errors}회 → 출력 스트림 재오픈 ({_oe})"))
+                                    try:
+                                        output_stream.stop()
+                                        output_stream.close()
+                                    except Exception:
+                                        pass
+                                    try:
+                                        output_stream = sd.RawOutputStream(
+                                            samplerate=self.SAMPLE_RATE,
+                                            blocksize=self.CHUNK,
+                                            channels=self.CHANNELS,
+                                            dtype="int16",
+                                        )
+                                        output_stream.start()
+                                        _out_errors = 0
+                                        self._emit(LogEntry(
+                                            level="info", source="audio",
+                                            message="패스스루 출력 스트림 재오픈 성공"))
+                                    except Exception as _re:
+                                        output_stream = None
+                                        self._emit(LogEntry(
+                                            level="error", source="audio",
+                                            message=f"패스스루 출력 스트림 재오픈 실패 — 무음 지속, 30초 후 재시도 ({_re})"))
 
                         if self._stereo:
                             left = samples[0::2].astype(np.float32) / 32768.0

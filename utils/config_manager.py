@@ -125,6 +125,11 @@ DEFAULT_CONFIG = {
         "scheduled_restart_base_time": "03:00",     # 기준 시각 HH:MM
         "scheduled_restart_interval_hours": 24,     # 주기 (시간 단위)
         "scheduled_restart_exclude": "",            # 제외 시간대 "HH:MM-HH:MM,..."
+        # 상단바 시스템 성능 위젯. GPU 조회는 GPUtil/nvidia-smi 둘 다 새 프로세스를
+        # 띄우므로(2초 주기면 5일에 ~21만 회) 장기가동 손상의 실험 arm으로 지목됨.
+        # 배경: fix/260526_설정다이얼로그_TypeError_재현불가.md (Round 1)
+        "sysmon_gpu_enabled": False,                # GPU 표시(=nvidia-smi 호출) 사용
+        "sysmon_interval_ms": 10000,                # CPU/RAM 갱신 주기 (최소 1000)
     },
 }
 

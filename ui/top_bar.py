@@ -125,8 +125,17 @@ class SysMonitorWidget(QWidget):
         r"C:\Windows\System32\nvidia-smi.exe",
     ]
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, gpu_enabled: bool = True,
+                 interval_ms: int = 2000):
         super().__init__(parent)
+        # gpu_enabled=False면 nvidia-smi를 아예 호출하지 않는다.
+        # GPUtil.getGPUs()도 내부적으로 nvidia-smi를 새 프로세스로 띄우므로
+        # (GPUtil.py: Popen([nvidia_smi, ...])) 두 경로 모두 차단해야 한다.
+        # 2초 주기면 5일간 약 21만 회 프로세스 생성 — UI 프로세스만 가진 고빈도
+        # 네이티브 활동이라 장기가동 손상의 실험 arm으로 지목됨.
+        # 배경: fix/260526_설정다이얼로그_TypeError_재현불가.md (Round 1)
+        self._gpu_enabled = gpu_enabled
+        self._interval_ms = max(1000, int(interval_ms))
         self._gpu_method = None
         self._nvidiasmi_path = ""
         self._setup_ui()
@@ -171,6 +180,10 @@ class SysMonitorWidget(QWidget):
         QTimer.singleShot(500, self._update_stats)
 
     def _detect_gpu(self):
+        if not self._gpu_enabled:
+            self._gpu_method = None
+            self._lbl_gpu.setText("GPU\nOFF")
+            return
         if GPUTIL_AVAILABLE:
             try:
                 if GPUtil.getGPUs():
@@ -197,7 +210,7 @@ class SysMonitorWidget(QWidget):
     def _start_timer(self):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._update_stats)
-        self._timer.start(2000)
+        self._timer.start(self._interval_ms)
 
     def _update_stats(self):
         if PSUTIL_AVAILABLE:
@@ -206,6 +219,9 @@ class SysMonitorWidget(QWidget):
         else:
             self._lbl_cpu.setText("CPU\nN/A")
             self._lbl_ram.setText("RAM\nN/A")
+
+        if not self._gpu_enabled:
+            return
 
         if self._gpu_method == "gputil" and GPUTIL_AVAILABLE:
             try:
@@ -242,11 +258,14 @@ class TopBar(QWidget):
     fullscreen_toggled      = Signal()
     signoff_manual_release  = Signal(int)    # group_id
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, sysmon_gpu_enabled: bool = True,
+                 sysmon_interval_ms: int = 2000):
         super().__init__(parent)
         self._roi_visible = True
         self._sound_enabled = True
         self._dark_mode = True
+        self._sysmon_gpu_enabled = sysmon_gpu_enabled
+        self._sysmon_interval_ms = sysmon_interval_ms
         # debounce: 슬라이더 valueChanged → 100ms 후 volume_changed 발행
         self._volume_debounce = QTimer(self)
         self._volume_debounce.setSingleShot(True)
@@ -265,7 +284,10 @@ class TopBar(QWidget):
         layout.setSpacing(10)
         layout.setAlignment(Qt.AlignTop)
 
-        self._sys_monitor = SysMonitorWidget()
+        self._sys_monitor = SysMonitorWidget(
+            gpu_enabled=self._sysmon_gpu_enabled,
+            interval_ms=self._sysmon_interval_ms,
+        )
         layout.addWidget(self._sys_monitor, alignment=Qt.AlignTop)
 
         layout.addWidget(self._make_separator())

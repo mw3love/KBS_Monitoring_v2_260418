@@ -139,6 +139,15 @@ def _send_system_telegram_main(message: str):
         pass
 
 
+# ── UI 손상(onset) 통보 채널 ──────────────────────────────────────
+# 손상된 UI 프로세스는 순수 파이썬 객체 생성이 전부 실패하므로 requests(=텔레그램)를
+# 직접 쓸 수 없다(4차 로그: onset 시점의 무결성 프로브가 `import gc`에서 이미 실패).
+# 손상 상태에서 42시간 동안 계속 작동한 것이 확인된 유일한 경로가 open()+write()이므로,
+# UI는 플래그 파일만 떨어뜨리고 텔레그램은 건강한 Watchdog이 대신 보낸다.
+# 배경: fix/260526_설정다이얼로그_TypeError_재현불가.md
+_DEGRADED_FLAG = os.path.join(_ROOT, "data", "ui_degraded.flag")
+
+
 def main():
     # ── 단일 인스턴스 가드 (Windows 네이티브 뮤텍스) ─────────────────
     # 이중 실행 시 아래 SHM 잔존정리(unlink)가 돌아가던 인스턴스를 파괴하는 것을 방지.
@@ -150,6 +159,13 @@ def main():
     os.makedirs(os.path.join(_ROOT, "logs"), exist_ok=True)
     fault_log = open(os.path.join(_ROOT, "logs", "fault.log"), "a", encoding="utf-8")
     faulthandler.enable(file=fault_log)
+
+    # 이전 세션의 손상 플래그 제거 (남아 있으면 Watchdog이 즉시 오탐 통보)
+    os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
+    try:
+        os.remove(_DEGRADED_FLAG)
+    except OSError:
+        pass
 
     # ── sys.excepthook 후킹: unhandled exception을 ui 로그에 기록 ──
     # 사유: fix/260526_설정다이얼로그_TypeError_재현불가.md 참조.
@@ -399,6 +415,15 @@ def main():
             parts.append("  THREAD DUMP: logs/fault.log 에 기록\n")
         except Exception as _e:
             parts.append(f"  THREAD DUMP 실패: {_e!r}\n")
+        # 손상 플래그 기록 → Watchdog이 1초 루프에서 읽어 텔레그램 발송.
+        # open()+write()만 쓴다 (손상 상태에서 작동이 실증된 유일한 경로).
+        try:
+            with open(_DEGRADED_FLAG, "w", encoding="utf-8") as f:
+                f.write(f"{ts}\n{psutil_err}\n")
+                f.flush()
+            parts.append(f"  손상 플래그 기록: {_DEGRADED_FLAG}\n")
+        except Exception as _e:
+            parts.append(f"  손상 플래그 기록 실패: {_e!r}\n")
         parts.append("\n")
         return "".join(parts)
 
@@ -431,6 +456,10 @@ def main():
                 _append_ui_log(_capture_onset_dump(ts, psutil_err))
             elif not degraded_now and _health_degraded[0]:
                 _health_degraded[0] = False  # 회복 시 다음 전환도 재포착
+                try:
+                    os.remove(_DEGRADED_FLAG)
+                except OSError:
+                    pass
         except Exception:
             pass
 
