@@ -175,8 +175,9 @@
   - **추적**: 기동 로그에 `SYSTEM - EXPERIMENT: ...` 한 줄로 arm 명시(5일 뒤 기억이 아니라 로그로 판정). 폐기 빌드는 태그 `v2.7.9-incident4`.
   - 검증: 컴파일 통과 / 플래그 경로 두 프로세스 일치 확인 / 구 운영 설정에서도 `_merge_defaults`로 arm 적용 확인 / SysMonitor 실측 **서브프로세스 0회**(대조군 `True`는 7회 → 진짜 차단됨) / VideoWidget 300프레임 정상 렌더.
   - ⚠ **미검증(프록시)**: onset→플래그→텔레그램 **실경로는 실제 손상 상태에서 미확인**. 다음 재발이 실조건 검증.
-- [ ] **Round 1 판정 (배포 후 ~7일)** — 무사하면 arm 3개 중 하나가 범인 → 그대로 두고 종결. 또 ~5일에 죽으면 셋 다 무죄 → **Round 2: Python 3.13 다운그레이드**(코드 무변경).
-  - ⚠ **예약 재시작이 반드시 OFF여야 함** — 켜져 있으면 5일 시계가 도달하지 못해 실험이 무의미해진다.
+- [x] **Round 1 운영 PC 배포 (2026-07-13 11:00 기동)** — 4차와 **동일 PC**(하드웨어 변수 없음), Python **3.14.3**(4차는 3.14.2). 기동 로그 `SYSTEM - EXPERIMENT: sysmon_gpu=False sysmon_interval_ms=10000 qimage_buf_pinned=True` + 상단바 `GPU OFF` 실측 확인. 설정은 `260627 kbs_config_backup.json` 불러오기로 복원(ROI 8V+6A+1EA). 텔레그램 `연결 테스트` 성공 + **`시스템 이벤트 알림`(notify_system) 체크 확인** + **예약 재시작 OFF 확인**. 상세: `fix/260526_...md` §12-6-b.
+- [ ] **Round 1 판정 (5일 ≈ 2026-07-18 / 7일 ≈ 2026-07-20)** — 무사하면 arm 3개 중 하나가 범인 → 그대로 두고 종결(단 Python 패치 상승이 겹쳐 100% 단정은 불가). 또 ~5일에 죽으면 **arm 3개 + Python 3.14.3 + 하드웨어 전부 무죄** → **Round 2: Python 3.13 다운그레이드**(코드 무변경).
+  - ⚠ **재발 시 재부팅 전에 로그부터 회수**: `logs/*_ui.txt`, `fault.log`, `stderr_debug.txt`, `logs/*_detection.txt`, `logs/*_watchdog.txt`, `data/ui_degraded.flag`.
 
 ---
 

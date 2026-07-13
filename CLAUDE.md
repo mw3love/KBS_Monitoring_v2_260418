@@ -218,6 +218,17 @@ if __name__ == '__main__':
 - **HEALTH 스냅샷**: 세 프로세스 모두 10분 주기로 `RSS/threads/handles`를 자기 로그에 기록 (장기 누수·손상 추세 가시화). psutil 쿼리 실패(`RSS=-1`)로 전환되는 순간 1회 onset 심층덤프(인터프리터 프로브 + 전체 스레드 덤프).
 - **faulthandler 덤프 파일** (프로세스별 분리, 동시 쓰기 충돌 방지): UI=`logs/fault.log`, Detection=`logs/fault_detection.log`, Watchdog=`logs/fault_watchdog.log`. 배경: `fix/260526_설정다이얼로그_TypeError_재현불가.md`
 
+### 신규 빌드 배포 시 함정 (운영 PC)
+
+- **`config/kbs_config.json`은 gitignore 대상이라 새 빌드에 따라오지 않는다.** 신규 clone 후 첫 기동은 항상
+  **ROI 0개 · 텔레그램 OFF** 상태로 뜬다(정상). `저장/불러오기` 탭에서 백업을 불러와야 운영 설정이 복원된다.
+  → 기동 로그의 `영상 감지영역(ROI) 0개` 경고는 **불러오기 전 과도기**일 뿐이다. 그 뒤 `ApplyConfig (reason=settings_save)`가
+  찍혔다면 정상 — 이 줄만 보고 "설정 유실"로 오판하지 말 것.
+- ⚠ **텔레그램 `연결 테스트` 성공 ≠ 시스템 알림 작동.** 연결 테스트는 토큰·chat_id로 직접 쏘므로
+  `notify_system` 게이트를 **우회**한다(`settings_dialog.py`). `[SYSTEM]` 알림(재spawn·비정상종료·**UI 손상 통보**)은
+  `telegram.notify_system`이 `true`여야 나간다(`watchdog_process.py`, `main.py`).
+  → 배포 시 **`알림설정` 탭의 `시스템 이벤트 알림` 체크**와 **`연결 테스트`를 따로** 확인할 것.
+
 ### UI 손상 통보 (onset → Watchdog 대행 발송)
 
 장기 가동 시 UI 프로세스만 힙이 손상되어 **순수 파이썬 클래스의 `__init__` 호출이 전부 실패**하는 사고가 4회 발생했다(설정창·알림음·조작 전멸, 창은 정상으로 보임). 상세: `fix/260526_설정다이얼로그_TypeError_재현불가.md` §12.
