@@ -952,7 +952,7 @@ def _process_alarms(
     video_rois, audio_rois, snap,
     signoff_recovery_suppress: set = None,
 ):
-    from ipc.messages import AlarmTrigger, AlarmResolve, DetectionResult
+    from ipc.messages import AlarmTrigger, AlarmResolve, DetectionResult, LogEntry
     from core.roi_manager import ROI
 
     roi_media = {roi.label: roi.media_name for roi in (video_rois + audio_rois)}
@@ -998,6 +998,11 @@ def _process_alarms(
                         lbl, media, jpeg_bytes=snap_jpeg,
                     )
                     recorder.trigger(det_type, lbl, media)
+                # DIAG-복구추적(임시): 블랙/스틸 복구 누락 조사용 — 진입 기록. fix/260720
+                _put(result_queue,
+                     LogEntry(level="info", source="detection",
+                              message=f"DIAG-복구추적 {lbl} {det_type} 감지 (suppressed={suppressed})"),
+                     ipc_counters)
             elif not alerting and was:
                 duration = res.get(f"{det_type}_last_duration", 0.0)
                 snap_jpeg = _encode_jpeg(snap)
@@ -1009,15 +1014,22 @@ def _process_alarms(
                 # SIGNOFF 중이면 억제 ROI 복구 알림 차단 (정파 해제 메시지로 통보됨)
                 # SIGNOFF→IDLE 직후 경합 조건 대비: _signoff_recovery_suppress 2차 차단
                 if signoff_mgr.is_signoff_label(lbl, lbl_gid):
-                    pass
+                    _diag = "억제(정파 SIGNOFF)"
                 elif signoff_recovery_suppress and lbl in signoff_recovery_suppress:
                     signoff_recovery_suppress.discard(lbl)
+                    _diag = "억제(정파 해제 2차)"
                 else:
                     telegram.notify(
                         "블랙" if det_type == "black" else "스틸",
                         lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg,
                         duration_sec=duration,
                     )
+                    _diag = "복구문자 발송"
+                # DIAG-복구추적(임시): 복구 시점 어느 갈래로 처리됐는지 기록. fix/260720
+                _put(result_queue,
+                     LogEntry(level="info", source="detection",
+                              message=f"DIAG-복구추적 {lbl} {det_type} 해제 → {_diag} (dur={duration:.1f}s)"),
+                     ipc_counters)
 
             prev_dict[lbl] = alerting
 
@@ -1048,12 +1060,19 @@ def _process_alarms(
                  ipc_counters)
             # SIGNOFF 중이면 억제 ROI 복구 알림 차단 / SIGNOFF→IDLE 직후 2차 차단
             if signoff_mgr.is_signoff_label(lbl, label_to_gid.get(lbl)):
-                pass
+                _diag = "억제(정파 SIGNOFF)"
             elif signoff_recovery_suppress and lbl in signoff_recovery_suppress:
                 signoff_recovery_suppress.discard(lbl)
+                _diag = "억제(정파 해제 2차)"
             else:
                 telegram.notify("오디오", lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg,
                                 duration_sec=res.get("last_duration", 0.0))
+                _diag = "복구문자 발송"
+            # DIAG-복구추적(임시): 오디오레벨 복구 갈래 기록. fix/260720
+            _put(result_queue,
+                 LogEntry(level="info", source="detection",
+                          message=f"DIAG-복구추적 {lbl} audio_level 해제 → {_diag}"),
+                 ipc_counters)
 
         prev_audio[lbl] = alerting
 
@@ -1073,6 +1092,11 @@ def _process_alarms(
              ipc_counters)
         telegram.notify("무음", "EA", "임베디드오디오", is_recovery=True,
                         duration_sec=detector._last_embedded_alert_duration)
+        # DIAG-복구추적(임시): EA 복구 발송 기록. fix/260720
+        _put(result_queue,
+             LogEntry(level="info", source="detection",
+                      message="DIAG-복구추적 EA embedded 해제 → 복구문자 발송"),
+             ipc_counters)
     _process_alarms._emb_was = emb_alerting
 
 
