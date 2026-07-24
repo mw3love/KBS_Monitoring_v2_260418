@@ -1625,11 +1625,13 @@ class SettingsDialog(QDialog):
         ))
         vl.addWidget(box1)
 
-        # 텔레그램
-        box3, sl3 = _section("텔레그램 봇 설정")
+        # 텔레그램 (봇 설정 + 알림 옵션 박스 두 개를 함께 켜고 끄는 마스터 토글이라
+        # 박스 안이 아니라 밖에 독립 배치 — 정파설정의 "자동 정파 활성화"와 동일한 패턴)
         self._tg_enabled_cb = QCheckBox("텔레그램 알림 활성화")
         self._tg_enabled_cb.setChecked(tg.get("enabled", False))
-        sl3.addWidget(self._tg_enabled_cb)
+        vl.addWidget(self._tg_enabled_cb)
+
+        box3, sl3 = _section("텔레그램 봇 설정")
 
         # Bot Token (패스워드 모드 + 표시/숨김 토글)
         token_lbl = QLabel("Bot Token")

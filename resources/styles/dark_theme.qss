@@ -455,8 +455,8 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    background-color: #D97757;
-    border-color: #B85E3F;
+    border-color: #D97757;
+    image: url(__CHECK_ICON_URL__);
 }
 
 /* ── 텍스트 편집기 ───────────────────────────────────────────────── */
@@ -560,8 +560,8 @@ QFrame#settingsSection QCheckBox::indicator {
 }
 
 QFrame#settingsSection QCheckBox::indicator:checked {
-    background-color: #D97757;
-    border-color: #B85E3F;
+    border-color: #D97757;
+    image: url(__CHECK_ICON_URL__);
 }
 
 QFrame#settingsSection QCheckBox:disabled {

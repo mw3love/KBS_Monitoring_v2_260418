@@ -558,14 +558,19 @@ class MainWindow(QMainWindow):
     # ── 테마 ──────────────────────────────────────────────────────
 
     def _apply_theme(self, dark: bool = True):
+        resources_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources",
+        )
         qss_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "resources", "styles",
-            "dark_theme.qss" if dark else "light_theme.qss",
+            resources_dir, "styles", "dark_theme.qss" if dark else "light_theme.qss",
         )
         try:
             with open(qss_path, "r", encoding="utf-8") as f:
-                QApplication.instance().setStyleSheet(f.read())
+                qss = f.read()
+            # QSS의 url()은 런타임 절대경로가 필요 (Qt가 상대경로를 신뢰하지 않음)
+            check_icon_path = os.path.join(resources_dir, "icons", "check_orange.svg")
+            qss = qss.replace("__CHECK_ICON_URL__", check_icon_path.replace("\\", "/"))
+            QApplication.instance().setStyleSheet(qss)
         except Exception as e:
             _log.warning("테마 로드 실패: %s", e)
         # QSS로 못 잡는 커스텀 페인팅 위젯에 테마 전달
