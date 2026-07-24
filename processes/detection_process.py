@@ -414,6 +414,9 @@ def run(result_queue, cmd_queue, shutdown_event,
     if not video_rois:
         log_info("영상 감지영역(ROI) 0개 — 블랙/스틸 영상 감지가 동작하지 않습니다. "
                  "설정에서 영상 감지영역을 추가하세요.")
+    # UpdateROIs 재알림 억제용 — ROI와 무관한 설정 변경도 매번 UpdateROIs를 보내므로
+    # (settings_dialog.py:_send_cmd_apply), 이미 안내했으면 ROI가 다시 채워지기 전까지 조용히 둔다
+    _roi_zero_notified = [not video_rois]
 
     # SignoffManager 설정
     signoff_mgr.configure_from_dict(cfg.get("signoff", {}))
@@ -657,6 +660,7 @@ def run(result_queue, cmd_queue, shutdown_event,
                 roi_mgr, shared_state, audio_worker, video_worker,
                 result_queue, _ipc_counters, _cmd_dropped,
                 lambda enabled: shared_state.set_detection_enabled(enabled) if shared_state else None,
+                _roi_zero_notified,
             )
         except _ShutdownSignal:
             log_info("Shutdown 메시지 수신 → 종료")
@@ -830,6 +834,7 @@ def _process_commands(
     roi_mgr, shared_state, audio_worker, video_worker,
     result_queue, ipc_counters, cmd_dropped,
     set_det_enabled_fn,
+    roi_zero_notified,
 ):
     from ipc.messages import (
         ApplyConfig, UpdateROIs, SetDetectionEnabled, SetVolume, SetMute,
@@ -884,11 +889,15 @@ def _process_commands(
                 _update_signoff_media_names(signoff_mgr,
                                             roi_mgr.video_rois + roi_mgr.audio_rois)
                 if not roi_mgr.video_rois:
-                    _put(result_queue,
-                         LogEntry(level="info", source="detection",
-                                  message="영상 감지영역(ROI) 0개 — 블랙/스틸 영상 감지가 "
-                                          "동작하지 않습니다. 설정에서 영상 감지영역을 추가하세요."),
-                         ipc_counters)
+                    if not roi_zero_notified[0]:
+                        _put(result_queue,
+                             LogEntry(level="info", source="detection",
+                                      message="영상 감지영역(ROI) 0개 — 블랙/스틸 영상 감지가 "
+                                              "동작하지 않습니다. 설정에서 영상 감지영역을 추가하세요."),
+                             ipc_counters)
+                        roi_zero_notified[0] = True
+                else:
+                    roi_zero_notified[0] = False
 
             elif isinstance(msg, SetDetectionEnabled):
                 set_det_enabled_fn(msg.enabled)
