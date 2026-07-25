@@ -238,6 +238,7 @@ if __name__ == '__main__':
   - **UI(`main.py`)**: onset 감지 시 `data/ui_degraded.flag`에 `open()+write()`로 시각·에러만 기록. (손상 상태에서 42시간 작동이 실증된 유일한 경로가 파일 쓰기다.) 기동 시·회복 시 플래그 삭제.
   - **Watchdog(`processes/watchdog_process.py`)**: 1초 루프에서 플래그 존재를 확인 → **1회만** `[SYSTEM]` 텔레그램 발송. 플래그가 사라지면 재무장(다음 onset도 통보).
 - **이 플래그 파일 경로는 두 프로세스에 하드코딩된 계약이다.** 한쪽만 바꾸면 통보가 조용히 죽으므로 반드시 동시 수정할 것 (`main.py:_DEGRADED_FLAG` ↔ `watchdog_process.py:_UI_DEGRADED_FLAG`).
+- **화면 로그창 표시 (best-effort, 2026-07-25 추가)**: onset 시점에 `window._log_widget.add_log(...)`도 함께 시도해, 현장에서 접속 없이 화면만 보고도 손상을 알 수 있게 한다. ⚠ 이것도 새 객체 생성이라 **손상 상태에서 실패할 수 있음**(플래그/텔레그램 경로와 달리 무보장) — try/except로 감싸 실패해도 무해하며, 텔레그램이 최종 안전망. 실제 손상 상태에서의 성공 여부는 재현 불가라 미검증(다음 발생 시 확인).
 
 ### 메모리 버퍼 상한
 - `auto_recorder` 순환버퍼: 채널당 `pre_seconds × fps × 프레임크기` 계산값 상한, 초과분 drop 시 로그 기록

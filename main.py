@@ -424,6 +424,19 @@ def main():
             parts.append(f"  손상 플래그 기록: {_DEGRADED_FLAG}\n")
         except Exception as _e:
             parts.append(f"  손상 플래그 기록 실패: {_e!r}\n")
+        # 화면 로그창 시도(best-effort) — 새 객체 생성(add_log 내부의 QListWidgetItem 등)이라
+        # 손상 상태에서 이 자체도 실패할 수 있음. 되면 현장에서 접속 없이 바로 보이는 보너스,
+        # 안 되도 위 텔레그램 플래그 경로가 최종 안전망이라 무해하다.
+        try:
+            window._log_widget.add_log(
+                f"⚠ UI 프로세스 손상 감지 — 알림음·설정창·조작 먹통 가능. "
+                f"즉시 재시작 필요 (psutil_err={psutil_err})",
+                log_type="error",
+                source="시스템",
+            )
+            parts.append("  화면 로그창 표시: 성공\n")
+        except Exception as _e:
+            parts.append(f"  화면 로그창 표시 실패(예상 가능한 경로): {_e!r}\n")
         parts.append("\n")
         return "".join(parts)
 

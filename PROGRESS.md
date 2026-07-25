@@ -1,6 +1,6 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
-> 마지막 업데이트: 2026-07-25 (v2.8.4 — W17 UI 장기가동 손상 5차 대응: Round 1 부결 확정 + Round 2 배포 준비·dev PC 검증 완료 + 기동 알림(텔레그램·화면 로그) 추가)
+> 마지막 업데이트: 2026-07-25 (v2.8.5 — W17 UI 장기가동 손상 5차 대응: Round 1 부결 확정 + Round 2 배포 준비·dev PC 검증 완료 + 기동 알림(텔레그램·화면 로그) + UI 손상 시 화면 로그 best-effort 추가)
 > 현재 단계: Phase 6 코드 작업 완료 (W0~W14 + W15 회귀/Chaos 완료 + W16·W17 현장 이슈 대응). 남은 것은 비-코딩 현장 검증뿐 — W15 24h 연속 테스트(웹캠 1h 스모크 PASS, 풀 24h는 현장) + 전주총국 실제 방송 운영 테스트 → 통과 시 타 총국 배포
 > ⏳ **관찰 중**: W17 Round 2(Python 3.13 다운그레이드) — 배포 준비물(`python313_전환.ps1`/`.bat`, `실행.bat` venv 자동분기)은 완성·dev PC 실조건검증 완료. **운영 PC 실배포는 사용자 승인 대기.** 배포 후 판정까지 ~4~5일. 판정 전까지 **예약 재시작 OFF 유지 필수**.
 
@@ -181,6 +181,7 @@
   - **신규**: `python313_전환.ps1`/`.bat` (운영 PC 3.13 전환 원클릭), `실행.bat`(venv313 있으면 자동 사용, 없으면 기존과 동일 — 타 총국 무영향), `.gitignore`(`.venv313/`).
   - **함정**: `python313_전환.bat`이 사용자 PC에서 한글 깨짐+"명령 아님" 오류(`chcp 65001` 누락). 1차 수정(BOM 추가)은 dev PC에서 더 나쁜 결과(cmd.exe는 .bat의 UTF-8 BOM 미지원, `@echo off` 자체가 깨짐) → 최종: `chcp 65001` + **BOM 없이** UTF-8 + CRLF(`실행.bat`과 동일 조합). dev PC 재현→해결 확인. 상세: `fix/260526_...md` §13-7.
 - [x] **기동(재기동) 알림 — 텔레그램 + 화면 로그 (2026-07-25)** — Round 2가 실제로 3.13으로 도는지 원격 확인할 방법이 없다는 지적에서 "재기동 통보"로 일반화. Watchdog 시작 직후 `[SYSTEM]` 텔레그램 1회(앱 버전 + `platform.python_version()`) + UI 화면 SYSTEM LOG에도 "기동 완료 (Python x.x.x)" 표시. 최초 부팅·크래시 재spawn·예약 재시작 공통. dev PC 실조건검증: 텔레그램 코드 경로 무오류 확인 + 화면 로그창에 실제 렌더된 것 스크린샷으로 직접 확인(`PrintWindow` 캡처). — `processes/watchdog_process.py`, `ui/main_window.py`, `docs_ipc_spec.md §3.1`, `docs_기능_레퍼런스.md §10.5`.
+  - **연장**: "UI 손상 시에도 현장 화면에서 바로 알 수 있으면" 제안 → `main.py`의 onset 캡처에 `window._log_widget.add_log(...)` best-effort 추가. ⚠ 텔레그램 플래그 경로(`open()+write()`만 사용, 손상 상태 작동 실증됨)와 달리 이건 새 객체 생성이라 **손상 상태에서 실패 가능** — try/except로 무해하게 감쌌으나 실제 성공 여부는 재현 불가라 **미검증**(다음 발생 시 판정). 실패해도 텔레그램은 그대로 작동. — `main.py`, `CLAUDE.md`("UI 손상 통보" 절).
 - [ ] **Round 2 운영 PC 실배포** — `python313_전환.bat` 더블클릭 1회 + 재기동. **배포 시점은 사용자 승인 필요**(되돌리고 싶어질 수 있는 변경 + ~4~5일 판정 시계 재가동).
   - ⚠ **재발 시 재부팅 전에 로그부터 회수**: `logs/*_ui.txt`, `fault.log`, `stderr_debug.txt`, `logs/*_detection.txt`, `logs/*_watchdog.txt`, `data/ui_degraded.flag`.
 
