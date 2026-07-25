@@ -134,6 +134,7 @@ class BaseMsg:
 3. SharedMemory `kbs_frame_v2`·`kbs_state_v2` create. state는 magic/version 초기화, 나머지 0.
 4. `result_queue(maxsize=200)`, `cmd_queue(maxsize=50)`, `shutdown_event`, `cmd_event` 생성.
 5. **Watchdog 프로세스 spawn** (Detection params + shm names + queue handles + shutdown_event 전달).
+   - Watchdog은 시작 직후 **`[SYSTEM]` 텔레그램 "기동" 통보 1회** 발송(app 버전 + `platform.python_version()`) — 최초 부팅·크래시 재spawn·예약 재시작 공통, 원격에서 재기동 여부·실행 중인 파이썬 버전 확인용(`notify_system` 게이트 적용).
    - Watchdog은 Detection을 즉시 spawn 후 감시 루프 시작.
 6. Detection 기동 절차 (Watchdog이 수행):
    - `config/kbs_config.json` 직접 로드 → 내부 설정/ROI 복원.

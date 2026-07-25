@@ -28,7 +28,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.8.3"
+VERSION = "2.8.4"
 
 
 class MainWindow(QMainWindow):
@@ -343,6 +343,10 @@ class MainWindow(QMainWindow):
         self._video_widget.resume_frames()
         self._log_widget.add_log(
             f"Detection 준비 완료 (PID={msg.pid}, ROI={msg.roi_count})",
+            source="시스템",
+        )
+        self._log_widget.add_log(
+            f"기동 완료 (Python {platform.python_version()})",
             source="시스템",
         )
         self._top_bar.update_health(False)

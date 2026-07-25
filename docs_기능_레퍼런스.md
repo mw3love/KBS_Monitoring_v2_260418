@@ -504,6 +504,13 @@ CPU/RAM 10초 주기 갱신 (TopBar). GPU는 v2.8.0부터 기본 OFF — §2.2 �
 - Watchdog은 30초 주기로 parent(main/UI) PID 존재 확인
 - UI 크래시 감지 시: Detection 정리 → Watchdog 자신 종료 → `[SYSTEM]` 텔레그램 "전체 비정상 종료" 알림
 
+### 10.5 기동 알림 (v2 신규)
+
+- Watchdog이 시작 직후 `[SYSTEM]` 텔레그램으로 "기동" 1회 통보 — 앱 버전 + 실행 중인 파이썬 버전(`platform.python_version()`) 포함
+- 최초 부팅·크래시 재spawn·예약 재시작 공통 — 원격 접속 없이도 재기동 여부·파이썬 버전 확인 가능
+- 화면 로그창(SYSTEM LOG)에도 "기동 완료 (Python x.x.x)" 로 동일 정보 표시
+- `notify_system` 설정을 따름(텔레그램 부분은 OFF 시 미발송, 화면 로그는 항상 표시)
+
 ---
 
 ## 11. 예약 재시작

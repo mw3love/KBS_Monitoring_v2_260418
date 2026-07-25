@@ -4,11 +4,12 @@ Detection 프로세스의 spawn/감시/재spawn 전담.
 heartbeat.dat 10초 stale 감지 → Detection kill 후 재spawn.
 main(UI) 생존 감시 (30초 주기 psutil.pid_exists) → 사라지면 Detection 정리 + 자신 종료.
 shutdown_event set 시 "의도된 종료" 플래그 ON → false-positive respawn 방지.
-[SYSTEM] prefix 텔레그램 직접 발송: Detection 재spawn / UI 사망 이벤트.
+[SYSTEM] prefix 텔레그램 직접 발송: Detection 재spawn / UI 사망 이벤트 / 기동(재기동 포함).
 """
 import json
 import logging
 import os
+import platform
 import sys
 import struct
 import time
@@ -168,6 +169,10 @@ def run(
         ).start()
 
     log(f"Watchdog 시작 (PID={os.getpid()}, parent={parent_pid})")
+    # 원격(텔레그램)에서 재기동 여부·실행 중인 파이썬 버전을 확인할 수 있도록
+    # 매 기동(최초 부팅·크래시 재spawn·예약 재시작 공통) 1회 통보. Round 2(3.13
+    # 다운그레이드 실험) 배포가 실제 적용됐는지도 이 메시지로 원격 확인 가능.
+    tg(f"KBS On-Air Monitoring v{version} 기동 (Python {platform.python_version()})")
 
     _intentional_shutdown = False
     detection_proc = None

@@ -1,6 +1,6 @@
 # KBS Monitoring v2 — 작업 진행 체크리스트
 
-> 마지막 업데이트: 2026-07-25 (v2.8.3 — W17 UI 장기가동 손상 5차 대응: Round 1 부결 확정 + Round 2 배포 준비·dev PC 검증 완료)
+> 마지막 업데이트: 2026-07-25 (v2.8.4 — W17 UI 장기가동 손상 5차 대응: Round 1 부결 확정 + Round 2 배포 준비·dev PC 검증 완료 + 기동 알림(텔레그램·화면 로그) 추가)
 > 현재 단계: Phase 6 코드 작업 완료 (W0~W14 + W15 회귀/Chaos 완료 + W16·W17 현장 이슈 대응). 남은 것은 비-코딩 현장 검증뿐 — W15 24h 연속 테스트(웹캠 1h 스모크 PASS, 풀 24h는 현장) + 전주총국 실제 방송 운영 테스트 → 통과 시 타 총국 배포
 > ⏳ **관찰 중**: W17 Round 2(Python 3.13 다운그레이드) — 배포 준비물(`python313_전환.ps1`/`.bat`, `실행.bat` venv 자동분기)은 완성·dev PC 실조건검증 완료. **운영 PC 실배포는 사용자 승인 대기.** 배포 후 판정까지 ~4~5일. 판정 전까지 **예약 재시작 OFF 유지 필수**.
 
@@ -179,6 +179,8 @@
 - [x] **Round 1 판정 — 부결 (2026-07-24, 5차 발생)** — 07-20 09:45 v2.8.1 배포(독립 재기동)가 4.19일 만에 재발 → **arm 3개(GPU폴링·psutil주기·QImage버퍼) + Python 3.14.3 상승 + 하드웨어 전부 무죄** 확정. 남는 용의선은 PySide6 본체 또는 Python 3.14 계열 자체. 상세: `fix/260526_...md` §13-4.
 - [x] **Round 2 사전점검 + dev PC 실조건검증 (2026-07-24~25)** — 7개 패키지 Python 3.13 wheel 지원 확인(PyPI 메타데이터) → dev PC 기동 스모크 PASS(§13-5-b) → 배포 원클릭화 스크립트 작성 후 재검증: `python313_전환.ps1`이 Python 3.13.14 설치 + `.venv313` 생성 + 패키지 설치까지 실제 실행 성공, 수정한 `실행.bat`으로 직접 기동해 `logs/20260725_ui.txt`에 `python=3.13.14` 기록 확인. 상세: `fix/260526_...md` §13-7.
   - **신규**: `python313_전환.ps1`/`.bat` (운영 PC 3.13 전환 원클릭), `실행.bat`(venv313 있으면 자동 사용, 없으면 기존과 동일 — 타 총국 무영향), `.gitignore`(`.venv313/`).
+  - **함정**: `python313_전환.bat`이 사용자 PC에서 한글 깨짐+"명령 아님" 오류(`chcp 65001` 누락). 1차 수정(BOM 추가)은 dev PC에서 더 나쁜 결과(cmd.exe는 .bat의 UTF-8 BOM 미지원, `@echo off` 자체가 깨짐) → 최종: `chcp 65001` + **BOM 없이** UTF-8 + CRLF(`실행.bat`과 동일 조합). dev PC 재현→해결 확인. 상세: `fix/260526_...md` §13-7.
+- [x] **기동(재기동) 알림 — 텔레그램 + 화면 로그 (2026-07-25)** — Round 2가 실제로 3.13으로 도는지 원격 확인할 방법이 없다는 지적에서 "재기동 통보"로 일반화. Watchdog 시작 직후 `[SYSTEM]` 텔레그램 1회(앱 버전 + `platform.python_version()`) + UI 화면 SYSTEM LOG에도 "기동 완료 (Python x.x.x)" 표시. 최초 부팅·크래시 재spawn·예약 재시작 공통. dev PC 실조건검증: 텔레그램 코드 경로 무오류 확인 + 화면 로그창에 실제 렌더된 것 스크린샷으로 직접 확인(`PrintWindow` 캡처). — `processes/watchdog_process.py`, `ui/main_window.py`, `docs_ipc_spec.md §3.1`, `docs_기능_레퍼런스.md §10.5`.
 - [ ] **Round 2 운영 PC 실배포** — `python313_전환.bat` 더블클릭 1회 + 재기동. **배포 시점은 사용자 승인 필요**(되돌리고 싶어질 수 있는 변경 + ~4~5일 판정 시계 재가동).
   - ⚠ **재발 시 재부팅 전에 로그부터 회수**: `logs/*_ui.txt`, `fault.log`, `stderr_debug.txt`, `logs/*_detection.txt`, `logs/*_watchdog.txt`, `data/ui_degraded.flag`.
 
