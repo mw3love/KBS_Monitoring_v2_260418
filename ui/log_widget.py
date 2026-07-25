@@ -313,10 +313,10 @@ class LogWidget(QWidget):
         self._btn_search.toggled.connect(self._toggle_search_bar)
         header_row.addWidget(self._btn_search)
 
-        self._btn_debug = QPushButton("DEBUG")
+        self._btn_debug = QPushButton("개발자")
         self._btn_debug.setObjectName("btnLogDebug")
         self._btn_debug.setFixedSize(56, 24)
-        self._btn_debug.setToolTip("내부 디버그 로그 표시/숨김")
+        self._btn_debug.setToolTip("개발자용 상세 로그 표시/숨김")
         self._btn_debug.setCheckable(True)
         self._btn_debug.setChecked(False)
         self._btn_debug.toggled.connect(self._on_debug_toggled)

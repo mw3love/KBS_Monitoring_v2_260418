@@ -122,7 +122,7 @@ class VideoCaptureWorker(threading.Thread):
                     if cap.isOpened():
                         was_connected = True
                         consecutive_failures = 0
-                        self._emit(LogEntry(level="info", source="video",
+                        self._emit(LogEntry(level="debug", source="video",
                                             message=f"{source_name} 연결 성공"))
                     else:
                         if was_connected:

@@ -84,7 +84,7 @@ class AudioMonitorWorker(threading.Thread):
         self._running = True
 
         if not SOUNDDEVICE_AVAILABLE:
-            self._emit(LogEntry(level="info", source="audio",
+            self._emit(LogEntry(level="debug", source="audio",
                                 message="sounddevice 없음 - 더미 신호로 동작"))
             while self._running:
                 if self._shared_state is not None:
@@ -99,7 +99,7 @@ class AudioMonitorWorker(threading.Thread):
             return
 
         device_index = None
-        self._emit(LogEntry(level="info", source="audio",
+        self._emit(LogEntry(level="debug", source="audio",
                             message="DIAG-AUDIO: 사용 장치=(시스템 기본)"))
 
         # 외부 재시도 루프: 초기 init 실패 또는 inner 루프에서 예기치 못한 예외 시
@@ -126,15 +126,15 @@ class AudioMonitorWorker(threading.Thread):
                         dtype="int16",
                     )
                     output_stream.start()
-                    self._emit(LogEntry(level="info", source="audio",
+                    self._emit(LogEntry(level="debug", source="audio",
                                         message="오디오 스트림 시작 (패스스루 활성)"))
                 except Exception as e:
                     output_stream = None
-                    self._emit(LogEntry(level="info", source="audio",
+                    self._emit(LogEntry(level="debug", source="audio",
                                         message=f"오디오 스트림 시작 (출력 오류: {e})"))
 
                 if _outer_failures > 0:
-                    self._emit(LogEntry(level="info", source="audio",
+                    self._emit(LogEntry(level="debug", source="audio",
                                         message=f"오디오 스트림 복구 ({_outer_failures}회 재시도 후)"))
                     _outer_failures = 0
 
@@ -184,7 +184,7 @@ class AudioMonitorWorker(threading.Thread):
                                     output_stream.start()
                                     _out_errors = 0
                                     self._emit(LogEntry(
-                                        level="info", source="audio",
+                                        level="debug", source="audio",
                                         message="패스스루 출력 스트림 복구 (재오픈 성공)"))
                                 except Exception:
                                     output_stream = None
@@ -226,7 +226,7 @@ class AudioMonitorWorker(threading.Thread):
                                         output_stream.start()
                                         _out_errors = 0
                                         self._emit(LogEntry(
-                                            level="info", source="audio",
+                                            level="debug", source="audio",
                                             message="패스스루 출력 스트림 재오픈 성공"))
                                     except Exception as _re:
                                         output_stream = None
@@ -314,7 +314,7 @@ class AudioMonitorWorker(threading.Thread):
                                     output_stream = None
                                 consecutive_errors = 0
                                 self._silence_duration = 0.0
-                                self._emit(LogEntry(level="info", source="audio",
+                                self._emit(LogEntry(level="debug", source="audio",
                                                     message="오디오 스트림 재연결 성공"))
                             except Exception as re_e:
                                 self._emit(StreamError(source="audio",

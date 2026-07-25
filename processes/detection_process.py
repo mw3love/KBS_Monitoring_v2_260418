@@ -663,7 +663,7 @@ def run(result_queue, cmd_queue, shutdown_event,
                 _roi_zero_notified,
             )
         except _ShutdownSignal:
-            log_info("Shutdown 메시지 수신 → 종료")
+            log_debug("Shutdown 메시지 수신 → 종료")
             _running = False
         except Exception as e:
             try:
@@ -691,7 +691,7 @@ def run(result_queue, cmd_queue, shutdown_event,
 
         # shutdown 체크
         if shutdown_event is not None and shutdown_event.is_set():
-            log_info("shutdown_event 감지 → 종료")
+            log_debug("shutdown_event 감지 → 종료")
             _running = False
             break
 
@@ -1009,7 +1009,7 @@ def _process_alarms(
                     recorder.trigger(det_type, lbl, media)
                 # DIAG-복구추적(임시): 블랙/스틸 복구 누락 조사용 — 진입 기록. fix/260720
                 _put(result_queue,
-                     LogEntry(level="info", source="detection",
+                     LogEntry(level="debug", source="detection",
                               message=f"DIAG-복구추적 {lbl} {det_type} 감지 (suppressed={suppressed})"),
                      ipc_counters)
             elif not alerting and was:
@@ -1036,7 +1036,7 @@ def _process_alarms(
                     _diag = "복구문자 발송"
                 # DIAG-복구추적(임시): 복구 시점 어느 갈래로 처리됐는지 기록. fix/260720
                 _put(result_queue,
-                     LogEntry(level="info", source="detection",
+                     LogEntry(level="debug", source="detection",
                               message=f"DIAG-복구추적 {lbl} {det_type} 해제 → {_diag} (dur={duration:.1f}s)"),
                      ipc_counters)
 
@@ -1079,7 +1079,7 @@ def _process_alarms(
                 _diag = "복구문자 발송"
             # DIAG-복구추적(임시): 오디오레벨 복구 갈래 기록. fix/260720
             _put(result_queue,
-                 LogEntry(level="info", source="detection",
+                 LogEntry(level="debug", source="detection",
                           message=f"DIAG-복구추적 {lbl} audio_level 해제 → {_diag}"),
                  ipc_counters)
 
@@ -1103,7 +1103,7 @@ def _process_alarms(
                         duration_sec=detector._last_embedded_alert_duration)
         # DIAG-복구추적(임시): EA 복구 발송 기록. fix/260720
         _put(result_queue,
-             LogEntry(level="info", source="detection",
+             LogEntry(level="debug", source="detection",
                       message="DIAG-복구추적 EA embedded 해제 → 복구문자 발송"),
              ipc_counters)
     _process_alarms._emb_was = emb_alerting

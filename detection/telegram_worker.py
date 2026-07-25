@@ -69,9 +69,9 @@ class TelegramWorker:
             except Exception:
                 pass
 
-    def _log(self, message: str, error: bool = False):
+    def _log(self, message: str, error: bool = False, debug: bool = False):
         from ipc.messages import LogEntry, TelegramStatus
-        level = "error" if error else "info"
+        level = "debug" if debug else ("error" if error else "info")
         self._emit(LogEntry(level=level, source="telegram", message=message))
 
     # ── 생명주기 ──────────────────────────────────────────────────────────────
@@ -437,7 +437,7 @@ class TelegramWorker:
                     )
                 if resp.status_code == 200:
                     kind = "복구" if is_recovery else "알림"
-                    self._log(f"{alarm_type} {kind} 전송 완료 ({channel_str})")
+                    self._log(f"{alarm_type} {kind} 전송 완료 ({channel_str})", debug=True)
                     self._emit(TelegramStatus(event="sent",
                                               message=f"{alarm_type} {kind} ({channel_str})",
                                               queue_size=self._queue.qsize()))
@@ -555,7 +555,7 @@ class TelegramWorker:
                         timeout=timeout,
                     )
                 if resp.status_code == 200:
-                    self._log(f"{log_kind} 알림 전송 완료 ({group_name})")
+                    self._log(f"{log_kind} 알림 전송 완료 ({group_name})", debug=True)
                     self._emit(TelegramStatus(event="sent",
                                               message=f"{log_kind} ({group_name})",
                                               queue_size=self._queue.qsize()))
@@ -637,7 +637,7 @@ class TelegramWorker:
                     timeout=timeout,
                 )
                 if resp.status_code == 200:
-                    self._log(f"{log_kind} 전송 완료 ({item['group_name']})")
+                    self._log(f"{log_kind} 전송 완료 ({item['group_name']})", debug=True)
                     self._emit(TelegramStatus(event="sent",
                                               message=f"{log_kind} ({item['group_name']})",
                                               queue_size=self._queue.qsize()))
