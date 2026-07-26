@@ -228,6 +228,11 @@ if __name__ == '__main__':
   `notify_system` 게이트를 **우회**한다(`settings_dialog.py`). `[SYSTEM]` 알림(재spawn·비정상종료·**UI 손상 통보**)은
   `telegram.notify_system`이 `true`여야 나간다(`watchdog_process.py`, `main.py`).
   → 배포 시 **`알림설정` 탭의 `시스템 이벤트 알림` 체크**와 **`연결 테스트`를 따로** 확인할 것.
+- ⚠ **설정을 복원하기 *전에* 기동한 세션에서는 `[SYSTEM]` 텔레그램이 안 나간다(정상).** Watchdog은 기동 직후
+  `config/kbs_config.json`을 **1회만** 읽는데 신규 clone엔 그 파일이 없다. 설정 복원 후 **재기동해야** 기동 알림이
+  나가기 시작한다 — 이걸 "설정파일이 낡아서"로 오진하지 말 것(2026-07-25 실제 오진, 반증 근거는
+  `fix/260526_설정다이얼로그_TypeError_재현불가.md` §13-9).
+  미발송 시 사유는 각 프로세스 로그에 남는다(`[SYSTEM] 텔레그램 미발송(...)`).
 
 ### UI 손상 통보 (onset → Watchdog 대행 발송)
 

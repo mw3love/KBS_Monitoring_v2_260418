@@ -120,13 +120,23 @@ def _send_system_telegram_main(message: str):
                 break
         except Exception:
             pass
-    if not tg.get("enabled", False):
-        return
-    if not tg.get("notify_system", True):
-        return
     token = tg.get("bot_token", "").strip()
     chat_id = (tg.get("system_chat_id", "") or tg.get("chat_id", "")).strip()
+
+    # 차단 사유를 남긴다 (watchdog_process._send_system_telegram과 같은 이유).
+    # 이 프로세스에는 모듈 수준 로거가 없어 stderr로 — 실행.bat이 logs/stderr_debug.txt로 리다이렉트.
+    skip = None
     if not token or not chat_id:
+        # 위 루프는 token+chat_id를 갖춘 파일을 찾지 못하면 마지막으로 읽은 값을 남긴다
+        # → "설정 미배치"를 enabled=false로 오인 보고하지 않도록 이 검사를 먼저 둔다.
+        skip = "설정 파일 어디에도 bot_token+chat_id 없음 (신규 설치 후 설정 미복원 가능성)"
+    elif not tg.get("enabled", False):
+        skip = "telegram.enabled=false"
+    elif not tg.get("notify_system", True):
+        skip = "telegram.notify_system=false"
+    if skip:
+        print(f"[main] [SYSTEM] 텔레그램 미발송({skip}): {message}",
+              file=sys.stderr, flush=True)
         return
     try:
         _req.post(
@@ -255,13 +265,16 @@ def main():
 
     # ── Watchdog 프로세스 spawn ───────────────────────────────────
     from processes.watchdog_process import run as watchdog_run
+    # 기동 알림·재spawn 알림에 찍히는 앱 버전 — 단일 출처(ui.main_window.VERSION)에서 가져온다.
+    # 하드코딩 "2.8"이던 탓에 원격 텔레그램이 실제 배포판(2.8.6)을 못 알려줬다(2026-07-26 발견).
+    from ui.main_window import VERSION as _APP_VERSION
     watchdog_proc = multiprocessing.Process(
         target=watchdog_run,
         args=(
             result_queue, cmd_queue, shutdown_event,
             state_lock, FRAME_SHM, STATE_SHM,
             os.getpid(),
-            "2.8",
+            _APP_VERSION,
             cmd_event,
         ),
         daemon=False,

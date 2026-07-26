@@ -74,16 +74,27 @@ def _send_system_telegram(message: str, logger=None) -> bool:
     TelegramWorker와 독립적으로 동작 — Detection이 죽어도 송신 가능.
     notify_system 설정이 False면 발송 건너뜀.
     """
-    if not _REQUESTS_AVAILABLE:
-        return False
     tg = _load_telegram_cfg()
-    if not tg.get("enabled", False):
-        return False
-    if not tg.get("notify_system", True):
-        return False
     token = tg.get("bot_token", "").strip()
     chat_id = (tg.get("system_chat_id", "") or tg.get("chat_id", "")).strip()
-    if not token or not chat_id:
+
+    # 차단 사유를 반드시 로그에 남긴다 — 조용한 return False는 "왜 안 왔나"를
+    # 추적 불가능하게 만든다(2026-07-25 기동 알림 무응답 사건에서 실제로 그랬다).
+    skip = None
+    if not _REQUESTS_AVAILABLE:
+        skip = "requests 모듈 없음"
+    elif not tg:
+        skip = ("config/kbs_config.json·default_config.json 어디에도 bot_token+chat_id 없음 "
+                "— 신규 설치 후 설정 미복원 상태일 수 있음")
+    elif not tg.get("enabled", False):
+        skip = "telegram.enabled=false"
+    elif not tg.get("notify_system", True):
+        skip = "telegram.notify_system=false (알림설정 탭의 '시스템 이벤트 알림')"
+    elif not token or not chat_id:
+        skip = "bot_token 또는 chat_id 비어 있음"
+    if skip:
+        if logger:
+            logger.info(f"[SYSTEM] 텔레그램 미발송({skip}): {message}")
         return False
 
     text = f"<b>[SYSTEM]</b> {message}"

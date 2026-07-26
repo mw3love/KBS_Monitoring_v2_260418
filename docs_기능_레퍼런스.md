@@ -510,6 +510,9 @@ CPU/RAM 10초 주기 갱신 (TopBar). GPU는 v2.8.0부터 기본 OFF — §2.2 �
 - 최초 부팅·크래시 재spawn·예약 재시작 공통 — 원격 접속 없이도 재기동 여부·파이썬 버전 확인 가능
 - 화면 로그창(SYSTEM LOG)에도 "기동 완료 (Python x.x.x)" 로 동일 정보 표시
 - `notify_system` 설정을 따름(텔레그램 부분은 OFF 시 미발송, 화면 로그는 항상 표시)
+- 앱 버전은 `ui.main_window.VERSION` 단일 출처에서 가져온다 (v2.8.7 이전에는 `main.py`에 `"2.8"`이 하드코딩돼 있어 실제 배포판을 알려주지 못했다)
+- ⚠ **신규 clone 후 설정을 복원하기 전에 기동한 세션에서는 텔레그램이 안 나간다** — Watchdog은 기동 직후 `config/kbs_config.json`을 1회만 읽는데 그 파일은 gitignore 대상이라 새 빌드에 없다. 설정 복원 후 **재기동**해야 나가기 시작한다(화면 로그는 정상 표시)
+- **미발송 시 사유가 로그에 남는다**(v2.8.7~): `[SYSTEM] 텔레그램 미발송(설정 미배치 / enabled=false / notify_system=false / 토큰 공백): {메시지}` — Watchdog은 `logs/YYYYMMDD_watchdog.txt`, main은 stderr(`logs/stderr_debug.txt`)
 
 ---
 
