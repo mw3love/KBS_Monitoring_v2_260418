@@ -2,7 +2,7 @@
 정파준비/정파모드 상태 관리 모듈
 v1 core/signoff_manager.py에서 QObject/QTimer/Signal 제거.
 1초 주기 점검: threading.Thread + time.sleep(1).
-상태 전환 이벤트는 result_queue에 SignoffStateChange / LogEntry 발행.
+상태 전환 이벤트는 result_queue에 SignoffStateChange 발행 (사람이 읽는 문장은 message 필드로 동봉).
 PySide6 임포트 없음.
 """
 import time
@@ -625,7 +625,7 @@ class SignoffManager:
         그 외에는 time.time(). _emit 직전에 확정되므로 _signoff_emit_safe가
         signoff_mgr._signoff_entered_at[gid]를 안전하게 읽을 수 있다.
         """
-        from ipc.messages import SignoffStateChange, LogEntry
+        from ipc.messages import SignoffStateChange
         old_state = self._states.get(group_id)
         if old_state == new_state:
             return
@@ -670,6 +670,6 @@ class SignoffManager:
             prev_state=prev_str,
             new_state=new_state.value,
             source=source,
+            message=msg,
         ))
-        self._emit(LogEntry(level="info", source="signoff", message=msg))
         _log.info("SignoffManager [%s] %s → %s [%s]", group.name, prev_str, new_state.value, source)

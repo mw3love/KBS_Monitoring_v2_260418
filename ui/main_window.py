@@ -371,24 +371,25 @@ class MainWindow(QMainWindow):
             self._signoff_suppressed_labels[msg.group_id] = []
 
         _SOURCE_KO = {
-            "auto-time": "시간", "auto-detect": "감지",
+            "auto-time": "시간", "auto-detect": "감지", "auto-revert": "감지",
             "manual": "수동", "restore": "복원", "auto": "자동",
         }
         src_ko = _SOURCE_KO.get(msg.source, msg.source)
+        base_text = msg.message or f"그룹{msg.group_id}: {msg.prev_state} → {msg.new_state}"
 
         if msg.new_state == "SIGNOFF" and msg.prev_state != "SIGNOFF" and msg.source != "restore":
             labels = self._signoff_suppressed_labels[msg.group_id]
             label_str = "·".join(labels) if labels else "-"
-            log_text = f"그룹{msg.group_id}: SIGNOFF 진입 [{src_ko}] — 억제: {label_str}"
+            log_text = f"{base_text} [{src_ko}] — 억제: {label_str}"
             log_type = "sign_enter"
         elif msg.prev_state == "SIGNOFF" and msg.new_state != "SIGNOFF":
             entered_at = self._signoff_entered_at.get(msg.group_id, 0.0)
             elapsed = (time.time() - entered_at) if entered_at > 0 else 0.0
             elapsed_str = f" ({_fmt_dur(elapsed)})" if elapsed > 0 else ""
-            log_text = f"그룹{msg.group_id}: SIGNOFF 해제 [{src_ko}]{elapsed_str}"
+            log_text = f"{base_text} [{src_ko}]{elapsed_str}"
             log_type = "sign_rel"
         else:
-            log_text = f"그룹{msg.group_id}: {msg.prev_state} → {msg.new_state} [{src_ko}]"
+            log_text = f"{base_text} [{src_ko}]"
             # 정파준비 돌입만 앰버 강조, 그 외 전환(예: 정파준비 종료)은 중립 info
             log_type = "sign_prep" if msg.new_state == "PREPARATION" else "info"
 

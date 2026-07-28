@@ -65,6 +65,7 @@ class SignoffStateChange(BaseMsg):
     new_state: str = ""         # 'IDLE' | 'PREPARATION' | 'SIGNOFF'
     source: str = ""            # 'auto' | 'manual' | 'trigger'
     suppress_alarm_sound: bool = False  # 플래핑 묶음 모드 중 전환 — UI 정파 알림음 억제
+    message: str = ""           # 사람이 읽는 전환 문장 (그룹명 포함, 예: "2TV 정파모드에 돌입합니다")
 
 
 @dataclass
