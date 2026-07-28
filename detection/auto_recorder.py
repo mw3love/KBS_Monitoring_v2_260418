@@ -167,23 +167,27 @@ class AutoRecorder:
             except Exception:
                 pass
 
-        if self._recording:
-            if now < self._record_end and len(self._record_queue) < _MAX_RECORD_FRAMES:
-                try:
-                    small = cv2.resize(frame, (self._out_w, self._out_h))
-                    self._record_queue.append((now, small))
-                except Exception:
-                    pass
-            else:
-                if len(self._record_queue) >= _MAX_RECORD_FRAMES:
-                    _log.warning("녹화 큐 상한 도달 (%d프레임) — 녹화 강제 종료", _MAX_RECORD_FRAMES)
-                    from ipc.messages import RecordingEvent, LogEntry
-                    self._emit(RecordingEvent(event="drop", label="", reason="max_frames"))
-                    self._emit(LogEntry(
-                        level="error", source="recorder",
-                        message=f"녹화 프레임 버퍼 상한 도달({_MAX_RECORD_FRAMES}프레임) — 녹화 강제 종료",
-                    ))
-                self._recording = False
+            # 녹화 중 프레임도 반드시 이 게이트(out_fps 간격) 안에서만 기록한다.
+            # 게이트 밖에서 기록하면 실제 캡처 fps가 out_fps보다 높을 때 VideoWriter에
+            # 선언된 fps보다 훨씬 많은 프레임이 쌓여, 알람 발생 후(post-trigger) 구간
+            # 영상이 실제보다 느리게 늘어지고 실시간으로 흐르는 오디오와 점점 어긋난다.
+            if self._recording:
+                if now < self._record_end and len(self._record_queue) < _MAX_RECORD_FRAMES:
+                    try:
+                        small_rec = cv2.resize(frame, (self._out_w, self._out_h))
+                        self._record_queue.append((now, small_rec))
+                    except Exception:
+                        pass
+                else:
+                    if len(self._record_queue) >= _MAX_RECORD_FRAMES:
+                        _log.warning("녹화 큐 상한 도달 (%d프레임) — 녹화 강제 종료", _MAX_RECORD_FRAMES)
+                        from ipc.messages import RecordingEvent, LogEntry
+                        self._emit(RecordingEvent(event="drop", label="", reason="max_frames"))
+                        self._emit(LogEntry(
+                            level="error", source="recorder",
+                            message=f"녹화 프레임 버퍼 상한 도달({_MAX_RECORD_FRAMES}프레임) — 녹화 강제 종료",
+                        ))
+                    self._recording = False
 
     def push_audio(self, samples: np.ndarray, timestamp: float):
         if not self._enabled:
@@ -334,6 +338,10 @@ class AutoRecorder:
                 v_start = pre_frames[0][0] if pre_frames else None
                 a_start = pre_audio[0][0] if pre_audio else None
                 audio_offset = (a_start - v_start) if (v_start and a_start) else 0.0
+                _log.info(
+                    "녹화 A/V 오프셋: audio_offset=%.3fs (pre_frames=%d, pre_audio=%d)",
+                    audio_offset, len(pre_frames), len(pre_audio),
+                )
                 merged = self._merge_with_ffmpeg(vtmp, atmp, filepath, audio_offset)
 
         finally:
