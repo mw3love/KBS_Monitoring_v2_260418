@@ -28,7 +28,7 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.8.8"
+VERSION = "2.8.9"
 
 
 class MainWindow(QMainWindow):
@@ -599,6 +599,10 @@ class MainWindow(QMainWindow):
             self._settings_dlg.raise_()
             self._settings_dlg.activateWindow()
             return
+        if hasattr(self, "_settings_dlg"):
+            # 이전 인스턴스는 close() 후에도 부모(self)에 매달려 살아있으므로
+            # (WA_DeleteOnClose 미설정) 명시적으로 해제하지 않으면 열 때마다 누적된다.
+            self._settings_dlg.deleteLater()
         from ui.settings_dialog import SettingsDialog
         frozen_frame = self._video_widget.get_current_frame()
         self._settings_dlg = SettingsDialog(
@@ -610,7 +614,10 @@ class MainWindow(QMainWindow):
             cmd_event=self._cmd_event,
         )
         self._settings_dlg.config_saved.connect(self._on_config_saved)
+        self._settings_dlg.finished.connect(
+            lambda: self._logger.info("[settings] 설정창 닫힘"))
         self._settings_dlg.show()
+        self._logger.info("[settings] 설정창 열림")
 
     @staticmethod
     def _load_signoff_sounds(cfg: dict) -> dict:

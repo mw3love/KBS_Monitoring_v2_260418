@@ -48,3 +48,6 @@ presentation/
 .DS_Store
 desktop.ini
 Thumbs.db
+
+# Claude Code personal local settings
+.claude/settings.local.json

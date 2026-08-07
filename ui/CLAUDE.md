@@ -5,6 +5,10 @@
 - 레이아웃 변수명은 역할별로 명확하게 (`inner`, `layout` 같은 범용 이름 재사용 금지)
   - 잘못된 예: `layout = QVBoxLayout()` → 이후 `layout = QHBoxLayout()` 덮어쓰기 → 이전 위젯 GC 삭제
   - 올바른 예: `scroll_layout = QVBoxLayout()`, `button_row = QHBoxLayout()`
+- 다이얼로그를 열 때마다 새 인스턴스를 만드는 패턴(`_open_settings()`류)은 이전 인스턴스에
+  **반드시 `deleteLater()`** 호출 후 재생성. `parent=`가 있는 위젯은 `close()`만으로는
+  C++ 객체가 안 죽고 부모에 숨어 계속 쌓인다 — SettingsDialog 13일간 RSS 198→373MB
+  누수 사고 원인(`fix/260526_설정다이얼로그_TypeError_재현불가.md` §13-11).
 
 ## UI 전용 규칙
 - **QSpinBox 위아래 버튼 사용 금지**
