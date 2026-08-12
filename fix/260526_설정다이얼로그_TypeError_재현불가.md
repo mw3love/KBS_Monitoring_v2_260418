@@ -1,7 +1,7 @@
 # 설정 다이얼로그 TypeError (재현불가) — 260526
 
-> **상태**: **5건 발생** (260526, 260620, 260706, 260711, 260724) → **Round 2(Python 3.13 다운그레이드)로 해결 확정(2026-08-07, §13-10)**. 범인은 Python 3.14 계열.
-> **최신은 §13-10~11 (Round 2 판정 통과 확정 + 부수 발견인 UI 메모리 완만 증가 버그 수정)**. 여기부터 읽는 게 빠르다.
+> **상태**: **6건 발생** (260526, 260620, 260706, 260711, 260724, 260811). Round 2(Python 3.13) 결론(범인은 Python 3.14 계열)은 **유지·재확증**됐으나, §13-10의 "해결 확정"은 **운영 사각지대였음이 드러났다** — 2026-08-07 재배포가 `.venv313`을 조용히 지워 08-07~08-12 닷새 내내 아무도 모르게 3.14로 돌고 있었다(§14).
+> **최신은 §14 (6차 발생 — 배포가 Round 2 픽스를 조용히 무효화한 경위 + 재확증된 onset traceback)**. §13-10~11은 그 자체로는 유효한 13일 표본이지만 "이후로도 3.13이 돈다"는 전제가 §14에서 깨졌으니 함께 읽을 것.
 > **버전**: 1차 v2.2.7 / 2차 v2.7.1 / 3차 v2.7.5 / 4차 v2.7.9 / 5차 v2.8.1. 동일 코드 베이스.
 > **결론**: 근본 원인 **미규명**. 관측 기반 접근(§10 계측, §11 디버그 할당자)은 4회 모두 범인 특정에 실패 →
 > §12 제거 실험(Round 1: GPU폴링·psutil주기·QImage버퍼)도 **5차 재발로 부결** → §13에서 **Round 2(Python 3.13 다운그레이드)** 로 전환.
@@ -588,3 +588,76 @@ Round 2 판정을 위해 HEALTH 로그를 전수 비교하던 중, Detection(212
 - **수정**: 새 인스턴스 생성 직전 이전 인스턴스에 `deleteLater()` 호출 + 열림/닫힘 로그(`[settings] 설정창 열림/닫힘`) 추가 — `ui/main_window.py` `_open_settings()`.
 - **검증(프록시)**: 독립 하네스로 열기/닫기 6회 반복 — 자식 위젯 수가 무한 증가하지 않고 800(기준)→1599(과도기, deleteLater 처리 전이라 신구 공존)→종료 후 800(기준선 복귀)로 수렴 확인, 로그 열림/닫힘 쌍 정상 기록.
 - ⚠ **미검증(실조건)**: dev PC 하네스는 실제 MainWindow 전체 없이 `_open_settings()` 패턴만 재현한 것 — 운영 PC에서 수개월 단위로 HEALTH RSS가 실제로 평평해지는지는 다음 로그 회수가 실조건검증.
+
+## 14. 6차 발생 (2026-08-11, v2.8.9) — 원인: 배포가 Round 2 픽스를 조용히 무효화
+
+> **조사 방식 전환**: 이번엔 로그파일을 개발 PC로 복사해 추측하지 않고, **운영 PC(이 PC 자체) 위에서 직접** 실행 중 프로세스·파일시스템·`git reflog`·런처 체인을 조사했다(2026-08-12, 사용자 지시).
+
+### 14-1. 증거 — 실제로는 3.13이 아니라 3.14로 돌고 있었다
+
+| 확인 항목 | 결과 |
+|---|---|
+| 사고 당시 UI 프로세스 커맨드라인 | `Python314\python.exe main.py` |
+| 런처 체인 | `cmd.exe /c 실행.bat` → `py` → **3.14.3** |
+| `.venv313\Scripts\python.exe` 존재 | **없음** (`Test-Path` = False) |
+| `.gitignore` | 15번째 줄에 `.venv313/` 등재 — clone에 안 따라옴 |
+| `git reflog` | `2026-08-07 13:21:36 clone: from https://github.com/mw3love/KBS_Monitoring_v2_260418` **1건뿐**. 프로젝트 폴더 자체의 생성시각도 정확히 그 순간 — 기존 폴더에서 `git pull`한 게 아니라 **폴더째로 새로 클론된 배포**였음을 뜻한다. |
+| 08-07 기동 배너 | `logs/20260807_ui.txt:2` — `SYSTEM - EXPERIMENT: ... python=3.14.3` |
+| onset | `2026-08-11 09:33:03` (`data/ui_degraded.flag`, watchdog 로그 텔레그램 발송 기록) |
+
+**결론**: 2026-08-07 13:22 재배포 시점부터 이미 3.14로 돌고 있었다. §13-10 판정("07-25~08-07 13일 무손상")은 그 자체로는 유효한 3.13 표본이지만, **그 이후로도 3.13이 계속 돈다는 전제가 08-07 배포 순간 조용히 깨졌다** — 아무도 몰랐던 5일짜리 사각지대(08-07~08-12)였다.
+
+### 14-2. 근본 원인 — `.venv313`도 `config/kbs_config.json`과 같은 "신규 clone 함정"
+
+`실행.bat`의 인터프리터 선택 로직:
+
+```bat
+set "PYEXE=python"
+where py >nul 2>nul && set "PYEXE=py"
+if exist "%~dp0.venv313\Scripts\python.exe" set "PYEXE=%~dp0.venv313\Scripts\python.exe"
+```
+
+`.venv313`이 있으면 그걸 쓰고, **없으면 경고 없이** `py`(시스템 기본, 3.14)로 폴백한다. `.venv313/`은 `.gitignore` 대상이라 **신규 clone마다 사라진다** — 이미 CLAUDE.md "신규 빌드 배포 시 함정"에 문서화돼 있던 `config/kbs_config.json` 유실 패턴과 정확히 같은 종류의 함정인데, 목록에 없어서 이번에 처음 걸렸다.
+
+### 14-3. 새로 확보된 onset traceback (1~5차엔 없던 증거)
+
+`PYTHONMALLOC=debug`로 잡은 `logs/stderr_debug.txt`의 실제 손상 순간 스택:
+
+```
+File "ui/main_window.py", line 412, in _on_signoff_state_changed
+    self._alarm.play_signoff_sound(sound)
+File "ui/alarm.py", line 187, in play_signoff_sound
+    th = threading.Thread(...)
+File ".../threading.py", line 940, in __init__
+    self._started = Event()
+File ".../threading.py", line 603, in __init__
+    self._cond = Condition(Lock())
+TypeError: __init__() should return None, not 'NoneType'
+```
+
+트리거는 **정파 전환 알림음 재생**(`_on_signoff_state_changed` → `play_signoff_sound`)이 새 `threading.Thread`를 생성하는 지점. 과거 5회는 onset 순간의 정확한 코드 경로를 못 잡았는데(§10~11 계측 실패), 이번엔 `PYTHONMALLOC=debug`가 켜진 채로 재현돼 처음으로 확보했다.
+⚠ 다만 `stderr_debug.txt` 전체(4696줄, 3.84일치)에 **pymalloc 디버그 할당자의 가드바이트 위반 메시지는 0건** — 이 손상은 malloc guard byte로 잡히는 단순 버퍼 오버플로/wild write는 아니다(§11 가설 중 하나 배제). CPython 3.14 내부 상태 자체의 문제이거나, guard byte로 안 잡히는 종류의 corruption으로 범위가 좁혀진다.
+
+### 14-4. Round 2 판정 재해석 — 무효화 아니라 재확증
+
+| 구간 | 인터프리터 | 결과 |
+|---|---|---|
+| 07-25 ~ 08-07 (13일) | 3.13.14 | 손상 0회 |
+| 08-07 13:22 ~ 08-11 09:33 (3.84일) | 3.14.3 (의도치 않음) | **손상 발생** |
+
+의도치 않은 크로스오버 실험이 됐지만 결과는 §13-10의 "Python 3.14 계열이 범인"을 **약화시키지 않고 오히려 재확증**한다. 다만 정직하게 표기: 3.84일은 과거 1~5차 onset 구간(4.15~5.1일, Round 1 5.48일)보다 짧다 — 같은 자릿수이지만 완전히 같은 패턴은 아니다.
+
+### 14-5. 조치
+
+- **`.venv313` 재생성**: `py -3.13 -m venv .venv313` + `requirements.txt` 7개 패키지 설치 성공(빌드 에러 0).
+- **앱 재기동**(2026-08-12 09:49): `logs/20260812_ui.txt:92`에 `python=3.13.14` 확인, `data/ui_degraded.flag` 소멸(손상 상태 해소).
+- **`실행.bat` 수정**: `.venv313` 부재 시 더 이상 조용히 폴백하지 않는다 — 콘솔과 `logs/stderr_debug.txt` 양쪽에 `[launcher] NOTICE: .venv313 not found - falling back to default interpreter: ...` 기록. `logs\` 생성 순서를 인터프리터 선택보다 앞으로 옮겨서 이 알림도 로그에 남게 함.
+- **CLAUDE.md**: "신규 빌드 배포 시 함정"에 `.venv313` 항목 추가(§14 참조).
+
+### 14-6. 판정 시계 재시작
+
+새 위험창은 **2026-08-12 09:49부터** 다시 카운트(3.13.14 기준). 과거 onset 패턴(4.15~5.1일)대로면 다음 판정 시점은 **~08-16~08-17**.
+⚠ **이번엔 배포 방식 자체를 바꾸지 않는 한 표본이 또 오염될 수 있다** — 다음 재배포도 "폴더 삭제 후 재clone" 방식이면 `.venv313`이 또 사라진다. `실행.bat`의 NOTICE 추가는 안전망이지 예방책이 아니므로, 재배포 직후엔 반드시 그날 UI 로그의 `EXPERIMENT: ... python=` 배너를 눈으로 확인하는 걸 배포 체크리스트에 못박을 것.
+
+Confidence: high (프로세스 커맨드라인·git reflog·기동 로그 3중 교차확인)
+Not-tested: `.venv313` 재생성이 이번에도 5일 안에 재발을 막는지는 다음 위험창(~08-16~17)까지 미판정.
