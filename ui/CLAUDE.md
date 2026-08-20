@@ -19,6 +19,10 @@
     - 정파 3상태(sign_prep=준비 / sign_enter=정파돌입 / sign_rel=해제)는 전용 앰버 단일색 #C89B3C 공유,
       상태 구분은 배지(준비/정파/해제)로. 배경 알파는 돌입만 강조(0.24), 준비·해제는 옅게(0.10).
       좁은 로그창에서 메시지가 잘려도 배지+배경색으로 3상태 즉시 인지 목적.
+    - 복구 배지 테두리(2px)는 복구된 원 알람 타입 색(블랙=빨강/스틸=보라/오디오=초록/임베디드=파랑)을
+      사용. 채우기는 청록 그대로 유지 — 채우기까지 알람색으로 바꾸면 "새 경보 행"과 색이 겹쳐
+      헷갈리므로 테두리로 채널을 분리(2026-08-20). 구현: `LogItemData.accent_type` →
+      `add_log(accent_type=...)` → `LogRowDelegate.paint()`에서 `QPen`으로 테두리만 그림.
   - 로그 필터는 그룹 단위(`ALL | VIDEO | AUDIO | ERROR | INFO`).
     그룹↔log_type 매핑은 `LogWidget._GROUP_TYPES`에서 단일 출처로 관리.
     log_type 추가 시 `_TYPE_COLORS`, `_BADGE_LABELS`, `_GROUP_TYPES` 세 군데 동시 갱신.

@@ -300,6 +300,7 @@ class MainWindow(QMainWindow):
             f"{lbl_str} {msg.detection_type} ({_fmt_dur(msg.duration_sec)})",
             log_type="recovery",
             source="복구",
+            accent_type=self._detect_type_to_log_type(msg.detection_type),
         )
         self._refresh_summary()
 

@@ -30,6 +30,7 @@ class LogItemData:
     is_separator: bool = False
     is_newest: bool = False
     pulse_alpha: float = 0.0
+    accent_type: str = ""  # recovery 전용: 복구된 원 알람 타입(배지 테두리 색상용)
 
 
 class LogRowDelegate(QStyledItemDelegate):
@@ -183,7 +184,18 @@ class LogRowDelegate(QStyledItemDelegate):
         if bg_hex:
             badge_bg = QColor(bg_hex)
             painter.setBrush(QBrush(badge_bg))
-            painter.setPen(Qt.NoPen)
+            # 복구 배지: 원 알람 타입 색상을 테두리로 표시 (채우기는 복구색 유지 —
+            # 경보 행과 색이 겹쳐 "새 경보 vs 복구"가 헷갈리는 것을 방지)
+            accent_hex = None
+            if data.log_type == "recovery" and data.accent_type:
+                accent_colors = self._TYPE_COLORS_DARK if self._dark else self._TYPE_COLORS_LIGHT
+                accent = accent_colors.get(data.accent_type)
+                if accent:
+                    accent_hex = accent[0]
+            if accent_hex:
+                painter.setPen(QPen(QColor(accent_hex), 2))
+            else:
+                painter.setPen(Qt.NoPen)
             painter.drawRoundedRect(badge_rect, 3, 3)
             painter.setPen(QColor(badge_fg_hex))
         else:
@@ -526,7 +538,8 @@ class LogWidget(QWidget):
 
     # ── 공개 API ─────────────────────────────────────────────────
 
-    def add_log(self, message: str, log_type: str = "info", source: str = ""):
+    def add_log(self, message: str, log_type: str = "info", source: str = "",
+                accent_type: str = ""):
         """로그 항목 추가.
         log_type: "debug" | "info" | "black" | "still" | "audio" | "embedded" | "error"
           - black: 블랙 감지 (영상 이상) — VIDEO 그룹
@@ -535,6 +548,8 @@ class LogWidget(QWidget):
           - embedded: 임베디드 오디오 이상 — AUDIO 그룹
           - error: 시스템 장애 (스트림/크래시/녹화/텔레그램) — SYSTEM 그룹
         source: 소스 태그 (예: "시스템", "알람", "복구")
+        accent_type: log_type="recovery"일 때 복구된 원 알람 타입("black"/"still"/"audio"/"embedded")
+          — 배지 테두리 색상으로 표시되어 텍스트를 읽지 않고도 어떤 알람이 복구됐는지 구별 가능
         """
         now = datetime.datetime.now()
         date_str = now.strftime("%Y-%m-%d")
@@ -552,6 +567,7 @@ class LogWidget(QWidget):
             is_separator=False,
             is_newest=True,
             pulse_alpha=0.25,
+            accent_type=accent_type,
         )
         self._insert_item(data)
 
