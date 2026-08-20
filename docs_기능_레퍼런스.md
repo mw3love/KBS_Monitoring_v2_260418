@@ -111,7 +111,7 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 | audio | AUDIO | 초록 #1f7a1f | AUDIO |
 | embedded | EMBED | 파랑 #1e5a9e | AUDIO |
 | error (시스템 장애) | ERROR | 주황 #e8730a | ERROR |
-| recovery (복구) | 복구 | 청록 #1aa68a (행 배경 알파 0.10, 에러보다 옅게) | INFO |
+| recovery (복구) | 복구 | 청록 #1aa68a (행 배경 알파 0.10, 에러보다 옅게) + 배지 테두리 2px는 복구된 원 알람 색(블랙=빨강/스틸=보라/오디오=초록/임베디드=파랑) | INFO |
 | sign_prep (정파준비) | 준비 | 앰버 #C89B3C (행 배경 알파 0.10, 옅게) | INFO |
 | sign_enter (정파돌입) | 정파 | 앰버 #C89B3C (행 배경 알파 0.24, 강조) | INFO |
 | sign_rel (정파해제) | 해제 | 앰버 #C89B3C (행 배경 알파 0.10, 옅게) | INFO |
