@@ -18,6 +18,52 @@ v1(KBS Peacock v1.6.x)의 핵심 문제인 **"장기 운영 시 감지 루프 fr
 
 ---
 
+## 스크린샷
+
+### 메인 모니터링 화면
+
+16채널 실시간 그리드와 시스템 로그를 한 화면에서 확인합니다. 감지된 채널은 빨간 테두리,
+정파 채널은 회색 처리됩니다.
+
+![메인 대시보드](docs/screenshots/01_dashboard.png)
+
+디버그 모드에서는 시스템 로그에 억제(suppress) 판단 근거까지 상세히 기록됩니다.
+
+![메인 대시보드 - 디버그 로그](docs/screenshots/08_dashboard_debug.png)
+
+### 설정 다이얼로그
+
+<details>
+<summary>7탭 설정 다이얼로그 스크린샷 펼치기</summary>
+
+**비디오 영역 설정** — 채널별 감지 영역(ROI)을 좌표로 편집합니다.
+
+![비디오 영역 설정](docs/screenshots/02_video_roi.png)
+
+**오디오 레벨미터 영역 설정** — 임베디드 오디오 레벨미터 감지 영역을 등록합니다.
+
+![오디오 레벨미터 영역 설정](docs/screenshots/03_audio_roi.png)
+
+**감도 설정** — 블랙·스틸·오디오레벨미터(HSV) 감지 임계값을 채널 그룹별로 조정합니다.
+
+![감도 설정](docs/screenshots/04_sensitivity.png)
+
+**정파 설정** — 그룹별 정파준비·정파해제 시각과 요일, 정파 진입 억제 영역을 지정합니다.
+
+![정파 설정](docs/screenshots/05_signoff.png)
+
+**알림 설정** — 텔레그램 봇 연동과 이벤트별 알림 발송 여부를 설정합니다.
+
+![알림 설정](docs/screenshots/06_alerts.png)
+
+**저장/불러오기** — 설정을 JSON으로 내보내거나 불러오고, 버전 정보를 확인합니다.
+
+![저장/불러오기](docs/screenshots/07_save_load.png)
+
+</details>
+
+---
+
 ## 아키텍처
 
 ```
