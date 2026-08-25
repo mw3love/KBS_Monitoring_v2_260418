@@ -36,6 +36,10 @@ v1(KBS Peacock v1.6.x)의 핵심 문제인 **"장기 운영 시 감지 루프 fr
 <details>
 <summary>7탭 설정 다이얼로그 스크린샷 펼치기</summary>
 
+**영상 설정** — 캡처 포트, 자동 녹화(pre-roll·보관 기간), 녹화 해상도/FPS를 설정합니다.
+
+![영상 설정](docs/screenshots/09_recording_settings.png)
+
 **비디오 영역 설정** — 채널별 감지 영역(ROI)을 좌표로 편집합니다.
 
 ![비디오 영역 설정](docs/screenshots/02_video_roi.png)
