@@ -68,6 +68,39 @@ v1(KBS Peacock v1.6.x)의 핵심 문제인 **"장기 운영 시 감지 루프 fr
 
 ---
 
+## 텔레그램 알림 예시
+
+실제 운영 중 수신된 알림입니다. 감지 이벤트는 채널 그리드 캡처와 함께, 시스템 이벤트는
+`[SYSTEM]` 접두사로 발송됩니다.
+
+**감지 이벤트** — 블랙·오디오·정지화면을 채널 썸네일과 함께 즉시 알립니다.
+
+![블랙·오디오 감지](docs/screenshots/telegram/black_audio.jpg)
+![정지화면 감지](docs/screenshots/telegram/still.jpg)
+
+**임베디드 오디오 — 감지와 복구를 모두 알림.**
+
+![임베디드 오디오 무음 감지 및 복구](docs/screenshots/telegram/embedded.jpg)
+
+**정파 진입/해제 — 그룹·트리거 채널·억제된 채널·정파 지속시간을 함께 안내.**
+시스템 기동도 `[SYSTEM]` 알림으로 별도 발송됩니다.
+
+![정파 해제 및 시스템 기동 알림](docs/screenshots/telegram/signoff.jpg)
+
+**정파 변동 반복 억제** — 짧은 시간 내 정파 진입/복귀가 반복되면(테스트 영상 송출 등)
+개별 알림을 묶어 스팸을 막고, 안정화되면 요약 알림 하나로 정리해 보냅니다.
+
+![정파 변동 반복 억제 및 안정화 요약](docs/screenshots/telegram/signoff_flap.jpg)
+
+**Watchdog 자가진단** — Detection 프로세스뿐 아니라 UI 프로세스 이상까지 감지해
+`[SYSTEM]` 알림으로 즉시 보고합니다. 아래는 실제로 UI 프로세스 손상을 잡아내
+재시작을 요청한 사례입니다. 원인은 배포 과정에서 파이썬 버전이 의도치 않게
+바뀐 것으로 규명됐고, 버전을 고정한 뒤로는 재발하지 않아 안정화됐습니다.
+
+![UI 프로세스 손상 감지 SYSTEM 알림](docs/screenshots/telegram/ui_crash.jpg)
+
+---
+
 ## 아키텍처
 
 ```
