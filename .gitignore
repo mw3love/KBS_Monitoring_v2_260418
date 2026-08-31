@@ -26,7 +26,8 @@ config/kbs_config.json
 data/
 
 # 개발 도구
-.claude/
+.claude/*
+!.claude/handoff/
 .agents/
 AGENTS.md
 
