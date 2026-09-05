@@ -4,6 +4,14 @@
 - KBS 16채널 방송 모니터링 시스템 v2
 - v1(KBS Peacock v1.6.x)의 "장기 운영 시 감지 루프 freeze" 문제를 근본 해결하기 위해 재작성
 - **핵심 변경**: multiprocessing 기반 아키텍처 (UI/감지 프로세스 분리)
+- **2026-07-13 작업 폴더 이전**: Google Drive 동기화 폴더(`G:\내 드라이브\A1. 개인 자료\
+  A1. AI 연습\260418 KBS_Monitoring_v2`, 파일 잠금·부분 실패로 불안정)에서 지금의 로컬
+  경로(`Dev/KBS_Monitoring_v2_260418`)로 git clone 이전. git이 안 가져온 건 `config/
+  kbs_config.json`(gitignore, 위 "신규 빌드 배포 시 함정" 참조)·`.claude/`·Claude 프로젝트
+  메모리(경로 슬러그 변경으로 자동 승계 안 됨) 셋뿐 — 전부 수동 복사 완료, 이전 후 테스트
+  76개 통과 확인함. 구 Drive 폴더는 `logs/`(1.3MB)·`fix/`(10MB, 사고분석+재현 mp4)·
+  `images/`·`presentation/`을 백업으로 아직 갖고 있으니 필요하면 거기서 꺼내온다(작업 금지,
+  참고 전용).
 
 ## UI 디자인 레퍼런스
 - 목업 디자인 파일 위치: `design/` 폴더 (Claude Design 2026-04-18 제작)

@@ -157,6 +157,8 @@ class SysMonitorWidget(QWidget):
         hbox.setContentsMargins(0, 0, 0, 0)
         hbox.setSpacing(14)
 
+        # 2줄 형식(레이블+값 세로분리) 유지 — 단일행("CPU  45%")으로 바꿨다가 사용자가
+        # "별로"라며 원복 요청함, 이 형식 변경 제안하지 말 것.
         _small_style = "font-size: 10px; font-weight: bold;"
         self._lbl_cpu = QLabel("CPU\n--%")
         self._lbl_cpu.setAlignment(Qt.AlignCenter)
