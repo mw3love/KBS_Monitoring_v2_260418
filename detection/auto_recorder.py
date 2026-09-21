@@ -277,6 +277,23 @@ class AutoRecorder:
         vtmp = base + "_vtmp.mp4"
         atmp = base + "_atmp.wav"
 
+        # pre 버퍼 시작점 정렬 — 영상 버퍼는 "프레임 개수"로, 오디오 버퍼는 "샘플 수"로
+        # 크기가 정해져 있어 실제로 덮는 시간이 다르다. 영상 push 실효 fps가 out_fps보다
+        # 낮으면(캡처 루프 33ms + push_frame 게이트 0.1s의 양자화로 실측 ~9.3fps) 영상
+        # 버퍼가 더 먼 과거까지 덮는다. 예전엔 그 차이를 ffmpeg -itsoffset으로 메워
+        # 파일 머리에 그만큼 무음이 그대로 남았다 → 늦게 시작한 쪽에 맞춰 잘라낸다.
+        trimmed_v = trimmed_a = 0
+        if pre_frames and pre_audio:
+            t0 = max(pre_frames[0][0], pre_audio[0][0])
+            trimmed_v = len(pre_frames)
+            trimmed_a = len(pre_audio)
+            pre_frames = [it for it in pre_frames if it[0] >= t0]
+            pre_audio = [it for it in pre_audio if it[0] >= t0]
+            trimmed_v -= len(pre_frames)
+            trimmed_a -= len(pre_audio)
+
+        frame_ts: list = []   # 기록된 모든 프레임의 타임스탬프 (실효 fps 산출용)
+
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(vtmp, fourcc, self._out_fps,
                                  (self._out_w, self._out_h))
@@ -302,6 +319,7 @@ class AutoRecorder:
                     frm = cv2.imdecode(arr, cv2.IMREAD_COLOR)
                     if frm is not None:
                         writer.write(frm)
+                        frame_ts.append(_ts)
 
                 if wav_file is not None:
                     for _ts, raw in pre_audio:
@@ -312,6 +330,7 @@ class AutoRecorder:
                     while self._record_queue:
                         _ts, frm = self._record_queue.popleft()
                         writer.write(frm)
+                        frame_ts.append(_ts)
                     if wav_file is not None:
                         while self._audio_record_queue:
                             _ts, raw = self._audio_record_queue.popleft()
@@ -321,6 +340,7 @@ class AutoRecorder:
                         while self._record_queue:
                             _ts, frm = self._record_queue.popleft()
                             writer.write(frm)
+                            frame_ts.append(_ts)
                         if wav_file is not None:
                             while self._audio_record_queue:
                                 _ts, raw = self._audio_record_queue.popleft()
@@ -334,15 +354,39 @@ class AutoRecorder:
                 if wav_file is not None:
                     wav_file.close()
 
+            # 실효 fps 보정 계수 — VideoWriter에는 out_fps를 선언해 두지만 실제 프레임은
+            # 그보다 느리게 들어오므로(실측 ~9.3fps) 그대로 두면 영상이 그 비율만큼 빨리
+            # 재생되고, 실시간으로 흐르는 오디오와 뒤로 갈수록 벌어진다. 프레임
+            # 타임스탬프로 실제 구간 길이를 구해 ffmpeg -itsscale로 되돌린다(재인코딩 없음).
+            n_frames = len(frame_ts)
+            video_scale = 1.0
+            eff_fps = float(self._out_fps)
+            if n_frames >= 2:
+                real_span = frame_ts[-1] - frame_ts[0] + (1.0 / self._out_fps)
+                nominal_span = n_frames / self._out_fps
+                if real_span > 0 and nominal_span > 0:
+                    eff_fps = n_frames / real_span
+                    k = real_span / nominal_span
+                    # 계수가 상식 밖이면(시계 점프·큰 드롭) 보정하지 않는다.
+                    if 0.5 <= k <= 2.0:
+                        video_scale = k
+
             if has_audio:
                 v_start = pre_frames[0][0] if pre_frames else None
                 a_start = pre_audio[0][0] if pre_audio else None
                 audio_offset = (a_start - v_start) if (v_start and a_start) else 0.0
-                _log.info(
-                    "녹화 A/V 오프셋: audio_offset=%.3fs (pre_frames=%d, pre_audio=%d)",
-                    audio_offset, len(pre_frames), len(pre_audio),
-                )
-                merged = self._merge_with_ffmpeg(vtmp, atmp, filepath, audio_offset)
+                from ipc.messages import LogEntry
+                self._emit(LogEntry(
+                    level="debug", source="recorder",
+                    message=(
+                        f"녹화 A/V 정렬: pre정렬 v-{trimmed_v}f/a-{trimmed_a}청크, "
+                        f"잔여offset={audio_offset:+.3f}s, "
+                        f"실효fps={eff_fps:.2f}(선언 {self._out_fps}) "
+                        f"→ itsscale={video_scale:.4f}, frames={n_frames}"
+                    ),
+                ))
+                merged = self._merge_with_ffmpeg(vtmp, atmp, filepath,
+                                                 audio_offset, video_scale)
 
         finally:
             if merged:
@@ -390,9 +434,14 @@ class AutoRecorder:
         return "ffmpeg"
 
     def _merge_with_ffmpeg(self, vtmp: str, atmp: str, output: str,
-                           audio_offset: float = 0.0) -> bool:
+                           audio_offset: float = 0.0,
+                           video_scale: float = 1.0) -> bool:
         ffmpeg = AutoRecorder._find_ffmpeg()
-        cmd = [ffmpeg, "-y", "-i", vtmp]
+        cmd = [ffmpeg, "-y"]
+        # 입력 옵션 — 비디오 타임스탬프를 실효 fps 비율로 늘려 실시간 길이로 되돌린다.
+        if abs(video_scale - 1.0) > 0.005:
+            cmd += ["-itsscale", f"{video_scale:.5f}"]
+        cmd += ["-i", vtmp]
         if audio_offset > 0.05:
             cmd += ["-itsoffset", f"{audio_offset:.3f}"]
             cmd += ["-i", atmp]
