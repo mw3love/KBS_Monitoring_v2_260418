@@ -41,6 +41,11 @@ _DEFAULT_CFG_PATH = os.path.join(_ROOT, "config", "default_config.json")
 # UI가 자기 손상(onset)을 감지하면 여기에 플래그를 떨어뜨린다. 손상된 UI는 requests를
 # 쓸 수 없으므로(순수 파이썬 객체 생성 전면 실패) 통보는 건강한 Watchdog이 대행한다.
 _UI_DEGRADED_FLAG = os.path.join(_ROOT, "data", "ui_degraded.flag")
+# UI가 2초마다 시각을 쓰는 파일. 이 파일이 _UI_STALE_SEC 넘게 묵으면 UI 이벤트 루프가
+# 멈춘 것(화면·알림음·조작 정지) — pid 생존 확인으로는 못 잡는다(종합점검 F10·P1).
+# ⚠ 경로는 main.py:_UI_HEARTBEAT와 하드코딩 계약 — 반드시 동시 수정.
+_UI_HEARTBEAT     = os.path.join(_ROOT, "data", "ui_heartbeat.dat")
+_UI_STALE_SEC     = 30.0
 _HB_STALE_SEC     = 10.0
 # spawn 직후 grace: 새 Detection이 첫 heartbeat를 쓸 시간을 보장한다.
 # heartbeat.dat는 프로세스 사망·앱 재시작을 넘어 남으므로, grace 없이 검사하면
@@ -72,6 +77,58 @@ def _load_telegram_cfg() -> dict:
         except Exception:
             pass
     return {}
+
+
+def _startup_self_check() -> tuple:
+    """기동 시 배포 함정 자가점검 (CLAUDE.md "신규 빌드 배포 시 함정", 종합점검 P2).
+    반환: (요약 한 줄, 문제 있음 여부)."""
+    import shutil
+    items, bad = [], False
+
+    ver = platform.python_version()
+    if ver.startswith("3.13."):
+        items.append(f"✓ Python {ver}")
+    else:
+        items.append(f"⚠ Python {ver} (운영 기준 3.13 — 3.14는 UI 힙손상 원인, python313_전환.bat 확인)")
+        bad = True
+
+    cfg = None
+    try:
+        with open(_CONFIG_PATH, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+    except Exception:
+        pass
+    if cfg is None:
+        items.append("✗ 설정 파일 없음(저장/불러오기 탭에서 백업 복원 필요)")
+        bad = True
+    else:
+        rois = cfg.get("rois", {})
+        nv, na = len(rois.get("video", [])), len(rois.get("audio", []))
+        if nv == 0:
+            items.append(f"✗ 감지영역 V{nv}/A{na} (설정 미복원?)")
+            bad = True
+        else:
+            items.append(f"✓ 감지영역 V{nv}/A{na}")
+
+    # detection/auto_recorder.py:_find_ffmpeg와 같은 탐색 순서
+    if (shutil.which("ffmpeg") or os.path.isfile(r"C:\KBS_Tools\ffmpeg.exe")
+            or os.path.isfile(os.path.join(_ROOT, "resources", "bin", "ffmpeg.exe"))):
+        items.append("✓ ffmpeg")
+    else:
+        items.append("✗ ffmpeg 없음(녹화에 소리 미포함)")
+        bad = True
+
+    try:
+        free_gb = shutil.disk_usage(_ROOT).free / (1024 ** 3)
+        if free_gb < 10:
+            items.append(f"✗ 디스크 여유 {free_gb:.0f}GB")
+            bad = True
+        else:
+            items.append(f"✓ 디스크 여유 {free_gb:.0f}GB")
+    except Exception:
+        pass
+
+    return " · ".join(items), bad
 
 
 def _send_system_telegram(message: str, logger=None) -> bool:
@@ -187,7 +244,19 @@ def run(
     # 원격(텔레그램)에서 재기동 여부·실행 중인 파이썬 버전을 확인할 수 있도록
     # 매 기동(최초 부팅·크래시 재spawn·예약 재시작 공통) 1회 통보. Round 2(3.13
     # 다운그레이드 실험) 배포가 실제 적용됐는지도 이 메시지로 원격 확인 가능.
-    tg(f"KBS On-Air Monitoring v{version} 기동 (Python {platform.python_version()})")
+    try:
+        _check_line, _check_bad = _startup_self_check()
+    except Exception as _e:
+        _check_line, _check_bad = f"점검 실패({_e!r})", True
+    (log_err if _check_bad else log)(f"기동 자가점검: {_check_line}")
+    tg(f"KBS On-Air Monitoring v{version} 기동 (Python {platform.python_version()})\n"
+       f"{'⚠ ' if _check_bad else ''}기동 점검: {_check_line}")
+    try:
+        from ipc.messages import LogEntry
+        _nodrop_put(LogEntry(level="error" if _check_bad else "info", source="system",
+                             message=f"기동 점검: {_check_line}"))
+    except Exception:
+        pass
 
     _intentional_shutdown = False
     detection_proc = None
@@ -305,6 +374,35 @@ def run(
         except Exception:
             pass
 
+    # ── UI 생존(heartbeat) 감시 ───────────────────────────────────
+    # 직전 세션이 남긴 묵은 파일로 오탐하지 않도록, 이번 Watchdog 기동 이후에 쓰인 값을
+    # 한 번 본 뒤부터 감시한다.
+    _wd_start = time.time()
+    _ui_hb_armed = False
+    _ui_stale_notified = False
+
+    def _check_ui_heartbeat():
+        nonlocal _ui_hb_armed, _ui_stale_notified
+        try:
+            with open(_UI_HEARTBEAT, "r", encoding="utf-8") as f:
+                ts = float(f.read().strip() or 0)
+        except Exception:
+            return   # 파일 없음·쓰는 중 충돌 → 이번 회차 판단 보류
+        if not _ui_hb_armed:
+            if ts >= _wd_start:
+                _ui_hb_armed = True
+            return
+        age = time.time() - ts
+        if age > _UI_STALE_SEC and not _ui_stale_notified:
+            _ui_stale_notified = True
+            log_err(f"UI 응답 없음 ({age:.0f}초 무갱신)")
+            tg(f"KBS On-Air Monitoring v{version} ⚠ UI 응답 없음 ({age:.0f}초) — 화면·알림음·조작이 "
+               f"멈췄을 수 있습니다. 감지/텔레그램은 계속 동작. 현장 확인·앱 재시작 필요.")
+        elif age <= _UI_STALE_SEC and _ui_stale_notified:
+            _ui_stale_notified = False
+            log("UI 응답 회복")
+            tg(f"KBS On-Air Monitoring v{version} UI 응답 회복")
+
     # ── UI 손상 플래그 감시 ───────────────────────────────────────
     _ui_degraded_notified = False
 
@@ -407,6 +505,7 @@ def run(
 
         # ── UI 손상 플래그 감시 ───────────────────────────────────
         _check_ui_degraded()
+        _check_ui_heartbeat()
 
         # ── HEALTH 파일 스냅샷 (10분 주기) ────────────────────────
         if now - _health_last_t >= _health_interval:

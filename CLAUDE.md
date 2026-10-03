@@ -106,6 +106,9 @@ Watchdog Process  (Detection의 spawn 주체)
   ├─ 텔레그램 알림 직접 발송 (UI가 죽어도 알림 보장)
   ├─ main(UI) 생존 확인 (10초 주기 psutil.pid_exists) → 죽으면 Detection 정리 + 자신 종료
   ├─ data/ui_degraded.flag 감시 (1초) → UI 자기손상 통보 대행 (아래 "UI 손상 통보" 참조)
+  ├─ data/ui_heartbeat.dat 감시 → UI가 2초마다 쓰는 시각이 30초 묵으면 "UI 응답 없음" 통보
+  │   (pid 생존만으론 못 잡던 UI 정지 대응. 경로는 main.py:_UI_HEARTBEAT ↔ watchdog:_UI_HEARTBEAT 계약)
+  ├─ 기동 시 자가점검(Python 3.13·감지영역 수·ffmpeg·디스크) → 기동 텔레그램 + UI 로그창에 표시
   └─ shutdown_event set 시 "의도된 종료" 플래그 ON → false-positive respawn 방지
 
 Detection Process (PySide6 임포트 금지 — 세부 규칙은 detection/CLAUDE.md)

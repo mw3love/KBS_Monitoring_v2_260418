@@ -157,6 +157,12 @@ def _send_system_telegram_main(message: str):
 # 배경: fix/260526_설정다이얼로그_TypeError_재현불가.md
 _DEGRADED_FLAG = os.path.join(_ROOT, "data", "ui_degraded.flag")
 
+# ── UI 생존 표시 ──────────────────────────────────────────────────
+# UI 이벤트 루프가 2초마다 시각(text)을 쓴다. 루프가 멈추면(F10류 정지·힙손상) 갱신이 끊겨
+# Watchdog이 "UI 응답 없음"을 대신 통보한다(pid 생존만으로는 못 잡던 사고, 종합점검 P1).
+# ⚠ 경로는 watchdog_process.py:_UI_HEARTBEAT와 하드코딩 계약 — 반드시 동시 수정.
+_UI_HEARTBEAT = os.path.join(_ROOT, "data", "ui_heartbeat.dat")
+
 
 def main():
     # ── 단일 인스턴스 가드 (Windows 네이티브 뮤텍스) ─────────────────
@@ -491,6 +497,20 @@ def main():
     health_timer.start()
     _log_health_snapshot()  # 기동 직후 기준선 1회
 
+    def _write_ui_heartbeat():
+        # 손상 상태에서도 작동이 확인된 open()+write()만 사용 (ui_degraded.flag와 같은 경로)
+        try:
+            with open(_UI_HEARTBEAT, "w", encoding="utf-8") as f:
+                f.write(f"{time.time():.3f}")
+        except Exception:
+            pass
+
+    ui_hb_timer = QTimer()
+    ui_hb_timer.setInterval(2_000)
+    ui_hb_timer.timeout.connect(_write_ui_heartbeat)
+    ui_hb_timer.start()
+    _write_ui_heartbeat()
+
     exit_code = 0
     watchdog_abnormal = False
     try:
@@ -498,6 +518,7 @@ def main():
     finally:
         restart_timer.stop()
         health_timer.stop()
+        ui_hb_timer.stop()
 
         # ── 정상 종료 처리 ────────────────────────────────────────
         shutdown_event.set()
