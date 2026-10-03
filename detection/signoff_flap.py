@@ -74,9 +74,6 @@ class SignoffFlapTracker:
             "start_ts": self._flap_start.get(gid, lst[0] if lst else now),
         }
 
-    def is_flapping(self, gid: int) -> bool:
-        return self._flapping.get(gid, False)
-
     def check_stabilized(self, gid: int, now: float = None):
         """주기 호출용. 묶음 모드인데 stable_sec 동안 전환이 없으면 요약 dict 반환 후 리셋.
 

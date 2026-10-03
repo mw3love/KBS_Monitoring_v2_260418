@@ -20,13 +20,12 @@ from typing import List, Optional
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QDialog,
     QPushButton, QLabel, QTableWidget, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QFrame, QSizePolicy,
-    QScrollArea,
+    QHeaderView, QAbstractItemView, QFrame, QScrollArea,
 )
 from PySide6.QtCore import Qt, Signal, QPointF, QRectF, QSizeF, QTimer
 from PySide6.QtGui import (
     QPainter, QPen, QBrush, QColor, QPixmap, QImage,
-    QCursor, QFont,
+    QFont,
 )
 
 from core.roi_manager import ROI, ROIManager
@@ -162,10 +161,6 @@ class ROIEditorCanvas(QWidget):
 
     def get_rois(self) -> List[ROI]:
         return list(self._rois)
-
-    def get_selected_indices(self) -> List[int]:
-        """다중 선택 인덱스 목록 반환"""
-        return list(self._selected_indices)
 
     def delete_selected(self):
         """선택된 ROI 삭제 (다중 선택 지원)"""

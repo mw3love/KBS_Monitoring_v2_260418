@@ -333,7 +333,6 @@ def run(
     # 최초 Detection spawn
     detection_proc = _spawn_detection()
     last_hb_check = time.time()
-    last_hb_value = _read_heartbeat()
 
     while True:
         now = time.time()
@@ -376,7 +375,6 @@ def run(
                         tg(f"KBS On-Air Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
                     else:
                         log(f"재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회, 텔레그램 생략)")
-                    last_hb_value = 0.0
                     last_hb_check = now
         elif (detection_proc is not None and _fast_fail_streak > 0
               and now - last_spawn_time >= _STABLE_SEC):

@@ -19,8 +19,6 @@ import ipc.messages as M
 # ──────────────────────────────────────────────────────────────────────────────
 
 RESULT_CONTRACT = {
-    "DetectionResult": {"label", "roi_type", "media_name", "detection_type",
-                        "active", "duration_sec", "meta"},
     "AlarmTrigger":    {"label", "detection_type", "roi_type", "media_name", "dark_ratio", "snapshot_jpeg"},
     "AlarmResolve":    {"label", "detection_type", "duration_sec", "media_name"},
     "LogEntry":        {"level", "source", "message"},
@@ -33,8 +31,6 @@ RESULT_CONTRACT = {
     "StreamError":     {"source", "message", "retry_count"},
     "DetectionReady":   {"pid", "config_loaded", "roi_count", "version"},
     "DetectionCrashed": {"dead_pid", "reason", "stale_sec"},
-    "PerfMeasurement":  {"recommended_interval", "recommended_scale",
-                         "cpu_percent", "ram_percent"},
 }
 
 CMD_CONTRACT = {
@@ -45,10 +41,7 @@ CMD_CONTRACT = {
     "SetMute":               {"muted"},
     "SetSignoffState":       {"group_id", "new_state", "source", "entered_at"},
     "CycleSignoffState":     {"group_id"},
-    "PauseForRoiEdit":       {"paused"},
     "ClearAlarms":           set(),
-    "RequestAutoPerf":       {"duration_sec"},
-    "RequestSnapshot":       set(),
     "Shutdown":              {"reason"},
 }
 

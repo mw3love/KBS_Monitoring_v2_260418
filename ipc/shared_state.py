@@ -66,11 +66,6 @@ class SharedStateBuffer:
         self._buf[19] = 0
         struct.pack_into("<ff", self._buf, _OFF_LEVEL_L, -60.0, -60.0)
 
-    def is_ready(self) -> bool:
-        """magic 검증. 0이면 Detection 초기화 미완료."""
-        magic = struct.unpack_from("<I", self._buf, _OFF_MAGIC)[0]
-        return magic == _MAGIC
-
     def _bump_seq(self) -> None:
         seq = struct.unpack_from("<Q", self._buf, _OFF_WRITE_SEQ)[0]
         struct.pack_into("<Q", self._buf, _OFF_WRITE_SEQ, seq + 1)
@@ -115,9 +110,6 @@ class SharedStateBuffer:
 
     def get_levels(self) -> "tuple[float, float]":
         return struct.unpack_from("<ff", self._buf, _OFF_LEVEL_L)
-
-    def get_write_seq(self) -> int:
-        return struct.unpack_from("<Q", self._buf, _OFF_WRITE_SEQ)[0]
 
     # ── 공통 ─────────────────────────────────────
 

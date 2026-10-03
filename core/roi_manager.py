@@ -1,8 +1,8 @@
 """
 감지영역(ROI) 관리 모듈
 """
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List
 
 
 @dataclass
@@ -61,66 +61,6 @@ class ROIManager:
     @property
     def audio_rois(self) -> List[ROI]:
         return self._audio_rois
-
-    def add_video_roi(self, x: int, y: int, w: int, h: int, media_name: str = "") -> ROI:
-        """영상 감지영역 추가"""
-        idx = len(self._video_rois) + 1
-        roi = ROI(label=f"V{idx}", media_name=media_name, x=x, y=y, w=w, h=h, roi_type="video")
-        self._video_rois.append(roi)
-        self._relabel_video()
-        return roi
-
-    def add_audio_roi(self, x: int, y: int, w: int, h: int, media_name: str = "") -> ROI:
-        """오디오 레벨미터 감지영역 추가"""
-        idx = len(self._audio_rois) + 1
-        roi = ROI(label=f"A{idx}", media_name=media_name, x=x, y=y, w=w, h=h, roi_type="audio")
-        self._audio_rois.append(roi)
-        self._relabel_audio()
-        return roi
-
-    def remove_video_roi(self, index: int):
-        if 0 <= index < len(self._video_rois):
-            self._video_rois.pop(index)
-            self._relabel_video()
-
-    def remove_audio_roi(self, index: int):
-        if 0 <= index < len(self._audio_rois):
-            self._audio_rois.pop(index)
-            self._relabel_audio()
-
-    def copy_video_roi(self, index: int) -> Optional[ROI]:
-        if 0 <= index < len(self._video_rois):
-            src = self._video_rois[index]
-            new_roi = ROI(
-                label="",
-                media_name=src.media_name,
-                x=src.x + 20,
-                y=src.y + 20,
-                w=src.w,
-                h=src.h,
-                roi_type="video",
-            )
-            self._video_rois.append(new_roi)
-            self._relabel_video()
-            return new_roi
-        return None
-
-    def copy_audio_roi(self, index: int) -> Optional[ROI]:
-        if 0 <= index < len(self._audio_rois):
-            src = self._audio_rois[index]
-            new_roi = ROI(
-                label="",
-                media_name=src.media_name,
-                x=src.x + 20,
-                y=src.y + 20,
-                w=src.w,
-                h=src.h,
-                roi_type="audio",
-            )
-            self._audio_rois.append(new_roi)
-            self._relabel_audio()
-            return new_roi
-        return None
 
     def _relabel_video(self):
         for i, roi in enumerate(self._video_rois):

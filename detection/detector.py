@@ -33,14 +33,12 @@ class Detector:
         self.black_dark_ratio = 98.0
         self.black_block_dark_ratio = 92.0
         self.black_duration = 5.0
-        self.black_alarm_duration = 10.0
         self.black_motion_suppress_ratio = 0.2
         self.black_recovery_seconds = 2.0
 
         self.still_threshold = 4
         self.still_changed_ratio = 10.0
         self.still_duration = 10.0
-        self.still_alarm_duration = 10.0
         self.still_reset_frames = 3
 
         self.audio_hsv_h_min = 40
@@ -51,12 +49,9 @@ class Detector:
         self.audio_hsv_v_max = 255
         self.audio_pixel_ratio = 5.0
         self.audio_level_duration = 5.0
-        self.audio_level_alarm_duration = 10.0
         self.audio_level_recovery_seconds = 2.0
 
-        self.embedded_silence_threshold = -50
         self.embedded_silence_duration = 10.0
-        self.embedded_alarm_duration = 10.0
 
         self._black_states: Dict[str, DetectionState] = {}
         self._still_states: Dict[str, DetectionState] = {}

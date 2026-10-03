@@ -14,7 +14,6 @@ import wave
 import datetime
 from collections import deque
 from typing import Optional
-import queue as _queue_module
 
 import logging
 

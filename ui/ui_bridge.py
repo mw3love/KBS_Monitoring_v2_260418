@@ -3,8 +3,7 @@ UIBridge — result_queue 폴링 → Qt Signal 변환 (QThread)
 50ms 주기로 result_queue를 드레인하여 각 메시지 타입별 Signal 발행.
 DetectionReady 수신 시 런타임 상태 재주입 트리거 Signal 발행.
 """
-from PySide6.QtCore import QThread, Signal, QTimer
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QThread, Signal
 
 
 class UIBridge(QThread):
@@ -15,7 +14,6 @@ class UIBridge(QThread):
     """
 
     # result_queue 메시지별 Signal
-    detection_result_received  = Signal(object)   # DetectionResult
     alarm_trigger_received     = Signal(object)   # AlarmTrigger
     alarm_resolve_received     = Signal(object)   # AlarmResolve
     log_entry_received         = Signal(object)   # LogEntry
@@ -26,7 +24,6 @@ class UIBridge(QThread):
     stream_error_received      = Signal(object)   # StreamError
     detection_ready_received   = Signal(object)   # DetectionReady
     detection_crashed_received = Signal(object)   # DetectionCrashed
-    perf_measurement_received  = Signal(object)   # PerfMeasurement
 
     def __init__(self, result_queue, parent=None):
         super().__init__(parent)
@@ -43,13 +40,12 @@ class UIBridge(QThread):
 
     def run(self):
         from ipc.messages import (
-            DetectionResult, AlarmTrigger, AlarmResolve, LogEntry,
+            AlarmTrigger, AlarmResolve, LogEntry,
             DiagSnapshot, SignoffStateChange, RecordingEvent, TelegramStatus,
-            StreamError, DetectionReady, DetectionCrashed, PerfMeasurement,
+            StreamError, DetectionReady, DetectionCrashed,
         )
 
         _DISPATCH = {
-            DetectionResult:   self.detection_result_received,
             AlarmTrigger:      self.alarm_trigger_received,
             AlarmResolve:      self.alarm_resolve_received,
             LogEntry:          self.log_entry_received,
@@ -60,7 +56,6 @@ class UIBridge(QThread):
             StreamError:       self.stream_error_received,
             DetectionReady:    self.detection_ready_received,
             DetectionCrashed:  self.detection_crashed_received,
-            PerfMeasurement:   self.perf_measurement_received,
         }
 
         while self._running:

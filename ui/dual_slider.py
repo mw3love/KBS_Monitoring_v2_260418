@@ -44,10 +44,6 @@ class DualSlider(QWidget):
         self.update()
         self.range_changed.emit(self._low, self._high)
 
-    def set_gradient_type(self, gradient_type: str):
-        self._gradient_type = gradient_type
-        self.update()
-
     # ── 좌표 변환 ─────────────────────────────────────
 
     def _val_to_x(self, val: int) -> int:

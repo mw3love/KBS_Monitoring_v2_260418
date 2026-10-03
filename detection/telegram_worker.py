@@ -70,7 +70,7 @@ class TelegramWorker:
                 pass
 
     def _log(self, message: str, error: bool = False, debug: bool = False):
-        from ipc.messages import LogEntry, TelegramStatus
+        from ipc.messages import LogEntry
         level = "debug" if debug else ("error" if error else "info")
         self._emit(LogEntry(level=level, source="telegram", message=message))
 
@@ -300,26 +300,6 @@ class TelegramWorker:
                 self._log("알림 큐 가득참 — 정파 묶음 알림 손실", error=True)
 
     # ── 연결 테스트 ───────────────────────────────────────────────────────────
-
-    def test_connection(self, token: str, chat_id: str) -> tuple:
-        if not _REQUESTS_AVAILABLE:
-            return False, "requests 라이브러리가 설치되지 않았습니다."
-        token = token.strip()
-        chat_id = chat_id.strip()
-        if not token or not chat_id:
-            return False, "Bot Token과 Chat ID를 입력하세요."
-        try:
-            url = f"{self._API_BASE.format(token=token)}/sendMessage"
-            resp = _requests.post(
-                url,
-                json={"chat_id": chat_id, "text": "[KBS On-Air Monitoring] 텔레그램 연결 테스트 성공"},
-                timeout=(10.0, 20.0),
-            )
-            if resp.status_code == 200:
-                return True, "연결 테스트 성공"
-            return False, f"오류 {resp.status_code}: {resp.text[:120]}"
-        except Exception as exc:
-            return False, f"{type(exc).__name__}: {exc}"
 
     # ── 워커 스레드 ───────────────────────────────────────────────────────────
 

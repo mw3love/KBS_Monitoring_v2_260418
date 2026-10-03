@@ -6,7 +6,6 @@
 import copy
 import os
 import subprocess
-from typing import Optional
 
 from PySide6.QtWidgets import (
     QDialog, QWidget, QVBoxLayout, QHBoxLayout,
@@ -22,12 +21,6 @@ from core.roi_manager import ROI, ROIManager
 from ui.dual_slider import DualSlider
 from ui.roi_editor import FullScreenROIEditor
 from utils.config_manager import ConfigManager, DEFAULT_CONFIG
-
-try:
-    import sounddevice as sd
-    _SD_OK = True
-except ImportError:
-    _SD_OK = False
 
 
 class _TelegramTestWorker(QThread):
@@ -1614,7 +1607,6 @@ class SettingsDialog(QDialog):
         alm = self._cfg.get("alarm", {})
         tg = self._cfg.get("telegram", {})
         sys_cfg = self._cfg.get("system", {})
-        emb = self._cfg.get("embedded", {})
 
         # 알림음 파일
         box1, sl1 = _section("알림음 공통 설정")

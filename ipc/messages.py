@@ -17,17 +17,6 @@ class BaseMsg:
 # ──────────────────────────────────────────────
 
 @dataclass
-class DetectionResult(BaseMsg):
-    label: str = ""
-    roi_type: str = ""          # 'video' | 'audio' | 'embedded'
-    media_name: str = ""
-    detection_type: str = ""    # 'black' | 'still' | 'audio_level' | 'embedded'
-    active: bool = False
-    duration_sec: float = 0.0
-    meta: dict = field(default_factory=dict)
-
-
-@dataclass
 class AlarmTrigger(BaseMsg):
     label: str = ""
     detection_type: str = ""
@@ -107,14 +96,6 @@ class DetectionCrashed(BaseMsg):
     stale_sec: float = 0.0   # heartbeat stale 시간 (reason='heartbeat_stale'일 때)
 
 
-@dataclass
-class PerfMeasurement(BaseMsg):
-    recommended_interval: int = 200
-    recommended_scale: float = 1.0
-    cpu_percent: float = 0.0
-    ram_percent: float = 0.0
-
-
 # ──────────────────────────────────────────────
 # cmd_queue (UI → Detection, maxsize=50)
 # ──────────────────────────────────────────────
@@ -162,22 +143,7 @@ class CycleSignoffState(BaseMsg):
 
 
 @dataclass
-class PauseForRoiEdit(BaseMsg):
-    paused: bool = False
-
-
-@dataclass
 class ClearAlarms(BaseMsg):
-    pass
-
-
-@dataclass
-class RequestAutoPerf(BaseMsg):
-    duration_sec: float = 10.0
-
-
-@dataclass
-class RequestSnapshot(BaseMsg):
     pass
 
 
@@ -192,15 +158,14 @@ class Shutdown(BaseMsg):
 # ──────────────────────────────────────────────
 
 RESULT_MESSAGES = (
-    DetectionResult, AlarmTrigger, AlarmResolve, LogEntry, DiagSnapshot,
+    AlarmTrigger, AlarmResolve, LogEntry, DiagSnapshot,
     SignoffStateChange, RecordingEvent, TelegramStatus, StreamError,
-    DetectionReady, DetectionCrashed, PerfMeasurement,
+    DetectionReady, DetectionCrashed,
 )
 
 CMD_MESSAGES = (
     ApplyConfig, UpdateROIs, SetDetectionEnabled, SetVolume, SetMute,
-    SetSignoffState, CycleSignoffState, PauseForRoiEdit, ClearAlarms,
-    RequestAutoPerf, RequestSnapshot, Shutdown,
+    SetSignoffState, CycleSignoffState, ClearAlarms, Shutdown,
 )
 
 ALL_MESSAGES = RESULT_MESSAGES + CMD_MESSAGES

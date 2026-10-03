@@ -9,7 +9,6 @@ import time
 import logging
 
 import cv2
-import numpy as np
 
 _log = logging.getLogger(__name__)
 

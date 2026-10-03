@@ -581,12 +581,6 @@ class LogWidget(QWidget):
 
         self._update_count_badge()
 
-    def add_error(self, message: str, source: str = ""):
-        self.add_log(message, log_type="error", source=source)
-
-    def add_info(self, message: str, source: str = ""):
-        self.add_log(message, log_type="info", source=source)
-
     def set_theme(self, dark: bool):
         """테마 변경 시 delegate에 전달하고 리스트 다시 그리기."""
         delegate = self._list.itemDelegate()

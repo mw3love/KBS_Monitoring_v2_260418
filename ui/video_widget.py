@@ -214,12 +214,6 @@ class VideoWidget(QWidget):
             return self._current_frame.copy()
         return None
 
-    def get_frame_size(self) -> tuple:
-        if self._current_frame is not None:
-            h, w = self._current_frame.shape[:2]
-            return w, h
-        return _NO_SIGNAL_W, _NO_SIGNAL_H
-
     def widget_to_frame_coords(self, wx: int, wy: int) -> tuple:
         if self._current_frame is not None:
             fh, fw = self._current_frame.shape[:2]

@@ -56,9 +56,6 @@ class AlarmSystem(QObject):
         self._blink_timer.timeout.connect(self._toggle_blink)
         self._blink_timer.setInterval(500)
 
-    def set_logger(self, logger):
-        self._logger = logger
-
     def _log(self, msg: str):
         if self._logger:
             self._logger.warning(msg)
@@ -134,14 +131,8 @@ class AlarmSystem(QObject):
     def set_volume(self, volume: float):
         self._volume = max(0.0, min(1.0, volume))
 
-    def set_sounds_dir(self, path: str):
-        self._sounds_dir = path
-
     def set_sound_file(self, alarm_type: str, path: str):
         self._sound_files[alarm_type] = path
-
-    def get_sound_files(self) -> dict:
-        return dict(self._sound_files)
 
     def play_test_sound(self, file_path: str):
         """테스트용 알림음 1회 재생."""

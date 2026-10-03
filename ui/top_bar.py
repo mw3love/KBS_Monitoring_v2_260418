@@ -39,15 +39,6 @@ def _fmt_dhms(secs: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
-def _fmt_elapsed(secs: float) -> str:
-    s = int(abs(secs))
-    h, s = divmod(s, 3600)
-    m, s = divmod(s, 60)
-    if h > 0:
-        return f"{h}h {m}m {s:02d}s"
-    return f"{m}m {s:02d}s"
-
-
 def _refresh_property(widget: QWidget):
     widget.style().unpolish(widget)
     widget.style().polish(widget)
@@ -562,7 +553,6 @@ class TopBar(QWidget):
             ]:
                 painter.drawLine(sx, sy, dx, dy)
         else:
-            c = size // 2
             for sx, sy, dx, dy in [
                 (m + a, m + a, m, m + a), (m, m + a, m + a, m + a),
                 (size - m - a, m + a, size - m, m + a),

@@ -10,7 +10,7 @@ import datetime
 import threading
 import logging
 from enum import Enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 _log = logging.getLogger(__name__)
@@ -324,14 +324,6 @@ class SignoffManager:
     def is_any_signoff(self) -> bool:
         return any(self._states.get(gid) == SignoffState.SIGNOFF for gid in self._groups)
 
-    def is_group_enabled(self, group_id: int) -> bool:
-        if not self._auto_preparation:
-            return False
-        group = self._groups.get(group_id)
-        if group is None:
-            return False
-        return group.every_day or len(group.weekdays) > 0
-
     # ── 잔여/경과 시간 ────────────────────────────────────────────────────────
 
     def get_elapsed_seconds(self, group_id: int) -> float:
@@ -364,41 +356,6 @@ class SignoffManager:
                 return 0.0
             return time.time() - entered
         return 0.0
-
-    def get_end_remaining_seconds(self, group_id: int) -> float:
-        group = self._groups.get(group_id)
-        if group is None:
-            return 0.0
-        now = datetime.datetime.now()
-        end_h, end_m = map(int, group.end_time.split(":"))
-        end_dt = now.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
-        if end_dt <= now:
-            end_dt += datetime.timedelta(days=1)
-        return max(0.0, (end_dt - now).total_seconds())
-
-    def get_preparation_elapsed(self, group_id: int) -> float:
-        if self._states.get(group_id) != SignoffState.PREPARATION:
-            return 0.0
-        entered = self._preparation_entered_at.get(group_id)
-        if entered is None:
-            return 0.0
-        return time.time() - entered
-
-    def has_schedule_in_window(self, group_id: int) -> bool:
-        group = self._groups.get(group_id)
-        if group is None:
-            return False
-        if not group.every_day and not group.weekdays:
-            return False
-        if group.every_day:
-            return True
-        now = datetime.datetime.now()
-        prep_h = int(group.prep_start_time.split(":")[0])
-        if prep_h >= 9:
-            check_weekday = now.weekday()
-        else:
-            check_weekday = (now + datetime.timedelta(days=1)).weekday()
-        return check_weekday in group.weekdays
 
     # ── 내부 헬퍼 ────────────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@ import datetime
 import threading
 import logging
 import traceback
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 
@@ -150,13 +150,11 @@ def _apply_config_to_detector(detector, cfg: dict):
     detector.black_dark_ratio           = det.get("black_dark_ratio", 95.0)
     detector.black_block_dark_ratio     = det.get("black_block_dark_ratio", 92.0)
     detector.black_duration             = det.get("black_duration", 5)
-    detector.black_alarm_duration       = det.get("black_alarm_duration", 60)
     detector.black_motion_suppress_ratio = det.get("black_motion_suppress_ratio", 0.2)
     detector.black_recovery_seconds     = det.get("black_recovery_seconds", 2.0)
     detector.still_threshold            = det.get("still_threshold", 4)
     detector.still_changed_ratio        = det.get("still_changed_ratio", 10.0)
     detector.still_duration             = det.get("still_duration", 120)
-    detector.still_alarm_duration       = det.get("still_alarm_duration", 60)
     detector.still_reset_frames         = det.get("still_reset_frames", 3)
     detector.audio_hsv_h_min            = det.get("audio_hsv_h_min", 40)
     detector.audio_hsv_h_max            = det.get("audio_hsv_h_max", 95)
@@ -166,11 +164,8 @@ def _apply_config_to_detector(detector, cfg: dict):
     detector.audio_hsv_v_max            = det.get("audio_hsv_v_max", 255)
     detector.audio_pixel_ratio          = det.get("audio_pixel_ratio", 5)
     detector.audio_level_duration       = det.get("audio_level_duration", 60)
-    detector.audio_level_alarm_duration = det.get("audio_level_alarm_duration", 60)
     detector.audio_level_recovery_seconds = det.get("audio_level_recovery_seconds", 2)
-    detector.embedded_silence_threshold  = det.get("embedded_silence_threshold", -50)
     detector.embedded_silence_duration   = det.get("embedded_silence_duration", 60)
-    detector.embedded_alarm_duration     = det.get("embedded_alarm_duration", 60)
     detector.embedded_recovery_seconds   = det.get("embedded_recovery_seconds", 2.0)
 
     perf = cfg.get("performance", {})
@@ -510,7 +505,6 @@ def run(result_queue, cmd_queue, shutdown_event,
         _silence_seconds[0] = secs
 
     def _on_frame(frame):
-        import numpy as np
         with _last_frame_lock:
             nonlocal _last_frame
             _last_frame = frame.copy()
@@ -687,7 +681,7 @@ def run(result_queue, cmd_queue, shutdown_event,
                 _loop_count = 0
                 _jitter_sum_ms = 0.0
                 _jitter_samples = 0
-        except Exception as e:
+        except Exception:
             try:
                 log_error(f"DIAG 오류: {traceback.format_exc()}")
             except Exception:
@@ -715,7 +709,7 @@ def run(result_queue, cmd_queue, shutdown_event,
         except _ShutdownSignal:
             log_debug("Shutdown 메시지 수신 → 종료")
             _running = False
-        except Exception as e:
+        except Exception:
             try:
                 log_error(f"cmd 처리 오류: {traceback.format_exc()}")
             except Exception:
@@ -805,7 +799,7 @@ def run(result_queue, cmd_queue, shutdown_event,
                         _signoff_recovery_suppress,
                     )
 
-        except Exception as e:
+        except Exception:
             try:
                 log_error(f"감지 루프 오류: {traceback.format_exc()}")
             except Exception:
@@ -897,8 +891,8 @@ def _process_commands(
 ):
     from ipc.messages import (
         ApplyConfig, UpdateROIs, SetDetectionEnabled, SetVolume, SetMute,
-        SetSignoffState, CycleSignoffState, PauseForRoiEdit, ClearAlarms,
-        RequestAutoPerf, RequestSnapshot, Shutdown, LogEntry,
+        SetSignoffState, CycleSignoffState, ClearAlarms,
+        Shutdown, LogEntry,
     )
     _MAX_PER_TICK = 10
     for _ in range(_MAX_PER_TICK):
@@ -988,9 +982,6 @@ def _process_commands(
             elif isinstance(msg, ClearAlarms):
                 detector.reset_all()
 
-            elif isinstance(msg, RequestAutoPerf):
-                _handle_auto_perf(result_queue, ipc_counters, msg.duration_sec)
-
             elif isinstance(msg, Shutdown):
                 # shutdown은 메인 루프에서 shutdown_event로도 감지하므로 여기선 플래그만
                 raise _ShutdownSignal()
@@ -1020,8 +1011,7 @@ def _process_alarms(
     video_rois, audio_rois, snap,
     signoff_recovery_suppress: set = None,
 ):
-    from ipc.messages import AlarmTrigger, AlarmResolve, DetectionResult, LogEntry
-    from core.roi_manager import ROI
+    from ipc.messages import AlarmTrigger, AlarmResolve, LogEntry
 
     roi_media = {roi.label: roi.media_name for roi in (video_rois + audio_rois)}
 
@@ -1293,30 +1283,6 @@ def _run_diag(
         })
     except Exception as e:
         _log.error(f"DIAG-TELEGRAM 실패: {e}")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 자동 성능 감지
-# ══════════════════════════════════════════════════════════════════════════════
-
-def _handle_auto_perf(result_queue, ipc_counters, duration_sec: float):
-    from ipc.messages import PerfMeasurement
-    import psutil
-    try:
-        proc = psutil.Process(os.getpid())
-        proc.cpu_percent(interval=None)
-        time.sleep(min(duration_sec, 10.0))
-        cpu = proc.cpu_percent(interval=None)
-        ram = psutil.virtual_memory().percent
-        # 간단한 권고: CPU > 70% 시 interval 올리기, > 50% 시 scale_factor 낮추기
-        interval = 200 if cpu < 50 else (500 if cpu < 70 else 1000)
-        scale = 1.0 if cpu < 50 else (0.5 if cpu < 70 else 0.25)
-        _put(result_queue,
-             PerfMeasurement(recommended_interval=interval, recommended_scale=scale,
-                             cpu_percent=cpu, ram_percent=ram),
-             ipc_counters)
-    except Exception:
-        pass
 
 
 # ══════════════════════════════════════════════════════════════════════════════
