@@ -388,9 +388,12 @@ def run(
                 ts = float(f.read().strip() or 0)
         except Exception:
             return   # 파일 없음·쓰는 중 충돌 → 이번 회차 판단 보류
+        if ts < _wd_start:
+            # 직전 세션 값, 또는 UI가 파일을 비운 직후 읽은 빈 값(0)·쓰다 만 숫자 → 판단 보류
+            # (빈 값을 0으로 읽어 "1791025124초 무갱신" 오탐이 났던 사고, 2026-10-03)
+            return
         if not _ui_hb_armed:
-            if ts >= _wd_start:
-                _ui_hb_armed = True
+            _ui_hb_armed = True
             return
         age = time.time() - ts
         if age > _UI_STALE_SEC and not _ui_stale_notified:
