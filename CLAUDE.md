@@ -117,7 +117,8 @@ Detection Process (PySide6 임포트 금지 — 세부 규칙은 detection/CLAUD
   ├─ SignoffManager       (threading.Thread + time.sleep(1))
   ├─ AutoRecorder         (순환버퍼 + ffmpeg)
   ├─ TelegramWorker       (daemon 스레드, 일반 감지 알림)
-  └─ HeartbeatWriter      (5초 주기 heartbeat.dat 갱신)
+  └─ HeartbeatWriter      (5초 주기 heartbeat.dat 갱신. 메인 루프가 20초 넘게 touch() 안 하면
+                           갱신 중단 → Watchdog stale 감지·재spawn, fault_detection.log에 스택 덤프)
 ```
 
 - **소유권 원칙**: main은 SharedMemory/Queue/UI 소유. Watchdog은 Detection 소유. 재spawn 시에도 Queue·SharedMemory 핸들은 main이 만든 그대로 재사용.

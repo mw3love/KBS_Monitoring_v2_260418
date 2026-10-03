@@ -28,25 +28,56 @@ if _ROOT not in sys.path:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class HeartbeatWriter(threading.Thread):
-    """5초 주기로 data/heartbeat.dat 갱신 (Watchdog 감시용)."""
+    """5초 주기로 data/heartbeat.dat 갱신 (Watchdog 감시용).
+
+    별도 스레드라 메인 루프가 멈춰도 계속 쓸 수 있으므로, 메인 루프가 매 틱
+    touch()로 남기는 생존 시각이 LOOP_STALE_SEC 넘게 묵으면 쓰기를 멈춘다.
+    → Watchdog이 heartbeat stale로 감지해 재spawn + 텔레그램
+    (docs/261003_프로그램_종합점검.md F1)."""
 
     HEARTBEAT_PATH = os.path.join(_ROOT, "data", "heartbeat.dat")
+    LOOP_STALE_SEC = 20.0   # 메인 루프 무응답 판정 (정상 틱은 수백 ms)
 
-    def __init__(self):
+    def __init__(self, on_loop_stall=None):
         super().__init__(daemon=True, name="HeartbeatWriter")
         self._running = False
+        self._loop_tick = time.monotonic()
+        self._on_loop_stall = on_loop_stall   # (stall_sec) → None, 정지 시작 시 1회
 
     def start(self):
         self._running = True
+        self._loop_tick = time.monotonic()
         super().start()
 
     def stop(self):
         self._running = False
 
+    def touch(self):
+        """메인 루프 생존 표시 (매 틱 호출)."""
+        self._loop_tick = time.monotonic()
+
     def run(self):
         os.makedirs(os.path.dirname(self.HEARTBEAT_PATH), exist_ok=True)
         _consecutive_failures = 0
+        _stalled = False
         while self._running:
+            _loop_age = time.monotonic() - self._loop_tick
+            if _loop_age > self.LOOP_STALE_SEC:
+                if not _stalled:
+                    _stalled = True
+                    if self._on_loop_stall is not None:
+                        try:
+                            self._on_loop_stall(_loop_age)
+                        except Exception:
+                            pass
+                time.sleep(5.0)
+                continue
+            if _stalled:
+                _stalled = False
+                try:
+                    print("[HeartbeatWriter] 메인 루프 응답 회복 → heartbeat 재개", flush=True)
+                except Exception:
+                    pass
             try:
                 with open(self.HEARTBEAT_PATH, "wb") as f:
                     f.write(struct.pack("<d", time.time()))
@@ -264,7 +295,21 @@ def run(result_queue, cmd_queue, shutdown_event,
     detector  = Detector()
     recorder  = AutoRecorder(result_queue=result_queue)
     telegram  = TelegramWorker(result_queue=result_queue)
-    heartbeat = HeartbeatWriter()
+    def _on_loop_stall(stall_sec: float):
+        """HeartbeatWriter 스레드에서 호출 — 메인 루프가 멈춘 지점을 남긴다."""
+        log_error(f"감지 메인 루프 응답 없음 {stall_sec:.0f}초 → heartbeat 중단 "
+                  f"(Watchdog 재spawn 유도)")
+        if _fault_fp is not None:
+            try:
+                _fault_fp.write(f"\n=== 메인 루프 정지 {datetime.datetime.now():%Y-%m-%d %H:%M:%S} "
+                                f"({stall_sec:.0f}초) ===\n")
+                faulthandler.dump_traceback(file=_fault_fp, all_threads=True)
+                _fault_fp.flush()
+                logger.error("  THREAD DUMP: logs/fault_detection.log 에 기록")
+            except Exception as _e:
+                logger.error(f"  THREAD DUMP 실패: {_e!r}")
+
+    heartbeat = HeartbeatWriter(on_loop_stall=_on_loop_stall)
 
     signoff_mgr = SignoffManager(result_queue=result_queue)
     # SignoffManager의 _emit은 result_queue에 직접 넣지만,
@@ -602,6 +647,7 @@ def run(result_queue, cmd_queue, shutdown_event,
     _running = True
     while _running:
         t = time.monotonic()
+        heartbeat.touch()   # 메인 루프 생존 표시 (멈추면 heartbeat도 멈춤 → Watchdog 감지)
         # 캡처 상실 워치독 입력 (이번 틱 신선 프레임 없으면 None = 판단 불가)
         _cr_black = None
         _cr_frozen = None
