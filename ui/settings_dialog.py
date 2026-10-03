@@ -75,9 +75,12 @@ def _fmt_num(val) -> str:
     return str(int(f)) if f == int(f) else str(f)
 
 
-def _float_edit(val: float, w: int = 90) -> QLineEdit:
+def _float_edit(val: float, lo: float = 0.0, hi: float = 100.0, w: int = 90) -> QLineEdit:
     e = QLineEdit(_fmt_num(val))
     e.setFixedWidth(w)
+    v = QDoubleValidator(lo, hi, 2)
+    v.setNotation(QDoubleValidator.StandardNotation)
+    e.setValidator(v)
     return e
 
 
@@ -140,6 +143,7 @@ def _row(label_text: str, widget: QWidget, hint: str = "") -> QHBoxLayout:
     lbl = QLabel(label_text)
     lbl.setObjectName("settingsRowLabel")
     lbl.setFixedWidth(220)
+    widget.setProperty("field_label", label_text)   # 저장 전 입력 검사 안내용
     h.addWidget(lbl)
     h.addWidget(widget)
     if hint:
@@ -996,12 +1000,12 @@ class SettingsDialog(QDialog):
         # ── 블랙 감지 ────────────────────────────────────
         box1, sl1 = _section("블랙 감지", enable_cb=self._black_enabled_cb)
         self._black_thresh = _int_edit(det.get("black_threshold", 5), 0, 255)
-        self._black_ratio = _float_edit(det.get("black_dark_ratio", 98.0))
+        self._black_ratio = _float_edit(det.get("black_dark_ratio", 98.0), 50, 100)
         self._black_block_ratio = _float_edit(det.get("black_block_dark_ratio", 92.0))
         self._black_suppress = _float_edit(det.get("black_motion_suppress_ratio", 0.2))
         self._black_dur = _int_edit(det.get("black_duration", 5), 1, 300)
         self._black_alarm_dur = _int_edit(det.get("black_alarm_duration", 60), 1, 300)
-        self._black_recovery = _float_edit(det.get("black_recovery_seconds", 2.0))
+        self._black_recovery = _float_edit(det.get("black_recovery_seconds", 2.0), 0, 30)
         sl1.addLayout(_row("밝기 임계값", self._black_thresh,
                            "0~255 / 이 값 미만이면 어두운 픽셀로 판단 (기본값: 5)"))
         sl1.addLayout(_row("어두운 픽셀 비율(%)", self._black_ratio,
@@ -1030,7 +1034,7 @@ class SettingsDialog(QDialog):
         # ── 스틸 감지 ────────────────────────────────────
         box2, sl2 = _section("스틸 감지", enable_cb=self._still_enabled_cb)
         self._still_thresh = _int_edit(det.get("still_threshold", 4), 0, 255)
-        self._still_changed = _float_edit(det.get("still_changed_ratio", 10.0))
+        self._still_changed = _float_edit(det.get("still_changed_ratio", 10.0), 1, 100)
         self._still_reset = _int_edit(det.get("still_reset_frames", 3), 1, 10)
         self._still_dur = _int_edit(det.get("still_duration", 120), 1, 300)
         self._still_alarm_dur = _int_edit(det.get("still_alarm_duration", 60), 1, 300)
@@ -1070,7 +1074,7 @@ class SettingsDialog(QDialog):
         self._audio_level_dur = _int_edit(det.get("audio_level_duration", 60), 1, 300)
         self._audio_level_alarm_dur = _int_edit(
             det.get("audio_level_alarm_duration", 60), 1, 300)
-        self._audio_recovery = _float_edit(det.get("audio_level_recovery_seconds", 2.0))
+        self._audio_recovery = _float_edit(det.get("audio_level_recovery_seconds", 2.0), 0, 30)
 
         # H 슬라이더 행 — 프리셋 버튼 인라인 배치
         btn_preset_std = QPushButton("표준 녹색")
@@ -1139,7 +1143,7 @@ class SettingsDialog(QDialog):
         self._emb_thresh = _int_edit(det.get("embedded_silence_threshold", -50), -60, 0)
         self._emb_dur = _int_edit(det.get("embedded_silence_duration", 60), 1, 300)
         self._emb_alarm_dur = _int_edit(det.get("embedded_alarm_duration", 60), 1, 300)
-        self._emb_recovery = _float_edit(det.get("embedded_recovery_seconds", 2.0))
+        self._emb_recovery = _float_edit(det.get("embedded_recovery_seconds", 2.0), 0, 30)
         sl4.addLayout(_row("무음 임계값(dB)", self._emb_thresh,
                            "-60~0 / 이 값 이하일 때 무음 판정 (기본값: -50)"))
         sl4.addLayout(_row("알림 발생 기준(초)", self._emb_dur,
@@ -2010,9 +2014,36 @@ class SettingsDialog(QDialog):
             self._restart_interval_combo.currentIndex()]
         sys_cfg["scheduled_restart_exclude"] = self._restart_exclude_edit.text().strip()
 
+    def _invalid_numeric_fields(self) -> list:
+        """검사기 범위를 벗어난 숫자 칸 목록 ("라벨 (범위)"). 빈칸은 기본값을 쓰므로 허용."""
+        bad = []
+        for e in self.findChildren(QLineEdit):
+            v = e.validator()
+            if v is None or not e.text().strip() or e.hasAcceptableInput():
+                continue
+            label = e.property("field_label") or "숫자 칸"
+            if isinstance(v, QDoubleValidator):
+                rng = f"{_fmt_num(v.bottom())}~{_fmt_num(v.top())}"
+            else:
+                rng = f"{v.bottom()}~{v.top()}"
+            bad.append(f"{label} ({rng})")
+        return bad
+
+    def _warn_if_invalid(self) -> bool:
+        """잘못된 숫자 칸이 있으면 안내하고 True (저장 중단). 종합점검 F5."""
+        bad = self._invalid_numeric_fields()
+        if bad:
+            QMessageBox.warning(
+                self, "설정 저장 안 됨",
+                "다음 칸의 값이 허용 범위를 벗어나 저장하지 않았습니다.\n\n"
+                + "\n".join(f"• {b}" for b in bad))
+        return bool(bad)
+
     def _apply_now(self):
         """위젯 값 수집 → 저장 → Detection 전파. 재진입 방지."""
         if SettingsDialog._applying:
+            return
+        if self._warn_if_invalid():
             return
         SettingsDialog._applying = True
         try:
@@ -2396,6 +2427,8 @@ class SettingsDialog(QDialog):
         QTimer.singleShot(4000, lbl.hide)
 
     def _export_config(self):
+        if self._warn_if_invalid():
+            return
         self._collect_config()
         import os
         default_path = os.path.join(

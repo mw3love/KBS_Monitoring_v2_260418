@@ -48,6 +48,7 @@ class AlarmSystem(QObject):
         self._active_alarms: set = set()
         self._sound_thread: threading.Thread = None
         self._stop_sound = threading.Event()
+        self._sound_until = 0.0   # 알림음 종료 시각(time.time). 0 = 확인/복구까지 계속
         self._logger = None
 
         self._acknowledged_alarms: set = set()
@@ -246,8 +247,15 @@ class AlarmSystem(QObject):
     def _play_sound(self, alarm_type: str, alarm_duration: float = 0.0):
         if not self._sound_enabled:
             return
+        until = time.time() + alarm_duration if alarm_duration > 0 else 0.0
         if self._sound_thread and self._sound_thread.is_alive():
+            # 재생 중 새 알람: 종료 시각을 늦추기만 한다 (무제한(0)이 우선)
+            if until == 0.0 or self._sound_until == 0.0:
+                self._sound_until = 0.0
+            else:
+                self._sound_until = max(self._sound_until, until)
             return
+        self._sound_until = until
         if self._sound_thread is not None:
             try:
                 self._sound_thread.join(timeout=0.5)
@@ -256,7 +264,7 @@ class AlarmSystem(QObject):
         self._stop_sound = threading.Event()
         self._sound_thread = threading.Thread(
             target=self._play_sound_worker,
-            args=("default", alarm_duration),
+            args=("default",),
             daemon=True,
         )
         try:
@@ -285,10 +293,13 @@ class AlarmSystem(QObject):
             except Exception:
                 pass
 
-    def _play_sound_worker(self, alarm_type: str, alarm_duration: float = 0.0):
+    def _sound_expired(self) -> bool:
+        """설정한 알림음 지속시간이 지났는지 (화면 깜빡임·알람 상태는 그대로 유지)."""
+        return self._sound_until > 0 and time.time() >= self._sound_until
+
+    def _play_sound_worker(self, alarm_type: str):
         raw_file = self._get_sound_path()
         sound_file = os.path.abspath(raw_file) if raw_file else None
-        start_time = time.time()
 
         if sound_file and WINSOUND_AVAILABLE:
             sound_duration = 2.0
@@ -298,7 +309,7 @@ class AlarmSystem(QObject):
             except Exception:
                 pass
             while not self._stop_sound.is_set():
-                if alarm_duration > 0 and (time.time() - start_time) >= alarm_duration:
+                if self._sound_expired():
                     break
                 try:
                     winsound.PlaySound(sound_file,
@@ -332,7 +343,7 @@ class AlarmSystem(QObject):
                 if n_channels > 1:
                     audio = audio.reshape(-1, n_channels)
                 while not self._stop_sound.is_set():
-                    if alarm_duration > 0 and (time.time() - start_time) >= alarm_duration:
+                    if self._sound_expired():
                         break
                     sd.play(audio, samplerate=samplerate)
                     sd.wait()
@@ -348,7 +359,7 @@ class AlarmSystem(QObject):
                     pass
 
         while not self._stop_sound.is_set():
-            if alarm_duration > 0 and (time.time() - start_time) >= alarm_duration:
+            if self._sound_expired():
                 break
             self._play_windows_builtin()
             if self._stop_sound.wait(timeout=2.0):

@@ -50,6 +50,12 @@ _HB_GRACE_SEC     = 15.0
 # UI(main) 크래시 시 Detection 고아 시간 단축 위해 30 → 10초 (psutil.pid_exists 부하 미미)
 _PARENT_CHECK_SEC = 10.0
 _SPAWN_COOLDOWN   = 5.0
+# 반복 크래시 억제: 기동 후 _STABLE_SEC 안에 죽으면 '빠른 중단'으로 센다. 연속 횟수만큼
+# 재spawn 간격을 두 배씩 늘리고(최대 _SPAWN_COOLDOWN_MAX), _TG_QUIET_AFTER회를 넘으면
+# 개별 텔레그램을 생략한다(기동 직후 계속 죽을 때 몇 초마다 2통씩 나가던 폭주 방지).
+_STABLE_SEC         = 60.0
+_SPAWN_COOLDOWN_MAX = 300.0
+_TG_QUIET_AFTER     = 3
 
 
 # ── 텔레그램 직접 발송 (Watchdog 전용) ───────────────────────────────────────
@@ -188,6 +194,27 @@ def run(
     last_spawn_time = 0.0
     last_parent_check = time.time()
     _spawn_count = 0  # 재spawn 횟수 (최초 spawn 제외)
+    _fast_fail_streak = 0   # 연속 '빠른 중단' 횟수 (안정 가동 시 0으로)
+    _down_handled = False   # 현재 중단 건의 집계·통보를 이미 했는지
+
+    def _respawn_cooldown() -> float:
+        """마지막 spawn 이후 다음 spawn까지 최소 간격."""
+        return min(_SPAWN_COOLDOWN * (2 ** max(0, _fast_fail_streak - 1)),
+                   _SPAWN_COOLDOWN_MAX)
+
+    def _note_detection_down() -> bool:
+        """Detection 중단 1건을 집계하고, 개별 텔레그램을 보낼지 반환."""
+        nonlocal _fast_fail_streak
+        if time.time() - last_spawn_time < _STABLE_SEC:
+            _fast_fail_streak += 1
+        else:
+            _fast_fail_streak = 1
+        if _fast_fail_streak == _TG_QUIET_AFTER + 1:
+            tg(f"KBS On-Air Monitoring v{version} ⚠ Detection이 기동 직후 "
+               f"{_fast_fail_streak}회 연속 중단 — 재시작 간격을 늘리고(최대 "
+               f"{_SPAWN_COOLDOWN_MAX / 60:.0f}분) 안정될 때까지 개별 알림을 생략합니다. "
+               f"현장 확인 필요(캡처 장치·설정 파일).")
+        return _fast_fail_streak <= _TG_QUIET_AFTER
 
     def _spawn_detection():
         nonlocal detection_proc, last_spawn_time, _spawn_count
@@ -330,20 +357,34 @@ def run(
         # ── Detection 프로세스 생존 확인 ──────────────────────────
         if detection_proc is not None and not detection_proc.is_alive():
             if not _intentional_shutdown:
-                elapsed = now - last_spawn_time
-                if elapsed >= _SPAWN_COOLDOWN:
+                if not _down_handled:
+                    _down_handled = True
                     dead_pid = detection_proc.pid
-                    log_err(f"Detection 비정상 종료 감지 (PID={dead_pid}) → 재spawn")
-                    tg(f"KBS On-Air Monitoring v{version} Detection 중단 감지 (PID={dead_pid}) → 재spawn 중")
+                    _notify = _note_detection_down()
+                    _wait = max(0.0, _respawn_cooldown() - (now - last_spawn_time))
+                    log_err(f"Detection 비정상 종료 감지 (PID={dead_pid}, 연속 빠른 중단 "
+                            f"{_fast_fail_streak}회) → {_wait:.0f}초 후 재spawn")
+                    if _notify:
+                        tg(f"KBS On-Air Monitoring v{version} Detection 중단 감지 (PID={dead_pid}) → 재spawn 중")
                     _nodrop_put(DetectionCrashed(
                         dead_pid=dead_pid, reason="process_dead", stale_sec=0.0))
+                if now - last_spawn_time >= _respawn_cooldown():
                     detection_proc = _spawn_detection()
                     _spawn_count += 1
-                    tg(f"KBS On-Air Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
+                    _down_handled = False
+                    if _fast_fail_streak <= _TG_QUIET_AFTER:
+                        tg(f"KBS On-Air Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
+                    else:
+                        log(f"재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회, 텔레그램 생략)")
                     last_hb_value = 0.0
                     last_hb_check = now
-                else:
-                    log_err(f"재spawn 쿨다운 대기 ({_SPAWN_COOLDOWN - elapsed:.1f}초)")
+        elif (detection_proc is not None and _fast_fail_streak > 0
+              and now - last_spawn_time >= _STABLE_SEC):
+            if _fast_fail_streak > _TG_QUIET_AFTER:
+                tg(f"KBS On-Air Monitoring v{version} Detection 안정화 — 연속 중단 "
+                   f"{_fast_fail_streak}회 후 {_STABLE_SEC:.0f}초 이상 정상 가동 (누적 재spawn {_spawn_count}회)")
+            log(f"Detection 안정화 (연속 빠른 중단 {_fast_fail_streak}회 → 0)")
+            _fast_fail_streak = 0
 
         # ── heartbeat 감시 ────────────────────────────────────────
         # spawn 직후 grace 동안은 검사 건너뜀 (신규 Detection의 첫 heartbeat 대기).
@@ -351,21 +392,20 @@ def run(
             last_hb_check = now
             hb_time = _read_heartbeat()
             if hb_time > 0 and (now - hb_time) > _HB_STALE_SEC:
-                if not _intentional_shutdown:
+                if not _intentional_shutdown and not _down_handled:
                     stale_sec = now - hb_time
-                    log_err(f"heartbeat stale ({stale_sec:.1f}초) → Detection kill 후 재spawn")
-                    tg(f"KBS On-Air Monitoring v{version} Detection heartbeat stale ({stale_sec:.0f}초) → kill 후 재spawn 중")
+                    _down_handled = True   # 재spawn은 위 '생존 확인' 경로가 쿨다운에 맞춰 수행
+                    _notify = _note_detection_down()
+                    log_err(f"heartbeat stale ({stale_sec:.1f}초) → Detection kill 후 재spawn "
+                            f"(연속 빠른 중단 {_fast_fail_streak}회)")
+                    if _notify:
+                        tg(f"KBS On-Air Monitoring v{version} Detection heartbeat stale ({stale_sec:.0f}초) → kill 후 재spawn 중")
                     _nodrop_put(DetectionCrashed(
                         dead_pid=detection_proc.pid if detection_proc else 0,
                         reason="heartbeat_stale",
                         stale_sec=stale_sec,
                     ))
                     _kill_detection(detection_proc)
-                    if now - last_spawn_time >= _SPAWN_COOLDOWN:
-                        detection_proc = _spawn_detection()
-                        _spawn_count += 1
-                        tg(f"KBS On-Air Monitoring v{version} Detection 재spawn 완료 (PID={detection_proc.pid}, 누적 {_spawn_count}회)")
-                        last_hb_value = 0.0
 
         # ── UI 손상 플래그 감시 ───────────────────────────────────
         _check_ui_degraded()

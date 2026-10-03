@@ -311,6 +311,9 @@ if __name__ == '__main__':
 
 ### 비정상 종료 대응
 - **Detection 크래시**: Watchdog이 재spawn + 텔레그램 알림 ("중단 감지" → "복구 완료")
+  - 기동 후 60초 안에 반복해서 죽으면 재spawn 간격을 5→10→20…초(최대 5분)로 늘리고, 4회째에 요약 1통 후
+    개별 알림 생략, 60초 정상 가동 시 "안정화" 1통(`watchdog_process.py` `_STABLE_SEC`·`_TG_QUIET_AFTER`).
+    → 반복 크래시 중 텔레그램이 조용해져도 고장이 아니다.
 - **UI(main) 크래시**: Watchdog이 10초 주기로 `psutil.pid_exists(parent)` 감시 → 사라지면 Detection 정리 + 자신 종료 + 텔레그램 "전체 비정상 종료" 알림 (W3: 고아 시간 단축 위해 30→10초)
 - **Watchdog 자체 크래시**: main은 Watchdog join 실패 시 Detection 정리 + 로그 + 텔레그램 (main 프로세스에서 직접 HTTP 발송)
 

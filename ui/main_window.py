@@ -267,7 +267,10 @@ class MainWindow(QMainWindow):
         if not self._detection_enabled:
             return
         self._active_alarm_roi[(msg.detection_type, msg.label)] = msg.roi_type
-        self._alarm.trigger(msg.detection_type, msg.label)
+        # 설정창 "알림음 지속(초)" — black/still/audio_level/embedded_alarm_duration
+        alarm_dur = self._cfg.get("detection", {}).get(
+            f"{msg.detection_type}_alarm_duration", 0)
+        self._alarm.trigger(msg.detection_type, msg.label, float(alarm_dur or 0))
         self._video_widget.set_alert_state(msg.label, True)
         lbl_str = (f"{msg.label} ({msg.media_name})"
                    if msg.media_name and msg.media_name != msg.label else msg.label)
@@ -417,6 +420,8 @@ class MainWindow(QMainWindow):
             log_type="error",
             source=msg.source,
         )
+        # 입력 상실 이력이 화면에만 남고 파일엔 없던 문제 (종합점검 F9)
+        self._logger.error(f"[{msg.source}] {msg.message} (재연결 {msg.retry_count}회)")
 
     def _on_diag_snapshot(self, msg):
         if msg.section == "SYSTEM-HB":
