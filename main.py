@@ -253,15 +253,13 @@ def main():
                 _time.sleep(0.1)
 
     # ── SharedMemory 생성 ─────────────────────────────────────────
-    state_lock = multiprocessing.Lock()
     shared_frame = SharedFrameBuffer(create=True, name=FRAME_SHM)
-    shared_state = SharedStateBuffer(create=True, name=STATE_SHM, lock=state_lock)
+    shared_state = SharedStateBuffer(create=True, name=STATE_SHM)
 
     # ── IPC 채널 생성 ─────────────────────────────────────────────
     result_queue   = multiprocessing.Queue(maxsize=200)
     cmd_queue      = multiprocessing.Queue(maxsize=50)
     shutdown_event = multiprocessing.Event()
-    cmd_event      = multiprocessing.Event()   # cmd_queue에 메시지 도착 알림
 
     # ── Watchdog 프로세스 spawn ───────────────────────────────────
     from processes.watchdog_process import run as watchdog_run
@@ -272,10 +270,9 @@ def main():
         target=watchdog_run,
         args=(
             result_queue, cmd_queue, shutdown_event,
-            state_lock, FRAME_SHM, STATE_SHM,
+            FRAME_SHM, STATE_SHM,
             os.getpid(),
             _APP_VERSION,
-            cmd_event,
         ),
         daemon=False,
         name="WatchdogProcess",
@@ -301,7 +298,6 @@ def main():
         shutdown_event=shutdown_event,
         shared_frame=shared_frame,
         shared_state=shared_state,
-        cmd_event=cmd_event,
     )
     window.show()
 

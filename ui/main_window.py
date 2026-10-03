@@ -35,14 +35,13 @@ class MainWindow(QMainWindow):
     """KBS Monitoring v2 메인 윈도우"""
 
     def __init__(self, result_queue, cmd_queue, shutdown_event,
-                 shared_frame=None, shared_state=None, cmd_event=None):
+                 shared_frame=None, shared_state=None):
         super().__init__()
         self._result_queue  = result_queue
         self._cmd_queue     = cmd_queue
         self._shutdown_event = shutdown_event
         self._shared_frame  = shared_frame
         self._shared_state  = shared_state
-        self._cmd_event     = cmd_event
 
         self.setWindowTitle(f"KBS On-Air Monitoring v{VERSION}")
         self.setMinimumSize(1280, 720)
@@ -612,7 +611,6 @@ class MainWindow(QMainWindow):
             alarm=self._alarm,
             frozen_frame=frozen_frame,
             parent=self,
-            cmd_event=self._cmd_event,
         )
         self._settings_dlg.config_saved.connect(self._on_config_saved)
         self._settings_dlg.finished.connect(
@@ -681,8 +679,6 @@ class MainWindow(QMainWindow):
                     self._cmd_queue.put_nowait(msg)
                 except Exception:
                     pass
-        if self._cmd_event is not None:
-            self._cmd_event.set()
 
     @staticmethod
     def _detect_type_to_log_type(detection_type: str) -> str:

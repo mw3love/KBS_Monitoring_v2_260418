@@ -186,8 +186,8 @@ def _apply_config_to_telegram(telegram, cfg: dict):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def run(result_queue, cmd_queue, shutdown_event,
-        state_lock, frame_shm_name: str, state_shm_name: str,
-        version: str = "2.8", cmd_event=None):
+        frame_shm_name: str, state_shm_name: str,
+        version: str = "2.8"):
     """
     Watchdog이 spawn하는 Detection 프로세스 메인 함수.
     종료 조건: shutdown_event set 또는 Shutdown 메시지 수신.
@@ -239,7 +239,10 @@ def run(result_queue, cmd_queue, shutdown_event,
     from ipc.shared_state import SharedStateBuffer
     try:
         shared_frame = SharedFrameBuffer(create=False, name=frame_shm_name)
-        shared_state = SharedStateBuffer(create=False, name=state_shm_name, lock=state_lock)
+        # 프로세스 내부 잠금: 쓰는 쪽은 이 프로세스의 스레드들(오디오 레벨·명령 처리)뿐이다.
+        # 프로세스 간 잠금은 강제 종료 시 쥔 채 남아 재spawn된 Detection을 멈추게 한다.
+        shared_state = SharedStateBuffer(create=False, name=state_shm_name,
+                                         lock=threading.Lock())
         log_debug("SharedMemory 연결 성공")
     except Exception as e:
         log_error(f"SharedMemory 연결 실패: {e}")
@@ -577,6 +580,7 @@ def run(result_queue, cmd_queue, shutdown_event,
     _drop_count_snap = 0
     # 캡처 워커 응답성 감시: cap.read() hang 시 heartbeat 중단 → Watchdog 재spawn 유도
     _CAPTURE_FREEZE_SEC = 15.0
+    _CMD_POLL_SEC = 0.02      # 루프 대기 중 cmd_queue 확인 간격 (명령 반응 지연 상한)
     _capture_freeze_triggered = False
     # 캡처 입력 상실 자동복구 워치독 (화면 전체 frozen-black → 캡처 재오픈)
     _cr_cfg = cfg.get("capture_recovery", {})
@@ -786,11 +790,20 @@ def run(result_queue, cmd_queue, shutdown_event,
 
         elapsed = time.monotonic() - t
         sleep_target = max(0.0, detection_interval - elapsed)
-        if cmd_event is not None and sleep_target > 0:
-            cmd_event.wait(timeout=sleep_target)
-            cmd_event.clear()
-        else:
-            time.sleep(sleep_target)
+        # 대기 중에도 cmd_queue를 짧게 확인해 명령(포트 변경 등)에 바로 반응한다.
+        # multiprocessing.Event로 깨우던 방식은 wait() 중 강제 종료되면 UI의 set()이
+        # 영구 정지해 제거했다(docs/261003_프로그램_종합점검.md F10).
+        _wake_at = time.monotonic() + sleep_target
+        while True:
+            _remain = _wake_at - time.monotonic()
+            if _remain <= 0:
+                break
+            try:
+                if not cmd_queue.empty():
+                    break
+            except Exception:
+                pass
+            time.sleep(min(_CMD_POLL_SEC, _remain))
         actual_elapsed = time.monotonic() - t
         _jitter_sum_ms += abs(actual_elapsed - detection_interval) * 1000.0
         _jitter_samples += 1

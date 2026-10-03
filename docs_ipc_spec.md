@@ -16,7 +16,7 @@ main (= UI 프로세스)
   ├─ multiprocessing.Queue result_queue  [Detection→UI]
   ├─ multiprocessing.Queue cmd_queue     [UI→Detection]
   ├─ multiprocessing.Event shutdown_event  [정상 종료 브로드캐스트]
-  ├─ multiprocessing.Event cmd_event       [cmd_queue 도착 알림, Detection 폴링 지연 제거]
+  │   (cmd_queue 도착 알림용 cmd_event는 2026-10-03 제거 — Detection이 대기 중 20ms 간격으로 cmd_queue를 확인)
   │
   └─ Watchdog Process (main이 spawn)
        │   — Detection params / shm names / queue handles / shutdown_event 전달
@@ -65,7 +65,8 @@ main (= UI 프로세스)
 | 28 | 4 | uint32 LE | `reserved` | - | 향후 확장 |
 | 32 | 32 | bytes | `reserved` | - | 향후 확장 |
 
-- 동시 쓰기 보호: `multiprocessing.Lock` 1개를 `SharedStateBuffer`에 부착(빈도 낮음). read는 lock-free 허용.
+- 동시 쓰기 보호: 쓰는 프로세스는 Detection 하나뿐이므로 Detection이 **자기 프로세스 안의 `threading.Lock`**을 `SharedStateBuffer`에 부착한다(스레드 간 보호). read는 lock-free 허용.
+  - ⚠ **프로세스 간 잠금(`multiprocessing.Lock`·`Event`)을 Detection 재spawn을 넘어 공유하지 말 것.** Windows에서 `terminate()`는 강제 종료라, 잠금을 쥔 채(또는 `Event.wait()` 중에) 죽으면 다음 사용자가 영원히 멈춘다. 2026-10-03 점검에서 `cmd_event.set()`으로 UI가 영구 정지하는 것을 재현해 제거했다(`docs/261003_프로그램_종합점검.md` F10).
 - **heartbeat 자체는 `data/heartbeat.dat` 파일 유지**(CLAUDE.md 규칙 존중). SharedMemory에 중복 저장하지 않음.
 - 전원 온/오프 등으로 magic이 0이면 UI는 "state not ready"로 처리하고 Detection 초기화를 기다림.
 
@@ -132,7 +133,7 @@ class BaseMsg:
 1. `main.py` 진입 → `multiprocessing.freeze_support()` → `os.chdir(_ROOT)` (cwd 를 프로젝트 루트로 고정 — PC별 실행 방식 차이로 발생하는 상대경로 PermissionError 방지) → `faulthandler.enable(logs/fault.log)` → `sys.excepthook` 후킹(unhandled exception traceback 을 `logs/YYYYMMDD_ui.txt` 에 기록)
 2. 기존 SharedMemory 이름 잔존 확인: 각 이름으로 `create=False` 시도 → 성공 시 `unlink()`.
 3. SharedMemory `kbs_frame_v2`·`kbs_state_v2` create. state는 magic/version 초기화, 나머지 0.
-4. `result_queue(maxsize=200)`, `cmd_queue(maxsize=50)`, `shutdown_event`, `cmd_event` 생성.
+4. `result_queue(maxsize=200)`, `cmd_queue(maxsize=50)`, `shutdown_event` 생성.
 5. **Watchdog 프로세스 spawn** (Detection params + shm names + queue handles + shutdown_event 전달).
    - Watchdog은 시작 직후 **`[SYSTEM]` 텔레그램 "기동" 통보 1회** 발송(app 버전 + `platform.python_version()`) — 최초 부팅·크래시 재spawn·예약 재시작 공통, 원격에서 재기동 여부·실행 중인 파이썬 버전 확인용(`notify_system` 게이트 적용).
    - Watchdog은 Detection을 즉시 spawn 후 감시 루프 시작.

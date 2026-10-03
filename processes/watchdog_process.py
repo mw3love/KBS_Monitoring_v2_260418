@@ -124,12 +124,10 @@ def run(
     result_queue,
     cmd_queue,
     shutdown_event,
-    state_lock,
     frame_shm_name: str,
     state_shm_name: str,
     parent_pid: int,
     version: str = "2.8",
-    cmd_event=None,
 ):
     """
     Watchdog 프로세스 메인 함수.
@@ -197,8 +195,7 @@ def run(
         p = multiprocessing.Process(
             target=detection_run,
             args=(result_queue, cmd_queue, shutdown_event,
-                  state_lock, frame_shm_name, state_shm_name, version,
-                  cmd_event),
+                  frame_shm_name, state_shm_name, version),
             daemon=False,
             name="DetectionProcess",
         )

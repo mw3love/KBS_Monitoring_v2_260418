@@ -17,7 +17,7 @@ offset  size  type        field             direction
 총 64 bytes
 """
 import struct
-from multiprocessing import Lock
+from threading import Lock
 from multiprocessing.shared_memory import SharedMemory
 
 _MAGIC = 0x4B425332     # 'KBS2'
@@ -37,12 +37,15 @@ _OFF_LEVEL_R = 24
 
 
 class SharedStateBuffer:
-    """상태 SharedMemory 래퍼. 동시 쓰기는 multiprocessing.Lock 으로 보호."""
+    """상태 SharedMemory 래퍼. 동시 쓰기는 쓰는 프로세스(Detection) 안의 threading.Lock 으로 보호.
+
+    ⚠ multiprocessing.Lock 금지: 잠금을 쥔 채 강제 종료되면 재spawn된 Detection이 영원히 멈춘다
+    (docs_ipc_spec.md §1.2)."""
 
     def __init__(self, create: bool = False, name: str = SHM_NAME,
                  lock: "Lock | None" = None):
         self._name = name
-        self._lock = lock  # main 프로세스에서 생성해 전달
+        self._lock = lock  # 쓰는 프로세스가 자기 threading.Lock을 전달 (읽기 전용이면 None)
         if create:
             try:
                 self._shm = SharedMemory(name=name, create=True, size=TOTAL_SIZE)

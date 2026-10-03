@@ -14,6 +14,7 @@ import argparse
 import multiprocessing
 import os
 import sys
+import threading
 import time
 import queue as _queue_mod
 import random
@@ -49,27 +50,24 @@ def _setup_ipc():
 
     _cleanup_shm()
 
-    state_lock  = multiprocessing.Lock()
     shared_frame = SharedFrameBuffer(create=True, name=_SHM_FRAME)
-    shared_state = SharedStateBuffer(create=True, name=_SHM_STATE, lock=state_lock)
+    shared_state = SharedStateBuffer(create=True, name=_SHM_STATE)
 
     result_queue   = multiprocessing.Queue(maxsize=200)
     cmd_queue      = multiprocessing.Queue(maxsize=50)
     shutdown_event = multiprocessing.Event()
-    cmd_event      = multiprocessing.Event()
 
-    return (shared_frame, shared_state, state_lock,
-            result_queue, cmd_queue, shutdown_event, cmd_event)
+    return (shared_frame, shared_state,
+            result_queue, cmd_queue, shutdown_event)
 
 
-def _spawn_detection(result_queue, cmd_queue, shutdown_event,
-                     state_lock, cmd_event):
+def _spawn_detection(result_queue, cmd_queue, shutdown_event):
     """Detection 프로세스 spawn. Process 객체 반환."""
     from processes.detection_process import run as det_run
     p = multiprocessing.Process(
         target=det_run,
         args=(result_queue, cmd_queue, shutdown_event,
-              state_lock, _SHM_FRAME, _SHM_STATE),
+              _SHM_FRAME, _SHM_STATE),
         kwargs={"version": "chaos-test"},
         daemon=False,
         name="Detection-Chaos",
@@ -92,6 +90,28 @@ def _drain_to_ready(result_queue, timeout: float) -> bool:
                 return True
         except Exception:
             pass
+    return False
+
+
+def _send_cmd_and_confirm(cmd_queue, shared_state, volume: int,
+                          timeout: float = 5.0) -> bool:
+    """
+    UI처럼 명령을 보내고, 새 Detection이 처리했는지(shared_state 반영) 확인한다.
+    직전 Detection이 강제 종료된 뒤에도 송신이 막히지 않아야 한다(F10 회귀 방지:
+    multiprocessing.Event를 쓰던 시절엔 여기서 UI가 영구 정지했다).
+    """
+    from ipc.messages import SetVolume
+    sender = threading.Thread(target=cmd_queue.put_nowait,
+                              args=(SetVolume(volume=volume),), daemon=True)
+    sender.start()
+    sender.join(2.0)
+    if sender.is_alive():
+        return False
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if shared_state.get_volume() == volume:
+            return True
+        time.sleep(0.05)
     return False
 
 
@@ -124,8 +144,8 @@ def run_chaos(rounds: int, kill_after_sec: float, jitter_sec: float = 2.0):
     print(f"\n[Chaos] 시작 — {rounds}라운드, kill 기준 {kill_after_sec}s ±{jitter_sec}s")
 
     ipc = _setup_ipc()
-    (shared_frame, shared_state, state_lock,
-     result_queue, cmd_queue, shutdown_event, cmd_event) = ipc
+    (shared_frame, shared_state,
+     result_queue, cmd_queue, shutdown_event) = ipc
 
     results = []
     det_proc = None
@@ -135,7 +155,7 @@ def run_chaos(rounds: int, kill_after_sec: float, jitter_sec: float = 2.0):
             print(f"\n[Chaos] 라운드 {rnd}/{rounds} — Detection spawn")
 
             det_proc = _spawn_detection(
-                result_queue, cmd_queue, shutdown_event, state_lock, cmd_event)
+                result_queue, cmd_queue, shutdown_event)
 
             # DetectionReady 수신 대기
             ready = _drain_to_ready(result_queue, _DETECTION_READY_TIMEOUT)
@@ -150,6 +170,16 @@ def run_chaos(rounds: int, kill_after_sec: float, jitter_sec: float = 2.0):
 
             pid = det_proc.pid
             print(f"[Chaos] 라운드 {rnd}: DetectionReady 수신 (PID={pid}) ✓")
+
+            # 직전 라운드의 강제 kill 이후에도 명령 송신·처리가 되는지 확인
+            if not _send_cmd_and_confirm(cmd_queue, shared_state, 10 + rnd):
+                print(f"[Chaos] 라운드 {rnd}: 명령 송신/처리 실패 (FAIL)")
+                results.append(False)
+                _kill_process(det_proc)
+                det_proc = None
+                time.sleep(1.0)
+                continue
+            print(f"[Chaos] 라운드 {rnd}: 명령 송신·처리 정상 ✓")
 
             # 운영 시뮬레이션
             wait_sec = kill_after_sec + random.uniform(-jitter_sec, jitter_sec)
