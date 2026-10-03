@@ -117,8 +117,9 @@ UI Process (PySide6 이벤트 루프)
   └─ DetectionReady 수신 시      런타임 상태 재주입 (설정·ROI·볼륨 등)
 
 Watchdog Process
-  ├─ heartbeat.dat 감시          10초 무응답 → Detection kill 후 재spawn
-  ├─ UI 생존 감시                30초 주기 psutil — 사망 시 Detection 정리 후 자신 종료
+  ├─ heartbeat.dat 감시          10초 무응답 → Detection kill 후 재spawn (반복 시 간격 증가)
+  ├─ UI 생존 감시                10초 주기 psutil — 사망 시 Detection 정리 후 자신 종료
+  ├─ UI 정지 감시                ui_heartbeat.dat 30초 무갱신 → "UI 응답 없음" 알림
   └─ 텔레그램 직접 발송          [SYSTEM] prefix — Detection이 죽어도 알림 보장
 
 Detection Process  (PySide6 임포트 없음)
@@ -128,7 +129,7 @@ Detection Process  (PySide6 임포트 없음)
   ├─ SignoffManager              threading.Thread, 정파 상태 관리
   ├─ AutoRecorder                순환버퍼 + ffmpeg
   ├─ TelegramWorker              [DETECT] 감지 이벤트 알림
-  └─ HeartbeatWriter             5초 주기 heartbeat.dat 갱신
+  └─ HeartbeatWriter             5초 주기 heartbeat.dat 갱신 (메인 루프 20초 무응답 시 중단)
 ```
 
 ### 프로세스 간 통신

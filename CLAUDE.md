@@ -158,7 +158,8 @@ kbs_monitoring_v2/
 ├── data/
 │   ├── heartbeat.dat
 │   ├── last_exit.json
-│   └── ui_degraded.flag      # UI 자기손상 감지 시에만 생성 (Watchdog이 읽고 통보)
+│   ├── ui_degraded.flag      # UI 자기손상 감지 시에만 생성 (Watchdog이 읽고 통보)
+│   └── ui_heartbeat.dat      # UI가 2초마다 시각 기록 (Watchdog의 UI 정지 감시용)
 ├── processes/
 │   ├── detection_process.py
 │   └── watchdog_process.py

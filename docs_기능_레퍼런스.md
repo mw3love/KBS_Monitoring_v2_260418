@@ -491,9 +491,10 @@ CPU/RAM 10초 주기 갱신 (TopBar). GPU는 v2.8.0부터 기본 OFF — §2.2 �
 
 ### 10.1 감지 루프 Staleness 감지
 
-- 5초 이상 감지 루프 응답 없음 → UI 상단에 빨간 "감지 중단" 표시
-- 10초 이상 무응답 → Watchdog이 Detection 프로세스 kill 후 재spawn + `[SYSTEM]` 텔레그램 알림 (중단/복구 각 1회)
-- 복구 시: "감지 루프 정상 복구" 로그 + UI 뱃지 해제
+- Detection 메인 루프가 20초 넘게 응답 없으면 `HeartbeatWriter`가 heartbeat.dat 갱신을 멈춤(정지 시점 전체 스레드 스택을 `logs/fault_detection.log`에 1회 덤프)
+- heartbeat 10초 이상 무갱신 → Watchdog이 Detection 프로세스 kill 후 재spawn + `[SYSTEM]` 텔레그램 알림 (중단/복구 각 1회). UI는 재spawn 동안 감지 버튼 테두리로 표시
+- 기동 후 60초 안에 반복 중단 시 재spawn 간격을 5→10→20…초(최대 5분)로 늘리고, 4회째 요약 1통 후 개별 알림 생략, 60초 정상 가동 시 "안정화" 1통
+- (2026-10-03 이전에는 heartbeat를 별도 스레드가 무조건 써서 메인 루프 정지를 못 잡았고, UI "감지 중단" 표시도 정지한 루프 자신의 DIAG에 의존해 켜질 수 없었다 — `docs/261003_프로그램_종합점검.md` F1)
 
 ### 10.2 텔레그램 워커 모니터
 
@@ -507,14 +508,16 @@ CPU/RAM 10초 주기 갱신 (TopBar). GPU는 v2.8.0부터 기본 OFF — §2.2 �
 
 ### 10.4 UI 프로세스 생존 감시 (v2 신규)
 
-- Watchdog은 30초 주기로 parent(main/UI) PID 존재 확인
+- Watchdog은 10초 주기로 parent(main/UI) PID 존재 확인
 - UI 크래시 감지 시: Detection 정리 → Watchdog 자신 종료 → `[SYSTEM]` 텔레그램 "전체 비정상 종료" 알림
+- **UI 정지 감지**: 프로세스는 살아 있는데 이벤트 루프가 멈춘 경우(화면·알림음·조작 정지)는 PID 확인으로 못 잡으므로, UI가 2초마다 `data/ui_heartbeat.dat`에 시각을 쓰고 Watchdog이 30초 이상 묵으면 `[SYSTEM]` "UI 응답 없음", 재개 시 "UI 응답 회복" 1회씩 발송
 
 ### 10.5 기동 알림 (v2 신규)
 
 - Watchdog이 시작 직후 `[SYSTEM]` 텔레그램으로 "기동" 1회 통보 — 앱 버전 + 실행 중인 파이썬 버전(`platform.python_version()`) 포함
 - 최초 부팅·크래시 재spawn·예약 재시작 공통 — 원격 접속 없이도 재기동 여부·파이썬 버전 확인 가능
 - 화면 로그창(SYSTEM LOG)에도 "기동 완료 (Python x.x.x)" 로 동일 정보 표시
+- 기동 메시지 둘째 줄에 **자가점검** 결과 포함: Python 3.13 여부·설정 파일/감지영역 수·ffmpeg·디스크 여유(10GB 미만 ✗). 문제가 있으면 ⚠ 표시, 화면 로그창에도 `기동 점검: ...`(error 등급)으로 표시
 - `notify_system` 설정을 따름(텔레그램 부분은 OFF 시 미발송, 화면 로그는 항상 표시)
 - 앱 버전은 `ui.main_window.VERSION` 단일 출처에서 가져온다 (v2.8.7 이전에는 `main.py`에 `"2.8"`이 하드코딩돼 있어 실제 배포판을 알려주지 못했다)
 - ⚠ **신규 clone 후 설정을 복원하기 전에 기동한 세션에서는 텔레그램이 안 나간다** — Watchdog은 기동 직후 `config/kbs_config.json`을 1회만 읽는데 그 파일은 gitignore 대상이라 새 빌드에 없다. 설정 복원 후 **재기동**해야 나가기 시작한다(화면 로그는 정상 표시)
