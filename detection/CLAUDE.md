@@ -43,7 +43,8 @@ while self._running:
 - PREPARATION 상태: 스틸만 억제, 블랙은 계속 알림
 - **알람 진입(trigger)과 복구(recovery) 모두 억제**: SIGNOFF 중에는 `is_signoff_label` 체크를 복구 경로에도 적용
   - 복구 경로에서 `is_signoff_label` → True 이면 텔레그램 발송 생략 (AlarmResolve는 result_queue에 정상 발행)
-  - SIGNOFF→IDLE 직후 경합 조건 대비: `_signoff_recovery_suppress` 셋으로 2차 차단 (suppressed_labels + enter_roi.video_label 1회)
+  - 복구 문자는 **진입 알림을 실제로 보낸 알람에만** 보낸다(`_alarm_notified`, 진입·복구 짝 보장). 정파 중 시작돼 진입이 억제된 알람은 IDLE 복귀 뒤 풀려도 복구 문자가 없다. 정파 해제 순간 아직 진행 중인 그룹 라벨 알람은 `_mark_recovery_suppress`가 등록을 지워 복구 문자를 생략한다.
+  - ⚠ 옛 방식(`_signoff_recovery_suppress` "해제 후 다음 복구 1회 차단" 셋)은 유효기간이 없어, 몇 시간 뒤 무관한 블랙의 복구 문자를 막았다(`fix/260720_블랙복구_텔레그램_누락.md`). "다음 N회 차단"식 토큰을 다시 만들지 말 것.
   - 결과: 정파 관련 텔레그램은 진입 1개 + 해제 1개만 발송됨
 
 ## 설정 동기화 원칙

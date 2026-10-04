@@ -311,9 +311,12 @@ def run(result_queue, cmd_queue, shutdown_event,
     # drop 금지 메시지(SignoffStateChange)는 _put_nodrop으로 래핑 필요.
     # 여기서는 SignoffManager의 _emit을 오버라이드하여 drop-safe 버전 주입.
 
-    # 정파 해제 후 그룹 라벨의 다음 1회 복구 알림을 텔레그램에서 차단
-    # (정파 진입 동안 억제되었던 ROI들이 차례로 정상화되며 발생하는 알림 폭주 방지)
-    _signoff_recovery_suppress: set = set()
+    # 진입 알림을 텔레그램으로 보낸 알람 {(det_type, label): "single"|"group"}.
+    # 복구 문자는 여기 있는 알람에만 보낸다(진입·복구 짝 보장). 정파 중 시작돼 진입이
+    # 억제된 알람은 여기 없으므로 정파 해제 후 복구 문자도 자연히 생략된다.
+    # (옛 방식 "정파 해제 후 다음 복구 1회 차단" 셋은 유효기간이 없어 몇 시간 뒤 무관한
+    #  블랙의 복구 문자를 막았다 — fix/260720_블랙복구_텔레그램_누락.md)
+    _alarm_notified: dict = {}
     # SIGNOFF 진입 시각 추적 (_signoff_entered_at은 _transition_to 직전에 None으로 리셋되므로 별도 관리)
     _signoff_entry_time: Dict[int, float] = {}
     # 정파 플래핑(SIGNOFF⇄정파준비 반복) 묶음 처리 추적기
@@ -356,12 +359,15 @@ def run(result_queue, cmd_queue, shutdown_event,
         )
 
     def _mark_recovery_suppress(group):
-        # 정파 해제 후 그룹 내 라벨의 다음 1회 복구 알림 차단
-        for lbl in (group.suppressed_labels or []):
-            _signoff_recovery_suppress.add(lbl)
+        # 정파 해제 시점에 아직 진행 중인 그룹 라벨 알람은 복구 문자를 생략한다
+        # (정파 해제 메시지로 통보됨). 지금 진행 중인 알람에만 적용되고, 이후 새로 시작되는
+        # 알람은 진입 시 다시 등록되므로 영향 없다.
+        labels = set(group.suppressed_labels or [])
         v_lbl = group.enter_roi.get("video_label", "")
         if v_lbl:
-            _signoff_recovery_suppress.add(v_lbl)
+            labels.add(v_lbl)
+        for key in [k for k in _alarm_notified if k[1] in labels]:
+            del _alarm_notified[key]
 
     def _send_flap_summary(group, summary, current_state):
         start_str = datetime.datetime.fromtimestamp(summary["start_ts"]).strftime("%H:%M")
@@ -796,7 +802,8 @@ def run(result_queue, cmd_queue, shutdown_event,
                         _prev_black, _prev_still, _prev_audio,
                         signoff_mgr, detector, telegram, recorder,
                         video_rois, audio_rois, snap,
-                        _signoff_recovery_suppress,
+                        _alarm_notified,
+                        frame_black=bool(_cr_black),
                     )
 
         except Exception:
@@ -1009,10 +1016,19 @@ def _process_alarms(
     prev_black, prev_still, prev_audio,
     signoff_mgr, detector, telegram, recorder,
     video_rois, audio_rois, snap,
-    signoff_recovery_suppress: set = None,
+    alarm_notified: dict = None,
+    frame_black: bool = False,
 ):
+    """감지 결과 전이를 알람·텔레그램·녹화로 변환.
+
+    alarm_notified: 진입 알림을 보낸 알람 {(det_type, label): "single"|"group"} — 호출 간 유지.
+    frame_black: 이번 프레임이 화면 전체 블랙인지. 이때 동시에 시작된 블랙은 채널별 대신
+                 1통으로 묶어 보낸다(캡처 입력 상실 시 알림 폭주 방지).
+    """
     from ipc.messages import AlarmTrigger, AlarmResolve, LogEntry
 
+    if alarm_notified is None:
+        alarm_notified = {}
     roi_media = {roi.label: roi.media_name for roi in (video_rois + audio_rois)}
 
     # label → group_id 역매핑 (그룹별 억제 적용을 위해)
@@ -1023,6 +1039,19 @@ def _process_alarms(
             label_to_gid[v_lbl] = _gid
         for _sl in _grp.suppressed_labels:
             label_to_gid[_sl] = _gid
+
+    # 화면 전체 블랙 묶음 대상 (이번 호출에서 새로 시작/해제된 블랙)
+    group_black_entries = []   # [(label, media)]
+    group_black_recoveries = []  # [(label, media, duration)]
+    if frame_black:
+        new_black = [
+            l for l, r in vid_results.items()
+            if r.get("black_alerting", False) and not prev_black.get(l, False)
+            and not signoff_mgr.is_signoff_label(l, label_to_gid.get(l))
+        ]
+        group_new_black = len(new_black) >= 2
+    else:
+        group_new_black = False
 
     # 비디오 ROI: 블랙/스틸
     for lbl, res in vid_results.items():
@@ -1051,10 +1080,15 @@ def _process_alarms(
                                       dark_ratio=res.get("dark_ratio", -1.0),
                                       snapshot_jpeg=snap_jpeg),
                          ipc_counters)
-                    telegram.notify(
-                        "블랙" if det_type == "black" else "스틸",
-                        lbl, media, jpeg_bytes=snap_jpeg,
-                    )
+                    if det_type == "black" and group_new_black:
+                        group_black_entries.append((lbl, media))
+                        alarm_notified[(det_type, lbl)] = "group"
+                    else:
+                        telegram.notify(
+                            "블랙" if det_type == "black" else "스틸",
+                            lbl, media, jpeg_bytes=snap_jpeg,
+                        )
+                        alarm_notified[(det_type, lbl)] = "single"
                     recorder.trigger(det_type, lbl, media)
                 # DIAG-복구추적(임시): 블랙/스틸 복구 누락 조사용 — 진입 기록. fix/260720
                 _put(result_queue,
@@ -1069,13 +1103,16 @@ def _process_alarms(
                                   duration_sec=duration,
                                   media_name=media),
                      ipc_counters)
+                # 복구 문자는 진입 알림을 보낸 알람에만 (진입·복구 짝 보장).
                 # SIGNOFF 중이면 억제 ROI 복구 알림 차단 (정파 해제 메시지로 통보됨)
-                # SIGNOFF→IDLE 직후 경합 조건 대비: _signoff_recovery_suppress 2차 차단
+                sent_kind = alarm_notified.pop((det_type, lbl), None)
                 if signoff_mgr.is_signoff_label(lbl, lbl_gid):
                     _diag = "억제(정파 SIGNOFF)"
-                elif signoff_recovery_suppress and lbl in signoff_recovery_suppress:
-                    signoff_recovery_suppress.discard(lbl)
-                    _diag = "억제(정파 해제 2차)"
+                elif sent_kind is None:
+                    _diag = "억제(진입 알림 없음)"
+                elif sent_kind == "group":
+                    group_black_recoveries.append((lbl, media, duration))
+                    _diag = "복구문자 발송(묶음)"
                 else:
                     telegram.notify(
                         "블랙" if det_type == "black" else "스틸",
@@ -1090,6 +1127,23 @@ def _process_alarms(
                      ipc_counters)
 
             prev_dict[lbl] = alerting
+
+    # 화면 전체 블랙 묶음 발송 (채널별 N통 대신 1통)
+    if group_black_entries:
+        labels = "·".join(l for l, _ in group_black_entries)
+        telegram.notify(
+            "블랙", "전체 화면",
+            f"{labels} {len(group_black_entries)}채널 동시 — 캡처 입력 이상 의심",
+            jpeg_bytes=_encode_jpeg(snap),
+        )
+    if group_black_recoveries:
+        labels = "·".join(l for l, _, _ in group_black_recoveries)
+        telegram.notify(
+            "블랙", "전체 화면",
+            f"{labels} {len(group_black_recoveries)}채널",
+            is_recovery=True, jpeg_bytes=_encode_jpeg(snap),
+            duration_sec=max(d for _, _, d in group_black_recoveries),
+        )
 
     # 오디오 레벨미터 ROI
     for lbl, res in aud_results.items():
@@ -1108,6 +1162,7 @@ def _process_alarms(
                                   snapshot_jpeg=snap_jpeg),
                      ipc_counters)
                 telegram.notify("오디오", lbl, media, jpeg_bytes=snap_jpeg)
+                alarm_notified[("audio_level", lbl)] = "single"
                 recorder.trigger("오디오", lbl, media)
         elif not alerting and was:
             snap_jpeg = _encode_jpeg(snap)
@@ -1116,12 +1171,12 @@ def _process_alarms(
                               duration_sec=res.get("last_duration", 0.0),
                               media_name=media),
                  ipc_counters)
-            # SIGNOFF 중이면 억제 ROI 복구 알림 차단 / SIGNOFF→IDLE 직후 2차 차단
+            # 진입 알림을 보낸 알람에만 복구 문자 / SIGNOFF 중이면 억제 ROI 복구 알림 차단
+            sent_kind = alarm_notified.pop(("audio_level", lbl), None)
             if signoff_mgr.is_signoff_label(lbl, label_to_gid.get(lbl)):
                 _diag = "억제(정파 SIGNOFF)"
-            elif signoff_recovery_suppress and lbl in signoff_recovery_suppress:
-                signoff_recovery_suppress.discard(lbl)
-                _diag = "억제(정파 해제 2차)"
+            elif sent_kind is None:
+                _diag = "억제(진입 알림 없음)"
             else:
                 telegram.notify("오디오", lbl, media, is_recovery=True, jpeg_bytes=snap_jpeg,
                                 duration_sec=res.get("last_duration", 0.0))

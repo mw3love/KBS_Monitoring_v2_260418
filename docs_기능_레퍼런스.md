@@ -224,7 +224,8 @@ KBS Peacock v1.6.21은 16개 채널의 방송 영상과 오디오를 실시간�
 - 미복구 시 `max_attempts`까지 재오픈 재시도 → 소진 시 "복구 실패" 에스컬레이션
 - 복구/실패 후 `cooldown_sec` 동안 재트리거 억제(플래핑 방지)
 - **보류 조건**: 정파 활성(`is_any_signoff`), 감지 비활성, ROI 편집 중, 파일 재생 모드
-- **텔레그램**: `notify_system`으로 "상실" 1건 + "복구 완료/실패" 1건만 발송 (채널 알람 폭주와 별개)
+- **텔레그램**: `notify_system`으로 "상실" 1건 + "복구 완료/실패" 1건만 발송
+- **채널 블랙 알림 묶음**: 화면 전체가 블랙인 프레임에서 2채널 이상이 동시에 블랙에 들어가면, 채널별 텔레그램 대신 `전체 화면` 알림 1통 + 복구 1통으로 묶는다(`_process_alarms`의 `frame_black`). UI 채널별 알람·자동녹화는 그대로. 2026-10-04 캡처 상실 때 채널 알림 16통이 쏟아진 것을 줄이기 위함
 
 > 구현: `detection/capture_watchdog.py`(순수 상태기계), `processes/detection_process.py` 메인 루프(독립 try-except). `cap.read()` 자체가 hang하는 경우는 기존 freeze 워치독(15초 → Watchdog 재spawn)이 담당 — 상호 보완.
 
@@ -380,7 +381,7 @@ UI 로그 위젯에 `그룹1: PREPARATION → SIGNOFF [감지]` 형태로 표시
 
 **정파 해제 시 텔레그램 발송 보장:**
 - SIGNOFF→IDLE 전환 시 `notify_signoff(is_entry=False)` 1개만 발송
-- 전환 직후 경합 조건 대비: `_signoff_recovery_suppress` 셋(suppressed_labels + enter_roi.video_label)으로 복구 알림 1회 추가 차단
+- 복구 문자는 진입 알림을 실제로 보낸 알람에만 발송(`_alarm_notified`). 정파 중 시작돼 진입이 억제된 알람, 정파 해제 순간 아직 진행 중인 그룹 라벨 알람은 복구 문자 생략
 - 결과: 정파 관련 텔레그램은 진입 1개 + 해제 1개
 
 ### 5.4 주요 파라미터

@@ -9,6 +9,8 @@ numpy 합성 프레임을 직접 주입 (영상 파일/캡처 카드 불필요).
   S4. 정파 억제 — SIGNOFF 상태에서 스틸 AlarmTrigger 미발행 확인
   S5. 알람 중복 방지 — 이미 alerting 시 AlarmTrigger 재발행 없음
   S6. 블랙/스틸 동시 알람 — 단일 프레임에 두 알람 독립 발행
+  S7. 복구 문자 짝 보장 — 진입 알림 보낸 블랙만 복구 문자, 정파 중 시작된 블랙은 생략
+  S8. 화면 전체 블랙 — 여러 채널 동시 블랙은 알림 1통 + 복구 1통으로 묶음
 
 실행: python -m pytest tests/test_regression.py -v
       또는 python tests/test_regression.py
@@ -318,7 +320,93 @@ def test_s6_black_and_still_simultaneous():
     print("S6 PASS: 블랙/스틸 동시 AlarmTrigger 독립 발행")
 
 
+# ── S7: 복구 문자 짝 보장 ────────────────────────────────────────────────────
+
+def _vres(black_alerting, dur=0.0):
+    return {
+        "black": black_alerting, "still": False,
+        "black_alerting": black_alerting, "still_alerting": False,
+        "black_duration": 0.0, "still_duration": 0.0,
+        "black_resolved": False, "black_last_duration": dur,
+        "still_resolved": False, "still_last_duration": 0.0,
+    }
+
+
+def _run_alarms(labels_alerting, prev_black, sm, tg, notified, frame_black=False):
+    from processes.detection_process import _process_alarms
+    vid = {l: _vres(a, dur=9.0) for l, a in labels_alerting.items()}
+    rois = [_roi(l) for l in labels_alerting]
+    _process_alarms(_alarm_q(), [0], vid, {}, False,
+                    prev_black, {}, {},
+                    sm, Detector(), tg, _DummyRecorder(),
+                    rois, [], None,
+                    notified, frame_black=frame_black)
+
+
+def test_s7_recovery_paired_with_entry():
+    """정파와 무관하게 IDLE에서 시작된 블랙은 복구 문자가 반드시 나가고,
+    SIGNOFF 중 시작돼 진입이 억제된 블랙은 IDLE 복귀 뒤 해제돼도 복구 문자가 없다.
+    (2026-10-04 08:59 V7: 정파 해제 4시간 뒤 블랙의 복구 문자가 옛 '2차 차단' 셋에 막힌 사고)"""
+    sm = SignoffManager(result_queue=_alarm_q())
+    sm.set_group(_group())   # 그룹 라벨 V1
+    notified, prev = {}, {}
+
+    # (a) IDLE: 진입 → 해제 → 알림 1 + 복구 1
+    tg = _RecTelegram()
+    _run_alarms({"V1": True}, prev, sm, tg, notified)
+    _run_alarms({"V1": False}, prev, sm, tg, notified)
+    assert tg.kinds() == [("블랙", "V1", False), ("블랙", "V1", True)], tg.calls
+
+    # (b) SIGNOFF 중 시작(진입 억제) → IDLE 복귀 후 해제 → 텔레그램 0건
+    tg = _RecTelegram()
+    sm.set_state_direct(1, "SIGNOFF")
+    _run_alarms({"V1": True}, prev, sm, tg, notified)
+    sm.set_state_direct(1, "IDLE")
+    _run_alarms({"V1": False}, prev, sm, tg, notified)
+    assert tg.kinds() == [], tg.calls
+
+    # (c) 그 뒤 IDLE에서 다시 블랙 → 복구 문자 정상 (옛 버그: 여기서 복구가 막힘)
+    tg = _RecTelegram()
+    _run_alarms({"V1": True}, prev, sm, tg, notified)
+    _run_alarms({"V1": False}, prev, sm, tg, notified)
+    assert tg.kinds() == [("블랙", "V1", False), ("블랙", "V1", True)], tg.calls
+    print("S7 PASS: 복구 문자 짝 보장")
+
+
+# ── S8: 화면 전체 블랙 묶음 ──────────────────────────────────────────────────
+
+def test_s8_full_screen_black_grouped():
+    """화면 전체 블랙(캡처 입력 상실)에서 동시에 시작된 블랙 8채널은
+    채널별 8통 대신 알림 1통 + 복구 1통. 화면 전체 블랙이 아닐 때는 채널별 발송."""
+    sm = SignoffManager(result_queue=_alarm_q())
+    labels = [f"V{i}" for i in range(1, 9)]
+    notified, prev = {}, {}
+    tg = _RecTelegram()
+    _run_alarms({l: True for l in labels}, prev, sm, tg, notified, frame_black=True)
+    _run_alarms({l: False for l in labels}, prev, sm, tg, notified, frame_black=False)
+    assert tg.kinds() == [("블랙", "전체 화면", False), ("블랙", "전체 화면", True)], tg.calls
+    assert "8채널" in tg.calls[0][2] and "V1·V2" in tg.calls[0][2], tg.calls[0]
+
+    # 화면 전체 블랙이 아니면 (일부 채널만 블랙) 채널별 발송
+    tg = _RecTelegram()
+    _run_alarms({"V1": True, "V2": True}, prev, sm, tg, notified, frame_black=False)
+    assert [k[1] for k in tg.kinds()] == ["V1", "V2"], tg.calls
+    print("S8 PASS: 화면 전체 블랙 묶음 발송")
+
+
 # ── 더미 객체 ─────────────────────────────────────────────────────────────────
+
+class _RecTelegram:
+    """notify 호출을 기록하는 더미."""
+    def __init__(self):
+        self.calls = []
+
+    def notify(self, alarm_type, label, media_name, is_recovery=False, **kw):
+        self.calls.append((alarm_type, label, media_name, is_recovery))
+
+    def kinds(self):
+        return [(c[0], c[1], c[3]) for c in self.calls]
+
 
 class _DummyTelegram:
     def notify(self, *a, **kw): pass
@@ -338,6 +426,8 @@ def _run_all():
         test_s4_signoff_suppression,
         test_s5_no_duplicate_alarm,
         test_s6_black_and_still_simultaneous,
+        test_s7_recovery_paired_with_entry,
+        test_s8_full_screen_black_grouped,
     ]
     passed = failed = 0
     for fn in tests:
