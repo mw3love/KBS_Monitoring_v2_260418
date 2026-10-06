@@ -23,6 +23,8 @@ except ImportError:
 
 _SEND_RETRY_COUNT = 2
 _SEND_RETRY_DELAYS = (5.0, 10.0)   # 재시도 간 가벼운 백오프 (1차 5초, 2차 10초)
+# (연결, 응답) 대기 초. 응답 대기가 짧으면 서버가 느릴 때 이미 전달된 메시지를 실패로 오판한다.
+_SEND_TIMEOUT = (10.0, 40.0)
 
 
 class TelegramWorker:
@@ -332,6 +334,13 @@ class TelegramWorker:
                 return "응답 시간 초과"
         return type(exc).__name__
 
+    @staticmethod
+    def _is_delivery_unknown(exc: Exception) -> bool:
+        """요청은 보냈는데 응답만 못 받은 경우(ReadTimeout).
+        텔레그램이 이미 메시지를 올렸을 수 있으므로 재전송하면 중복된다.
+        (2026-10-07 정파 해제 알림 3중 발송 사고 — 같은 시각 값의 메시지 3개 도착)"""
+        return _REQUESTS_AVAILABLE and isinstance(exc, _requests.exceptions.ReadTimeout)
+
     def _log_with_suppression(self, msg: str):
         n = self._consecutive_failures
         if n <= 3 or n % 10 == 0:
@@ -360,7 +369,7 @@ class TelegramWorker:
                 resp = _requests.post(
                     f"{base}/sendMessage",
                     json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
-                    timeout=(10.0, 20.0),
+                    timeout=_SEND_TIMEOUT,
                 )
                 return resp.status_code == 200
             except Exception:
@@ -397,7 +406,7 @@ class TelegramWorker:
             )
 
         base = self._API_BASE.format(token=self._bot_token)
-        timeout = (10.0, 20.0)
+        timeout = _SEND_TIMEOUT
 
         from ipc.messages import TelegramStatus
         for attempt in range(1 + _SEND_RETRY_COUNT):
@@ -445,7 +454,14 @@ class TelegramWorker:
                     return False
             except Exception as exc:
                 error_desc = self._classify_error(exc)
+                if self._is_delivery_unknown(exc):
+                    self._log(f"응답 지연 — 전달 여부 불명, 중복 방지 위해 재전송 안 함 "
+                              f"({alarm_type} {channel_str}): {exc}", error=True)
+                    self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
+                    return False
                 if attempt < _SEND_RETRY_COUNT:
+                    self._log(f"전송 실패 — {_SEND_RETRY_DELAYS[attempt]:.0f}초 후 재시도 "
+                              f"({attempt + 1}/{_SEND_RETRY_COUNT}): {error_desc}")
                     self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
                     time.sleep(_SEND_RETRY_DELAYS[attempt])
                 else:
@@ -515,7 +531,7 @@ class TelegramWorker:
         base = self._API_BASE.format(token=self._bot_token)
         jpeg = item.get("jpeg_bytes")
         use_photo = bool(jpeg) and self._send_image
-        timeout = (10.0, 20.0)
+        timeout = _SEND_TIMEOUT
         # Telegram caption 한도(HTML 1024자)
         caption = text if len(text) <= 1024 else (text[:1020] + "…")
 
@@ -562,7 +578,14 @@ class TelegramWorker:
                     return False
             except Exception as exc:
                 error_desc = self._classify_error(exc)
+                if self._is_delivery_unknown(exc):
+                    self._log(f"{log_kind} 응답 지연 — 전달 여부 불명, 중복 방지 위해 재전송 안 함 "
+                              f"({item['group_name']}): {exc}", error=True)
+                    self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
+                    return False
                 if attempt < _SEND_RETRY_COUNT:
+                    self._log(f"{log_kind} 전송 실패 — {_SEND_RETRY_DELAYS[attempt]:.0f}초 후 재시도 "
+                              f"({attempt + 1}/{_SEND_RETRY_COUNT}): {error_desc}")
                     self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
                     time.sleep(_SEND_RETRY_DELAYS[attempt])
                 else:
@@ -608,7 +631,7 @@ class TelegramWorker:
             log_kind = "정파 변동 요약"
 
         base = self._API_BASE.format(token=self._bot_token)
-        timeout = (10.0, 20.0)
+        timeout = _SEND_TIMEOUT
         for attempt in range(1 + _SEND_RETRY_COUNT):
             try:
                 resp = _requests.post(
@@ -644,7 +667,14 @@ class TelegramWorker:
                     return False
             except Exception as exc:
                 error_desc = self._classify_error(exc)
+                if self._is_delivery_unknown(exc):
+                    self._log(f"{log_kind} 응답 지연 — 전달 여부 불명, 중복 방지 위해 재전송 안 함 "
+                              f"({item['group_name']}): {exc}", error=True)
+                    self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
+                    return False
                 if attempt < _SEND_RETRY_COUNT:
+                    self._log(f"{log_kind} 전송 실패 — {_SEND_RETRY_DELAYS[attempt]:.0f}초 후 재시도 "
+                              f"({attempt + 1}/{_SEND_RETRY_COUNT}): {error_desc}")
                     self._emit(TelegramStatus(event="retry", queue_size=self._queue.qsize()))
                     time.sleep(_SEND_RETRY_DELAYS[attempt])
                 else:
