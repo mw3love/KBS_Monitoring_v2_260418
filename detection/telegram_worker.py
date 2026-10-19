@@ -338,8 +338,24 @@ class TelegramWorker:
     def _is_delivery_unknown(exc: Exception) -> bool:
         """요청은 보냈는데 응답만 못 받은 경우(ReadTimeout).
         텔레그램이 이미 메시지를 올렸을 수 있으므로 재전송하면 중복된다.
-        (2026-10-07 정파 해제 알림 3중 발송 사고 — 같은 시각 값의 메시지 3개 도착)"""
-        return _REQUESTS_AVAILABLE and isinstance(exc, _requests.exceptions.ReadTimeout)
+        (2026-10-07 정파 해제 알림 3중 발송 사고 — 같은 시각 값의 메시지 3개 도착)
+
+        requests는 응답 본문을 읽다 시간 초과되면 ReadTimeout이 아니라
+        ConnectionError(ReadTimeoutError)로 감싸고, 요청 후 서버가 끊으면
+        ConnectionError(ProtocolError)를 낸다. 둘 다 요청은 이미 간 경우라 재전송하지 않는다.
+        연결 자체 실패(NewConnectionError·ConnectTimeout 등)는 확실히 안 나갔으므로 재시도한다."""
+        if not _REQUESTS_AVAILABLE:
+            return False
+        if isinstance(exc, _requests.exceptions.ReadTimeout):
+            return True
+        if (isinstance(exc, _requests.exceptions.ConnectionError)
+                and not isinstance(exc, _requests.exceptions.ConnectTimeout)):
+            from urllib3.exceptions import MaxRetryError, ProtocolError, ReadTimeoutError
+            inner = exc.args[0] if exc.args else None
+            if isinstance(inner, MaxRetryError):
+                inner = inner.reason
+            return isinstance(inner, (ProtocolError, ReadTimeoutError))
+        return False
 
     def _log_with_suppression(self, msg: str):
         n = self._consecutive_failures
