@@ -120,6 +120,8 @@ class MainWindow(QMainWindow):
 
         self._splitter = QSplitter(Qt.Horizontal)
         self._splitter.setObjectName("mainSplitter")
+        # 최소 너비 아래로 끌어도 접혀 사라지지 않게 한다 (접히면 다시 꺼내기 어려움)
+        self._splitter.setChildrenCollapsible(False)
         main_layout.addWidget(self._splitter, stretch=1)
 
         self._video_widget = VideoWidget()

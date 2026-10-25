@@ -274,7 +274,7 @@ QPushButton#btnLogSearch:checked {
 
 QSplitter#mainSplitter::handle {
     background-color: #dddddd;
-    width: 4px;
+    width: 8px;
 }
 
 QSplitter#mainSplitter::handle:hover {
