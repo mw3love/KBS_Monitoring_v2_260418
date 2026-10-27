@@ -367,7 +367,9 @@ class AutoRecorder:
                     eff_fps = n_frames / real_span
                     k = real_span / nominal_span
                     # 계수가 상식 밖이면(시계 점프·큰 드롭) 보정하지 않는다.
-                    if 0.5 <= k <= 2.0:
+                    # 상한 4.0 — 다채널 동시 블랙 때 실측 ~3.9fps(k≈2.56)가 나와
+                    # 예전 상한 2.0에 막혀 영상이 2.5배 빨라지고 -shortest로 오디오가 잘렸다.
+                    if 0.5 <= k <= 4.0:
                         video_scale = k
 
             if has_audio:
