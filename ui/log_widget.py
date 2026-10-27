@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate, QAbstractItemView,
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QRect, QSize
+import shiboken6
 from PySide6.QtGui import (
     QColor, QPainter, QFont, QPen, QBrush, QFontMetrics,
 )
@@ -669,6 +670,10 @@ class LogWidget(QWidget):
             )
 
     def _pulse_step(self, item: QListWidgetItem, step: int, total: int):
+        # pulse 도중(최대 1.4초) 항목이 지워지면(Log 초기화·500개 트림) C++ 객체만 사라져
+        # item.data()가 RuntimeError를 낸다(2026-10-27 운영 로그) → 조용히 건너뛴다.
+        if not shiboken6.isValid(item):
+            return
         data: LogItemData = item.data(Qt.UserRole)
         if data is None:
             return
