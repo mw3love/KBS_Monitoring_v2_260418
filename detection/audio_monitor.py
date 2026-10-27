@@ -32,6 +32,9 @@ class AudioMonitorWorker(threading.Thread):
     CHUNK = 1024
     SAMPLE_RATE = 44100
     CHANNELS = 2
+    # 장치 열기 실패가 이만큼 이어지면 on_device_down 1회 통보
+    # (2026-10-27 마이크 권한 차단으로 8시간 무알림 사고 대응)
+    DEVICE_DOWN_NOTIFY_SEC = 60.0
 
     def __init__(self, shared_state, result_queue):
         super().__init__(daemon=True, name="AudioMonitorWorker")
@@ -48,6 +51,8 @@ class AudioMonitorWorker(threading.Thread):
         # 외부 콜백
         self.on_silence_detected = None   # callable(float)
         self.on_audio_chunk = None        # callable(np.ndarray, float)
+        self.on_device_down = None        # callable(str) — 장치 열기 실패 지속 시 1회
+        self.on_device_up = None          # callable(float) — 통보 후 복구 시 1회 (끊긴 초)
 
     def set_muted(self, muted: bool):
         with self._lock:
@@ -105,6 +110,8 @@ class AudioMonitorWorker(threading.Thread):
         # 외부 재시도 루프: 초기 init 실패 또는 inner 루프에서 예기치 못한 예외 시
         # 5초 대기 후 재시도 (이전 구현은 한 번 실패 시 영원히 -60dB 표시만 했음 — silent failure)
         _outer_failures = 0
+        _down_since = None        # 장치 열기 실패 시작 시각 (monotonic)
+        _down_notified = False
         while self._running:
             stream = None
             output_stream = None
@@ -137,6 +144,13 @@ class AudioMonitorWorker(threading.Thread):
                     self._emit(LogEntry(level="debug", source="audio",
                                         message=f"오디오 스트림 복구 ({_outer_failures}회 재시도 후)"))
                     _outer_failures = 0
+                if _down_notified and self.on_device_up is not None:
+                    try:
+                        self.on_device_up(time.monotonic() - _down_since)
+                    except Exception:
+                        pass
+                _down_since = None
+                _down_notified = False
 
                 chunk_duration = self.CHUNK / self.SAMPLE_RATE
                 consecutive_errors = 0
@@ -320,10 +334,8 @@ class AudioMonitorWorker(threading.Thread):
                                 self._emit(StreamError(source="audio",
                                                        message=f"오디오 재연결 실패: {re_e}",
                                                        retry_count=consecutive_errors))
-                                time.sleep(5.0)
-                                if not self._running:
-                                    return
-                                consecutive_errors = 0
+                                # 외부 재시도 루프로 넘겨 무음 누적·장치 끊김 통보를 한 곳에서 처리
+                                raise
 
                 # 정상 종료 (self._running=False) — 외부 재시도 루프도 탈출
                 break
@@ -335,7 +347,19 @@ class AudioMonitorWorker(threading.Thread):
                     self._emit(StreamError(source="audio",
                                            message=f"오디오 스트림 초기화 실패 ({_outer_failures}회): {e}",
                                            retry_count=_outer_failures))
-                # 5초간 -60dB 갱신하며 대기 후 외부 루프 재시도
+                if _down_since is None:
+                    _down_since = time.monotonic()
+                if (not _down_notified
+                        and time.monotonic() - _down_since >= self.DEVICE_DOWN_NOTIFY_SEC):
+                    _down_notified = True
+                    if self.on_device_down is not None:
+                        try:
+                            self.on_device_down(str(e))
+                        except Exception:
+                            pass
+                # 5초간 -60dB 갱신하며 대기 후 외부 루프 재시도.
+                # 장치를 못 여는 동안은 무음으로 누적 → 임베디드 무음 경보가 울리게 한다
+                # (이전엔 이 구간에서 콜백이 안 불려 장치가 죽어도 경보가 없었음).
                 for _ in range(10):
                     if not self._running:
                         break
@@ -345,6 +369,12 @@ class AudioMonitorWorker(threading.Thread):
                         except Exception:
                             pass
                     time.sleep(0.5)
+                    self._silence_duration += 0.5
+                    if self.on_silence_detected is not None:
+                        try:
+                            self.on_silence_detected(self._silence_duration)
+                        except Exception:
+                            pass
             finally:
                 if output_stream is not None:
                     try:

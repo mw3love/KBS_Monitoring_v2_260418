@@ -524,6 +524,20 @@ def run(result_queue, cmd_queue, shutdown_event,
     )
     audio_worker.on_silence_detected = _on_silence
     audio_worker.on_audio_chunk = _on_audio_chunk
+
+    def _on_audio_device_down(err: str):
+        log_error(f"오디오 장치 열기 실패 {audio_worker.DEVICE_DOWN_NOTIFY_SEC:.0f}초 지속: {err}")
+        telegram.notify_system(
+            "오디오 입력 장치를 열 수 없습니다 — 소리 감시 중단 상태. "
+            "윈도우 마이크 권한(설정 > 개인 정보 및 보안 > 마이크)과 캡처카드를 확인하세요. "
+            f"({err})")
+
+    def _on_audio_device_up(down_sec: float):
+        log_info(f"오디오 장치 복구 ({down_sec / 60:.0f}분 만에)")
+        telegram.notify_system(f"오디오 입력 장치 복구 — 소리 감시 재개 ({down_sec / 60:.0f}분 만에)")
+
+    audio_worker.on_device_down = _on_audio_device_down
+    audio_worker.on_device_up = _on_audio_device_up
     audio_worker.silence_threshold_db = cfg.get("detection", {}).get(
         "embedded_silence_threshold", -50
     )

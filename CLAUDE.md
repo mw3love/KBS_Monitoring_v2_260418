@@ -280,6 +280,20 @@ if __name__ == '__main__':
   10/4 기동 프로세스에 12일간 미적용 → 10/19 같은 3중 발송 재발. "고쳤는데 재발"이면 먼저 프로세스 기동 시각
   (`Get-CimInstance Win32_Process`의 `CreationDate`)과 수정 커밋 시각부터 비교할 것.
 
+- ⚠ **윈도우 "마이크 액세스"가 꺼지면 소리 감시가 멈춘다(캡처카드 SDI 소리도 '마이크'로 취급).**
+  2026-10-27 실제 발생: 시스템 설정(`HKLM\...\CapabilityAccessManager\ConsentStore\microphone`=`Deny`)이
+  10/26 17:53에 꺼져 있었고(누가 껐는지 미확인), 02:21 재spawn 이후 장치 열기가 8시간 동안 `MME error 1`로
+  실패했다. 영상(카메라 권한)은 멀쩡해서 화면만으로는 모른다. `[audio] 오디오 스트림 초기화 실패`가 반복되면
+  USB 재연결·재부팅보다 **설정 > 개인 정보 및 보안 > 마이크**부터 확인할 것(USB 재연결은 효과 없었음).
+  → 지금은 장치 열기 실패가 60초 이어지면 `[SYSTEM]` 텔레그램 1회 + 그 구간을 무음으로 쳐서 임베디드
+  무음 경보가 울린다(`detection/audio_monitor.py` `DEVICE_DOWN_NOTIFY_SEC`). 이 실패 구간에는 Detection
+  핸들이 분당 ~24개 늘었고 복구 후 멈췄다(재현은 운영 영향 때문에 못 함, 수정 안 함).
+- ⚠ **윈도우 시간 동기화가 시계를 앞으로 당기면 Watchdog이 heartbeat stale로 오판했었다.** 이 PC 시계는
+  하루 ~3.5초 늦어 매일 밤 보정되는데, 동기화가 며칠 실패하면 한 번에 8초쯤 뛴다(2026-09-15 8.5초·
+  2026-10-27 7.9초 → 둘 다 멀쩡한 Detection kill). 지금은 Watchdog이 heartbeat **값의 변화**를 자기
+  `time.monotonic()`으로 재서 판정한다(`watchdog_process.py` `HeartbeatAgeTracker`). 과거 `heartbeat 무응답`
+  재spawn을 볼 땐 System 로그의 `Kernel-General` 이벤트 1(시간 변경) 크기부터 비교할 것.
+
 ### UI 손상 통보 (onset → Watchdog 대행 발송)
 
 장기 가동 시 UI 프로세스만 힙이 손상되어 **순수 파이썬 클래스의 `__init__` 호출이 전부 실패**하는 사고가 5회 발생했다(설정창·알림음·조작 전멸, 창은 정상으로 보임). 상세: `fix/260526_설정다이얼로그_TypeError_재현불가.md` §12(4차·Round 1)·§13(5차·Round 2 진입).

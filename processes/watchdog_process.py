@@ -63,6 +63,31 @@ _SPAWN_COOLDOWN_MAX = 300.0
 _TG_QUIET_AFTER     = 3
 
 
+class HeartbeatAgeTracker:
+    """heartbeat 값이 마지막으로 바뀐 뒤 경과 시간을 Watchdog 자신의 monotonic 시계로 잰다.
+
+    예전엔 '파일에 적힌 시각(time.time)'과 '지금 시각'을 빼서 비교했는데, 윈도우 시간 동기화가
+    시계를 앞으로 당기면(이 PC는 하루 3.5초씩 늦음, 동기화 며칠 실패 시 8초 점프) 멀쩡한
+    Detection이 stale로 보여 kill됐다 (2026-09-15 8.5초·2026-10-27 7.9초 점프 → 오판 재spawn).
+    값이 '바뀌었는지'만 보고 경과는 monotonic으로 재므로 벽시계 변경의 영향을 받지 않는다.
+    """
+
+    def __init__(self):
+        self._last_value = None
+        self._changed_at = 0.0
+
+    def reset(self, value, now_mono: float):
+        """spawn 시점: 그때 파일에 남아 있던 값(직전 세션의 묵은 값)을 기준으로 삼는다."""
+        self._last_value = value
+        self._changed_at = now_mono
+
+    def age(self, value, now_mono: float) -> float:
+        if value != self._last_value:
+            self._last_value = value
+            self._changed_at = now_mono
+        return now_mono - self._changed_at
+
+
 # ── 텔레그램 직접 발송 (Watchdog 전용) ───────────────────────────────────────
 
 def _load_telegram_cfg() -> dict:
@@ -265,6 +290,7 @@ def run(
     _spawn_count = 0  # 재spawn 횟수 (최초 spawn 제외)
     _fast_fail_streak = 0   # 연속 '빠른 중단' 횟수 (안정 가동 시 0으로)
     _down_handled = False   # 현재 중단 건의 집계·통보를 이미 했는지
+    _hb_tracker = HeartbeatAgeTracker()
 
     def _respawn_cooldown() -> float:
         """마지막 spawn 이후 다음 spawn까지 최소 간격."""
@@ -297,6 +323,7 @@ def run(
         )
         p.start()
         last_spawn_time = time.time()
+        _hb_tracker.reset(_read_heartbeat(), time.monotonic())
         log(f"Detection spawn 완료 (PID={p.pid})")
         return p
 
@@ -490,9 +517,10 @@ def run(
         if (now - last_spawn_time >= _HB_GRACE_SEC) and (now - last_hb_check >= 2.0):
             last_hb_check = now
             hb_time = _read_heartbeat()
-            if hb_time > 0 and (now - hb_time) > _HB_STALE_SEC:
+            # 읽기 실패(0)는 '값 변화'로 치지 않는다 (쓰기 도중 읽기 등 일시 실패로 경과가 리셋되지 않게)
+            stale_sec = _hb_tracker.age(hb_time, time.monotonic()) if hb_time > 0 else 0.0
+            if stale_sec > _HB_STALE_SEC:
                 if not _intentional_shutdown and not _down_handled:
-                    stale_sec = now - hb_time
                     _down_handled = True   # 재spawn은 위 '생존 확인' 경로가 쿨다운에 맞춰 수행
                     _notify = _note_detection_down()
                     log_err(f"heartbeat stale ({stale_sec:.1f}초) → Detection kill 후 재spawn "
