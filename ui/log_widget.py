@@ -12,14 +12,37 @@ from dataclasses import dataclass
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QListWidgetItem,
-    QLabel, QPushButton, QStyle, QLineEdit,
+    QLabel, QPushButton, QLineEdit,
     QStyledItemDelegate, QAbstractItemView,
 )
-from PySide6.QtCore import Qt, Signal, QTimer, QRect, QSize
+from PySide6.QtCore import Qt, Signal, QTimer, QRect, QSize, QByteArray
 import shiboken6
 from PySide6.QtGui import (
-    QColor, QPainter, QFont, QPen, QBrush, QFontMetrics,
+    QColor, QPainter, QFont, QPen, QBrush, QFontMetrics, QIcon, QPixmap,
 )
+from PySide6.QtSvg import QSvgRenderer
+
+_ICON_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources", "icons")
+
+
+def _tinted_svg_icon(filename: str, color: str, size: int = 16) -> QIcon:
+    """Phosphor SVG(fill="currentColor")를 지정 색으로 칠해 QIcon 생성.
+    아이콘 출처: Phosphor Icons(MIT, resources/icons/PHOSPHOR_LICENSE.txt). 파일이 없으면 빈 아이콘."""
+    try:
+        with open(os.path.join(_ICON_DIR, filename), encoding="utf-8") as f:
+            svg = f.read().replace("currentColor", color)
+    except OSError:
+        return QIcon()
+    renderer = QSvgRenderer(QByteArray(svg.encode("utf-8")))
+    dpr = 2   # 고해상도 화면에서도 선명하게
+    pm = QPixmap(size * dpr, size * dpr)
+    pm.fill(Qt.transparent)
+    painter = QPainter(pm)
+    renderer.render(painter)
+    painter.end()
+    pm.setDevicePixelRatio(dpr)
+    return QIcon(pm)
 
 
 @dataclass
@@ -318,7 +341,7 @@ class LogWidget(QWidget):
         self._count_badge.setMinimumWidth(28)
         header_row.addWidget(self._count_badge)
 
-        self._btn_search = QPushButton("🔍")
+        self._btn_search = QPushButton()
         self._btn_search.setObjectName("btnLogSearch")
         self._btn_search.setFixedSize(28, 24)
         self._btn_search.setToolTip("키워드 검색 (토글)")
@@ -337,7 +360,6 @@ class LogWidget(QWidget):
 
         self._btn_open_folder = QPushButton()
         self._btn_open_folder.setObjectName("btnLogFolder")
-        self._btn_open_folder.setIcon(self.style().standardIcon(QStyle.SP_DirOpenIcon))
         self._btn_open_folder.setFixedSize(28, 24)
         self._btn_open_folder.setToolTip("Log 폴더 열기")
         self._btn_open_folder.clicked.connect(self._open_log_folder)
@@ -349,6 +371,7 @@ class LogWidget(QWidget):
         self._btn_clear.setToolTip("화면 로그 초기화 (파일 변경 없음)")
         self._btn_clear.clicked.connect(self.clear_logs)
         header_row.addWidget(self._btn_clear)
+        self._apply_header_icons(dark=True)   # 기본 다크. 테마 전환 시 set_theme가 다시 칠함
 
         main_layout.addWidget(header_widget)
 
@@ -582,8 +605,17 @@ class LogWidget(QWidget):
 
         self._update_count_badge()
 
+    def _apply_header_icons(self, dark: bool):
+        """헤더 아이콘(검색·폴더)을 테마 글자색으로 칠한다 — 상단바 아이콘과 같은 색."""
+        color = "#dddddd" if dark else "#404040"
+        for btn, name in ((self._btn_search, "ph_magnifying-glass-fill.svg"),
+                          (self._btn_open_folder, "ph_folder-open-fill.svg")):
+            btn.setIcon(_tinted_svg_icon(name, color))
+            btn.setIconSize(QSize(16, 16))
+
     def set_theme(self, dark: bool):
         """테마 변경 시 delegate에 전달하고 리스트 다시 그리기."""
+        self._apply_header_icons(dark)
         delegate = self._list.itemDelegate()
         if isinstance(delegate, LogRowDelegate):
             delegate.set_dark(dark)

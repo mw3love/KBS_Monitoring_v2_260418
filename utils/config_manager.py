@@ -91,6 +91,7 @@ DEFAULT_CONFIG = {
         "roi_visible": True,
         "fullscreen": False,            # v2 신규
         "embed_muted": False,           # v2 신규: 임베디드 오디오 음소거 상태
+        "log_position": "auto",         # 로그창 위치: auto(영상이 크게 나오는 쪽) / right / bottom
     },
     "signoff": {
         "auto_preparation": True,

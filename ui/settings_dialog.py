@@ -560,6 +560,16 @@ class SettingsDialog(QDialog):
         cap_frame_vl.addWidget(self._capacity_label)
         vl.addWidget(cap_frame)
 
+        # ── 화면 배치 ──────────────────────────────────────────
+        box5, sl5 = _section("화면 배치")
+        self._log_pos_combo = QComboBox()
+        for label, val in [("자동 (기본값)", "auto"), ("오른쪽", "right"), ("아래", "bottom")]:
+            self._log_pos_combo.addItem(label, val)
+        self._set_log_pos_combo(self._cfg)
+        sl5.addLayout(_row("로그창 위치", self._log_pos_combo,
+                           "자동: 창 모양에 따라 영상이 더 크게 보이는 쪽(오른쪽/아래)에 배치"))
+        vl.addWidget(box5)
+
         # 즉시 반영 연결 — 영상설정
         self._port_combo.currentIndexChanged.connect(self._apply_now)
         self._video_file_edit.editingFinished.connect(self._apply_now)
@@ -569,6 +579,7 @@ class SettingsDialog(QDialog):
         self._rec_keep_edit.editingFinished.connect(self._apply_now)
         self._res_combo.currentIndexChanged.connect(self._apply_now)
         self._fps_combo.currentIndexChanged.connect(self._apply_now)
+        self._log_pos_combo.currentIndexChanged.connect(self._apply_now)
 
         # 용량 바 갱신 연결
         self._res_combo.currentIndexChanged.connect(self._update_capacity_label)
@@ -1905,6 +1916,7 @@ class SettingsDialog(QDialog):
         rec["output_width"] = wv
         rec["output_height"] = hv
         rec["output_fps"] = self._fps_combo.currentData()
+        cfg.setdefault("ui_state", {})["log_position"] = self._log_pos_combo.currentData()
 
         # ROI
         self._save_rois_to_cfg()
@@ -2240,8 +2252,14 @@ class SettingsDialog(QDialog):
             f"CPU {cpu:.0f}% / RAM {ram:.0f}% → {interval}ms / {scale_label} 권장")
         self._perf_result_lbl.setVisible(True)
 
+    def _set_log_pos_combo(self, src: dict):
+        val = src.get("ui_state", {}).get("log_position", "auto")
+        idx = self._log_pos_combo.findData(val)
+        self._log_pos_combo.setCurrentIndex(idx if idx >= 0 else 0)
+
     def _apply_video_widgets(self, src: dict):
         """주어진 cfg dict로 영상설정 탭 위젯 값 채움(저장은 호출자 책임)."""
+        self._set_log_pos_combo(src)
         rec = src.get("recording", {})
         self._port_combo.setCurrentIndex(src.get("port", 0))
         self._video_file_edit.setText(src.get("video_file", ""))

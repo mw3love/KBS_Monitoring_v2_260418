@@ -81,7 +81,8 @@
     "detection_enabled": true,
     "roi_visible": true,
     "fullscreen": false,
-    "embed_muted": false
+    "embed_muted": false,
+    "log_position": "auto"
   },
   "signoff": {
     "auto_preparation": true,

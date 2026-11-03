@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QBoxLayout, QLabel,
     QPushButton, QSlider, QFrame,
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QSize
+from PySide6.QtCore import Qt, QTimer, Signal, QSize, QEvent
 from PySide6.QtGui import QFont, QColor, QPainter, QPixmap, QIcon, QPen
 
 
@@ -102,7 +102,7 @@ class LevelMeterBar(QWidget):
                 painter.fillRect(2, y_top, w - 4, seg_h, self._seg_off_color)
 
         painter.setPen(QColor("#aaaacc"))
-        painter.setFont(QFont("Segoe UI", 7, QFont.Bold))
+        painter.setFont(QFont("Segoe UI", 8, QFont.Bold))
         painter.drawText(0, h - label_h, w, label_h, Qt.AlignCenter, self._channel)
         painter.end()
 
@@ -245,9 +245,15 @@ class TopBar(QWidget):
     버튼을 숨기지 않기 위함(화면 절반 크기 창 지원, 2026-11-03).
     """
 
-    _ROW_H_SPACING = 10   # 한 줄 모드: 정보 줄과 버튼 줄 사이 가로 간격
     _ROW_V_SPACING = 2    # 두 줄 모드: 두 줄 사이 세로 간격
     _SINGLE_ROW_H  = 68   # 한 줄 모드 높이(기존 값)
+    # 한 줄이 빠듯한 중간 폭에서는 두 줄로 가기 전에 버튼 폭·간격을 줄여(압축) 한 줄로 버틴다.
+    _SPACING         = {False: 10, True: 4}     # 압축 여부 → 항목 간 가로 간격
+    _SIDE_MARGIN     = {False: 10, True: 6}     # 압축 여부 → 좌우 바깥 여백
+    # 압축 폭은 글자 실측(최소 폭 70~75 / 정파 최장 문구 129)에 여유를 둔 값
+    _COMPACT_BTN_W   = {"btnDetection": 76, "btnRoi": 76, "btnMuteText": 62,
+                        "btnAlarmAck": 76, "btnSignoff": 132,
+                        "btnSettings": 32, "btnDark": 32, "btnFullscreen": 32}
 
     settings_requested      = Signal()
     roi_visibility_changed  = Signal(bool)
@@ -281,10 +287,12 @@ class TopBar(QWidget):
         self.setObjectName("topBar")
         self.setFixedHeight(self._SINGLE_ROW_H)
         self._two_rows = False
+        self._compact = False
+        self._mode_widths = None   # (기본 한 줄 폭, 압축 한 줄 폭) 캐시 — 스타일 바뀌면 다시 잼
 
         self._bar_layout = QBoxLayout(QBoxLayout.LeftToRight, self)
         self._bar_layout.setContentsMargins(10, 4, 10, 4)
-        self._bar_layout.setSpacing(self._ROW_H_SPACING)
+        self._bar_layout.setSpacing(self._SPACING[False])
 
         # 정보 줄: 시스템 · 시간 · 임베디드 오디오 · 감지현황
         self._info_row = QWidget()
@@ -471,17 +479,57 @@ class TopBar(QWidget):
         # 남는 가로 공간은 버튼 줄(안의 stretch)이 가져간다 — 기존 배치와 동일
         self._bar_layout.addWidget(self._ctrl_row, 1)
 
+        # 압축 모드에서 폭을 줄일 버튼들의 기본 폭 기억
+        self._compactable = [
+            (b, b.minimumWidth(), self._COMPACT_BTN_W[b.objectName()])
+            for b in (self._btn_detection, self._btn_roi, self._btn_mute, self._btn_ack,
+                      *self._btn_signoff.values(),
+                      self._btn_settings, self._btn_dark, self._btn_fullscreen)
+        ]
+
     # ── 한 줄 / 두 줄 전환 ─────────────────────────────────────────
 
     def _single_row_width(self) -> int:
-        """한 줄 모드에 필요한 최소 너비. 구분선이 숨겨져 있어도 포함해 계산한다
-        (숨김 여부에 따라 값이 바뀌면 경계 폭에서 모드가 어긋나므로)."""
+        """현재 압축 상태에서 한 줄 모드에 필요한 최소 너비. 구분선이 숨겨져 있어도 포함해
+        계산한다(숨김 여부에 따라 값이 바뀌면 경계 폭에서 모드가 어긋나므로)."""
         m = self._bar_layout.contentsMargins()
         return (m.left() + m.right()
                 + self._info_row.minimumSizeHint().width()
                 + self._row_sep.sizeHint().width()
                 + self._ctrl_row.minimumSizeHint().width()
-                + 2 * self._ROW_H_SPACING)
+                + 2 * self._SPACING[self._compact])
+
+    def _set_compact(self, on: bool):
+        self._compact = on
+        for btn, normal_w, compact_w in self._compactable:
+            new_w = compact_w if on else normal_w
+            if btn.minimumHeight() == btn.minimumWidth():
+                btn.setFixedSize(new_w, new_w)      # 정사각 아이콘 버튼은 정사각 유지
+            else:
+                btn.setFixedWidth(new_w)
+        side = self._SIDE_MARGIN[on]
+        self._bar_layout.setContentsMargins(side, 4, side, 4)
+        self._info_row.layout().setSpacing(self._SPACING[on])
+        self._ctrl_row.layout().setSpacing(self._SPACING[on])
+        if not self._two_rows:
+            self._bar_layout.setSpacing(self._SPACING[on])
+
+    def _measure_mode_widths(self) -> tuple[int, int]:
+        """기본/압축 한 줄 폭을 실제로 바꿔 보며 잰다(글꼴·QSS 반영). 결과는 캐시."""
+        if self._mode_widths is None:
+            cur = self._compact
+            self._set_compact(False)
+            normal_w = self._single_row_width()
+            self._set_compact(True)
+            compact_w = self._single_row_width()
+            self._set_compact(cur)
+            self._mode_widths = (normal_w, compact_w)
+        return self._mode_widths
+
+    def changeEvent(self, event):
+        if event.type() in (QEvent.StyleChange, QEvent.FontChange):
+            self._mode_widths = None    # 테마(QSS)·글꼴이 바뀌면 폭을 다시 잰다
+        super().changeEvent(event)
 
     def _two_row_height(self) -> int:
         m = self._bar_layout.contentsMargins()
@@ -498,14 +546,20 @@ class TopBar(QWidget):
         return QSize(w, self.height())
 
     def sizeHint(self) -> QSize:
-        return QSize(self._single_row_width(), self.height())
+        return QSize(self._measure_mode_widths()[0], self.height())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._update_row_mode()
 
     def _update_row_mode(self):
-        two_rows = self.width() < self._single_row_width()
+        """폭에 따라 3단계: 기본 한 줄 → 압축 한 줄 → 두 줄(두 줄은 버튼 기본 폭)."""
+        normal_w, compact_w = self._measure_mode_widths()
+        w = self.width()
+        two_rows = w < compact_w
+        compact = (not two_rows) and w < normal_w
+        if compact != self._compact:
+            self._set_compact(compact)
         if two_rows == self._two_rows:
             return
         self._two_rows = two_rows
@@ -516,7 +570,7 @@ class TopBar(QWidget):
             self.setFixedHeight(self._two_row_height())
         else:
             self._bar_layout.setDirection(QBoxLayout.LeftToRight)
-            self._bar_layout.setSpacing(self._ROW_H_SPACING)
+            self._bar_layout.setSpacing(self._SPACING[self._compact])
             self._row_sep.show()
             self.setFixedHeight(self._SINGLE_ROW_H)
 

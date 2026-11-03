@@ -72,6 +72,8 @@ class MainWindow(QMainWindow):
         self._signoff_suppressed_labels: dict[int, list[str]] = {1: [], 2: []}
         self._current_volume: int = self._cfg.get("alarm", {}).get("volume", 80)
         self._embed_muted: bool = self._cfg.get("ui_state", {}).get("embed_muted", False)
+        # 로그창 위치: auto / right / bottom (_update_log_position 참조)
+        self._log_position: str = self._cfg.get("ui_state", {}).get("log_position", "auto")
 
         # Detection 준비 여부
         self._detection_ready = False
@@ -136,6 +138,8 @@ class MainWindow(QMainWindow):
         self._splitter.setStretchFactor(0, 3)
         self._splitter.setStretchFactor(1, 1)
         self._splitter.setSizes([1200, 400])
+        # 창 모양이 바뀌면 로그창 위치(오른쪽/아래)를 다시 판정
+        self._splitter.installEventFilter(self)
 
         self._apply_theme(dark=True)
 
@@ -653,6 +657,8 @@ class MainWindow(QMainWindow):
         self._signoff_sounds = self._load_signoff_sounds(new_cfg)
         self._apply_rois_to_video_widget(new_cfg)
         self._refresh_summary()
+        self._log_position = new_cfg.get("ui_state", {}).get("log_position", "auto")
+        self._update_log_position()
         # 테스트 영상 파일이 지워지면 VideoWidget도 즉시 검은 화면으로
         new_video_file = new_cfg.get("video_file", "")
         if old_video_file and not new_video_file:
@@ -746,12 +752,73 @@ class MainWindow(QMainWindow):
             done_callback()
 
     def eventFilter(self, obj, event):
-        """video_widget 리사이즈 시 오버레이 크기 동기화."""
+        """video_widget 리사이즈 시 오버레이 크기 동기화 + splitter 리사이즈 시 로그 위치 재판정."""
+        if obj is self._splitter and event.type() == QEvent.Resize:
+            # 리사이즈 처리 도중 방향을 바꾸지 않도록 이벤트 루프로 미룬다
+            QTimer.singleShot(0, self._update_log_position)
         if (obj is self._video_widget
                 and event.type() == QEvent.Resize
                 and self._roi_overlay is not None):
             self._roi_overlay.resize(self._video_widget.size())
         return super().eventFilter(obj, event)
+
+    # ── 로그창 위치 (오른쪽 / 아래 / 자동) ────────────────────────
+
+    _LOG_BOTTOM_MIN_H = 150      # 아래 배치 시 로그창 최소 높이(약 4줄)
+    # 자동 판정 = (아래 배치 영상 폭) / (오른쪽 배치 영상 폭).
+    # 1.10 넘으면 아래, 1.02 밑이면 오른쪽, 그 사이는 현재 유지(경계에서 깜빡임 방지).
+    # 비슷하면 오른쪽을 택한다 — 로그창이 넓어야 읽기 편하므로.
+    _LOG_TO_BOTTOM_RATIO = 1.10
+    _LOG_TO_RIGHT_RATIO = 1.02
+
+    def _video_width_if(self, orientation) -> float:
+        """그 배치에서 16:9 영상이 차지할 가로 폭(이상적 분할 기준). 클수록 검은 띠가 적다."""
+        w, h = self._splitter.width(), self._splitter.height()
+        handle = self._splitter.handleWidth()
+        if orientation == Qt.Horizontal:
+            log_w = max(self._log_widget.minimumSizeHint().width(), w // 4)
+            box_w, box_h = w - log_w - handle, h
+        else:
+            box_w, box_h = w, h - self._LOG_BOTTOM_MIN_H - handle
+        return max(0.0, min(box_w, box_h * 16 / 9))
+
+    def _update_log_position(self):
+        """설정(auto/right/bottom)에 맞춰 splitter 방향을 정한다.
+        auto는 영상이 더 크게 나오는 쪽 — 넓은 창은 오른쪽, 세로로 긴 창은 아래.
+        아래 배치에서는 창 크기가 바뀔 때마다 영상이 가로를 꽉 채우는 높이로 다시 맞춘다."""
+        if not hasattr(self, "_splitter"):
+            return
+        w, h = self._splitter.width(), self._splitter.height()
+        if w <= 0 or h <= 0:
+            return
+        cur = self._splitter.orientation()
+        if self._log_position == "right":
+            target = Qt.Horizontal
+        elif self._log_position == "bottom":
+            target = Qt.Vertical
+        else:
+            ratio = (self._video_width_if(Qt.Vertical)
+                     / max(1.0, self._video_width_if(Qt.Horizontal)))
+            if ratio > self._LOG_TO_BOTTOM_RATIO:
+                target = Qt.Vertical
+            elif ratio < self._LOG_TO_RIGHT_RATIO:
+                target = Qt.Horizontal
+            else:
+                target = cur
+        handle = self._splitter.handleWidth()
+        if target != cur:
+            self._splitter.setOrientation(target)
+            if target == Qt.Horizontal:
+                self._splitter.setSizes([w * 3 // 4, w // 4])      # 기존 3:1
+            self._logger.info(
+                f"[ui] 로그창 위치: {'오른쪽' if target == Qt.Horizontal else '아래'}"
+                f" (설정={self._log_position}, 영역 {w}x{h})")
+        if target == Qt.Vertical:
+            # 영상이 가로를 꽉 채우는 높이만 주고 나머지를 로그창에
+            log_h = max(self._LOG_BOTTOM_MIN_H, h - handle - int(w * 9 / 16))
+            sizes = [h - handle - log_h, log_h]
+            if self._splitter.sizes() != sizes:
+                self._splitter.setSizes(sizes)
 
     # ── 종료 ──────────────────────────────────────────────────────
 

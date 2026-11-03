@@ -232,7 +232,7 @@ QLabel#logCountBadge {
     border: 1px solid #3a3b42;
     border-radius: 8px;
     padding: 1px 5px;
-    font-size: 10px;
+    font-size: 11px;
     font-family: "JetBrains Mono", "Consolas", monospace;
 }
 
@@ -243,7 +243,7 @@ QPushButton#btnLogFilter {
     border: 1px solid #3a3b42;
     border-radius: 10px;
     padding: 1px 8px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: bold;
     min-width: 36px;
 }
@@ -261,7 +261,7 @@ QPushButton#btnScrollResume {
     border: 1px solid rgba(217, 119, 87, 0.5);
     border-radius: 10px;
     padding: 1px 10px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: bold;
 }
 
@@ -336,7 +336,7 @@ QScrollBar::sub-line:vertical {
 
 /* ── 섹션 소제목 */
 QLabel#lblSectionTitle {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     color: #7d7e84;
     letter-spacing: 1px;
@@ -345,7 +345,7 @@ QLabel#lblSectionTitle {
 
 /* ── 볼륨 수치 레이블 */
 QLabel#lblVolumeVal {
-    font-size: 10px;
+    font-size: 11px;
     color: #a0a2aa;
     background: transparent;
 }
@@ -361,7 +361,7 @@ QFrame#detBadge {
 
 QLabel#detBadgeKey {
     color: #7d7e84;
-    font-size: 9px;
+    font-size: 11px;
     background-color: transparent;
 }
 
