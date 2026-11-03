@@ -44,7 +44,8 @@ class MainWindow(QMainWindow):
         self._shared_state  = shared_state
 
         self.setWindowTitle(f"KBS On-Air Monitoring v{VERSION}")
-        self.setMinimumSize(1280, 720)
+        # 화면 절반(1920 기준 960px)에도 붙일 수 있게. 좁으면 상단바가 두 줄로 바뀐다.
+        self.setMinimumSize(900, 600)
         self.resize(1600, 900)
 
         # 설정 로드

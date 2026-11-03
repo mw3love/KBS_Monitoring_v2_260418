@@ -47,7 +47,7 @@ class VideoWidget(QWidget):
         self._label.setObjectName("videoLabel")
         self._label.setAlignment(Qt.AlignCenter)
         self._label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self._label.setMinimumSize(640, 360)
+        self._label.setMinimumSize(400, 225)   # 16:9 유지, 절반 크기 창에서 로그창 자리 확보
         layout.addWidget(self._label)
 
         self._render()

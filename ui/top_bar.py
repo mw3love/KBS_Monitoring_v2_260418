@@ -21,7 +21,7 @@ except ImportError:
     GPUTIL_AVAILABLE = False
 
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QLabel,
+    QWidget, QHBoxLayout, QVBoxLayout, QBoxLayout, QLabel,
     QPushButton, QSlider, QFrame,
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QSize
@@ -238,7 +238,16 @@ class SysMonitorWidget(QWidget):
 
 
 class TopBar(QWidget):
-    """상단 제어 바"""
+    """상단 제어 바
+
+    창이 좁아 한 줄에 다 안 들어가면 정보 줄(시스템·시간·임베디드·감지현황)과
+    버튼 줄(감지·영역·알림음·ACK·정파·아이콘)을 위아래 두 줄로 나눈다.
+    버튼을 숨기지 않기 위함(화면 절반 크기 창 지원, 2026-11-03).
+    """
+
+    _ROW_H_SPACING = 10   # 한 줄 모드: 정보 줄과 버튼 줄 사이 가로 간격
+    _ROW_V_SPACING = 2    # 두 줄 모드: 두 줄 사이 세로 간격
+    _SINGLE_ROW_H  = 68   # 한 줄 모드 높이(기존 값)
 
     settings_requested      = Signal()
     roi_visibility_changed  = Signal(bool)
@@ -270,20 +279,26 @@ class TopBar(QWidget):
 
     def _setup_ui(self):
         self.setObjectName("topBar")
-        self.setFixedHeight(68)
+        self.setFixedHeight(self._SINGLE_ROW_H)
+        self._two_rows = False
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 4, 10, 4)
-        layout.setSpacing(10)
-        layout.setAlignment(Qt.AlignTop)
+        self._bar_layout = QBoxLayout(QBoxLayout.LeftToRight, self)
+        self._bar_layout.setContentsMargins(10, 4, 10, 4)
+        self._bar_layout.setSpacing(self._ROW_H_SPACING)
+
+        # 정보 줄: 시스템 · 시간 · 임베디드 오디오 · 감지현황
+        self._info_row = QWidget()
+        info_layout = QHBoxLayout(self._info_row)
+        info_layout.setContentsMargins(0, 0, 0, 0)
+        info_layout.setSpacing(10)
 
         self._sys_monitor = SysMonitorWidget(
             gpu_enabled=self._sysmon_gpu_enabled,
             interval_ms=self._sysmon_interval_ms,
         )
-        layout.addWidget(self._sys_monitor, alignment=Qt.AlignTop)
+        info_layout.addWidget(self._sys_monitor, alignment=Qt.AlignTop)
 
-        layout.addWidget(self._make_separator())
+        info_layout.addWidget(self._make_separator())
 
         # 현재시간 영역
         time_container = QWidget()
@@ -302,8 +317,8 @@ class TopBar(QWidget):
         self._lbl_time.setFont(QFont("JetBrains Mono", 18))
         time_vbox.addWidget(self._lbl_time)
 
-        layout.addWidget(time_container, alignment=Qt.AlignTop)
-        layout.addWidget(self._make_separator())
+        info_layout.addWidget(time_container, alignment=Qt.AlignTop)
+        info_layout.addWidget(self._make_separator())
 
         # Embedded Audio 영역
         embed_container = QWidget()
@@ -353,11 +368,22 @@ class TopBar(QWidget):
         embed_hbox.addWidget(self._meter_r)
 
         embed_vbox.addWidget(embed_content)
-        layout.addWidget(embed_container, alignment=Qt.AlignTop)
-        layout.addWidget(self._make_separator())
+        info_layout.addWidget(embed_container, alignment=Qt.AlignTop)
+        info_layout.addWidget(self._make_separator())
 
-        layout.addWidget(self._create_summary_widget(), alignment=Qt.AlignTop)
-        layout.addWidget(self._make_separator())
+        info_layout.addWidget(self._create_summary_widget(), alignment=Qt.AlignTop)
+        info_layout.addStretch()   # 두 줄 모드에서 정보 줄을 왼쪽에 붙임
+        self._bar_layout.addWidget(self._info_row)
+
+        # 두 줄 사이 구분선 — 한 줄 모드에서만 보임
+        self._row_sep = self._make_separator()
+        self._bar_layout.addWidget(self._row_sep)
+
+        # 버튼 줄: 감지 · 영역 · 알림음 · ACK · 정파 · 설정/테마/전체화면
+        self._ctrl_row = QWidget()
+        ctrl_layout = QHBoxLayout(self._ctrl_row)
+        ctrl_layout.setContentsMargins(0, 0, 0, 0)
+        ctrl_layout.setSpacing(10)
 
         self._btn_detection = QPushButton("감지 ON\n감시중")
         self._btn_detection.setObjectName("btnDetection")
@@ -366,7 +392,7 @@ class TopBar(QWidget):
         self._btn_detection.setFixedSize(90, 46)
         self._btn_detection.setFont(QFont("Segoe UI", 9, QFont.Bold))
         self._btn_detection.clicked.connect(self._on_detection_clicked)
-        layout.addWidget(self._btn_detection)
+        ctrl_layout.addWidget(self._btn_detection)
 
         self._btn_roi = QPushButton("영역 표시\nON")
         self._btn_roi.setObjectName("btnRoi")
@@ -375,7 +401,7 @@ class TopBar(QWidget):
         self._btn_roi.setFixedSize(90, 46)
         self._btn_roi.setFont(QFont("Segoe UI", 9, QFont.Bold))
         self._btn_roi.clicked.connect(self._on_roi_clicked)
-        layout.addWidget(self._btn_roi)
+        ctrl_layout.addWidget(self._btn_roi)
 
         self._btn_mute = QPushButton("알림음\n켜짐")
         self._btn_mute.setObjectName("btnMuteText")
@@ -384,9 +410,9 @@ class TopBar(QWidget):
         self._btn_mute.setFont(QFont("Segoe UI", 9, QFont.Bold))
         self._btn_mute.setToolTip("알림음 음소거")
         self._btn_mute.clicked.connect(self._on_mute_clicked)
-        layout.addWidget(self._btn_mute)
+        ctrl_layout.addWidget(self._btn_mute)
 
-        layout.addWidget(self._make_separator())
+        ctrl_layout.addWidget(self._make_separator())
 
         self._btn_ack = QPushButton("알림 확인\nACK")
         self._btn_ack.setObjectName("btnAlarmAck")
@@ -394,9 +420,9 @@ class TopBar(QWidget):
         self._btn_ack.setFont(QFont("Segoe UI", 9, QFont.Bold))
         self._btn_ack.setToolTip("알림확인 — 소리 및 깜빡임 해제")
         self._btn_ack.clicked.connect(self.alarm_acknowledged)
-        layout.addWidget(self._btn_ack)
+        ctrl_layout.addWidget(self._btn_ack)
 
-        layout.addWidget(self._make_separator())
+        ctrl_layout.addWidget(self._make_separator())
 
         self._btn_signoff: dict = {}
         for gid in (1, 2):
@@ -407,10 +433,10 @@ class TopBar(QWidget):
             btn.setFixedSize(160, 46)
             btn.setFont(QFont("Segoe UI", 9, QFont.Bold))
             btn.clicked.connect(lambda _, g=gid: self.signoff_manual_release.emit(g))
-            layout.addWidget(btn, alignment=Qt.AlignVCenter)
+            ctrl_layout.addWidget(btn, alignment=Qt.AlignVCenter)
             self._btn_signoff[gid] = btn
 
-        layout.addStretch()
+        ctrl_layout.addStretch()
 
         self._btn_settings = QPushButton()
         self._btn_settings.setObjectName("btnSettings")
@@ -419,7 +445,7 @@ class TopBar(QWidget):
         self._btn_settings.setIconSize(QSize(22, 22))
         self._btn_settings.setToolTip("설정")
         self._btn_settings.clicked.connect(self.settings_requested)
-        layout.addWidget(self._btn_settings)
+        ctrl_layout.addWidget(self._btn_settings)
 
         self._btn_dark = QPushButton()
         self._btn_dark.setObjectName("btnDark")
@@ -430,7 +456,7 @@ class TopBar(QWidget):
         self._btn_dark.setIconSize(QSize(22, 22))
         self._btn_dark.setToolTip("주간/야간 모드 전환")
         self._btn_dark.clicked.connect(self._on_dark_mode_clicked)
-        layout.addWidget(self._btn_dark)
+        ctrl_layout.addWidget(self._btn_dark)
 
         self._btn_fullscreen = QPushButton()
         self._btn_fullscreen.setObjectName("btnFullscreen")
@@ -440,7 +466,59 @@ class TopBar(QWidget):
         self._btn_fullscreen.setIconSize(QSize(22, 22))
         self._btn_fullscreen.setToolTip("F11 — 전체화면 전환")
         self._btn_fullscreen.clicked.connect(self.fullscreen_toggled)
-        layout.addWidget(self._btn_fullscreen)
+        ctrl_layout.addWidget(self._btn_fullscreen)
+
+        # 남는 가로 공간은 버튼 줄(안의 stretch)이 가져간다 — 기존 배치와 동일
+        self._bar_layout.addWidget(self._ctrl_row, 1)
+
+    # ── 한 줄 / 두 줄 전환 ─────────────────────────────────────────
+
+    def _single_row_width(self) -> int:
+        """한 줄 모드에 필요한 최소 너비. 구분선이 숨겨져 있어도 포함해 계산한다
+        (숨김 여부에 따라 값이 바뀌면 경계 폭에서 모드가 어긋나므로)."""
+        m = self._bar_layout.contentsMargins()
+        return (m.left() + m.right()
+                + self._info_row.minimumSizeHint().width()
+                + self._row_sep.sizeHint().width()
+                + self._ctrl_row.minimumSizeHint().width()
+                + 2 * self._ROW_H_SPACING)
+
+    def _two_row_height(self) -> int:
+        m = self._bar_layout.contentsMargins()
+        return (m.top() + m.bottom() + self._ROW_V_SPACING
+                + self._info_row.sizeHint().height()
+                + self._ctrl_row.sizeHint().height())
+
+    def minimumSizeHint(self) -> QSize:
+        """두 줄 모드 기준 최소 너비를 알려 줘야 창이 그 폭까지 줄어든다."""
+        m = self._bar_layout.contentsMargins()
+        w = (m.left() + m.right()
+             + max(self._info_row.minimumSizeHint().width(),
+                   self._ctrl_row.minimumSizeHint().width()))
+        return QSize(w, self.height())
+
+    def sizeHint(self) -> QSize:
+        return QSize(self._single_row_width(), self.height())
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_row_mode()
+
+    def _update_row_mode(self):
+        two_rows = self.width() < self._single_row_width()
+        if two_rows == self._two_rows:
+            return
+        self._two_rows = two_rows
+        if two_rows:
+            self._bar_layout.setDirection(QBoxLayout.TopToBottom)
+            self._bar_layout.setSpacing(self._ROW_V_SPACING)
+            self._row_sep.hide()
+            self.setFixedHeight(self._two_row_height())
+        else:
+            self._bar_layout.setDirection(QBoxLayout.LeftToRight)
+            self._bar_layout.setSpacing(self._ROW_H_SPACING)
+            self._row_sep.show()
+            self.setFixedHeight(self._SINGLE_ROW_H)
 
     def _create_summary_widget(self) -> QWidget:
         container = QWidget()
