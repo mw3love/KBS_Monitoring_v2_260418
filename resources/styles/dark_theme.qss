@@ -85,6 +85,21 @@ QPushButton#btnAlarmAck[alarm_active="true"] {
     border-color: #aa0000;
 }
 
+/* 이상 상태 = 빨강 (주황 불 = 켜짐·정상은 그대로). 2026-11-03 강조색 비교 C안 채택.
+   감시 꺼짐은 불 꺼진 채 빨간 테두리·글자, 음소거는 어두운 빨강 — ACK 경보(#cc0000 채움)와 구분.
+   health_state 규칙보다 앞에 둬야 stale/crashed 테두리가 이긴다. */
+QPushButton#btnDetection:!checked {
+    color: #ff6060;
+    border: 1px solid #e03131;
+}
+
+QPushButton#btnMuteText:checked,
+QPushButton#btnEmbedMute:checked {
+    background-color: #5a1515;
+    color: #ff6060;
+    border: 1px solid #e03131;
+}
+
 /* 감지 버튼 health state */
 QPushButton#btnDetection[health_state="stale"] {
     border: 2px solid #cc0000;

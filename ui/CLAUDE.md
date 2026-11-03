@@ -26,6 +26,9 @@
   - 로그 필터는 그룹 단위(`ALL | VIDEO | AUDIO | ERROR | INFO`).
     그룹↔log_type 매핑은 `LogWidget._GROUP_TYPES`에서 단일 출처로 관리.
     log_type 추가 시 `_TYPE_COLORS`, `_BADGE_LABELS`, `_GROUP_TYPES` 세 군데 동시 갱신.
+  - 예외: 상단바 토글 버튼(감지·영역 표시·테마)은 방송 탈리 관례대로 **켜짐 = 주황 불**, 이상 상태
+    (감지 OFF·알림음/임베디드 음소거)만 빨강 — 2026-11-03 강조색 비교에서 「정상=무색」안이 기각됨
+    (사유: 방송국에선 불이 켜져 있는 게 ON이라 익숙함). 규칙은 테마 QSS의 health_state 규칙 **앞**에 둔다.
   - 예외: `ui/top_bar.py` `LevelMeterBar`는 VU 미터 표준(정상=녹, 경계=황, 위험=적)을 따름
     (정상 하단 6칸=#2f9e44, 경계 3~4번째=#e8a730, 피크 상위 2칸=#ff3333)
 
