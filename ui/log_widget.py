@@ -444,6 +444,7 @@ class LogWidget(QWidget):
         self._list.setSpacing(0)
         self._list.setUniformItemSizes(False)
         self._list.verticalScrollBar().valueChanged.connect(self._on_scroll_changed)
+        self._list.verticalScrollBar().rangeChanged.connect(self._on_scroll_range_changed)
         main_layout.addWidget(self._list)
 
     # ── 필터 버튼 스타일 헬퍼 ─────────────────────────────────────
@@ -547,13 +548,19 @@ class LogWidget(QWidget):
 
     def _on_scroll_changed(self, value: int):
         sb = self._list.verticalScrollBar()
-        at_bottom = (value >= sb.maximum() - 4)
+        # 스크롤 단위가 한 줄(ScrollPerItem)이라 여유를 두면 그만큼 최신 줄이 가려진 채 "맨 아래"로 판정된다
+        at_bottom = (value >= sb.maximum())
         if self._auto_scroll and not at_bottom:
             self._auto_scroll = False
             self._btn_scroll_resume.setVisible(True)
         elif not self._auto_scroll and at_bottom:
             self._auto_scroll = True
             self._btn_scroll_resume.setVisible(False)
+
+    def _on_scroll_range_changed(self, _min: int, maximum: int):
+        """창 크기·검색·필터로 스크롤 범위가 바뀌어도 자동 스크롤 중이면 최신 줄을 계속 보여준다."""
+        if self._auto_scroll:
+            self._list.verticalScrollBar().setValue(maximum)
 
     def _resume_auto_scroll(self):
         self._auto_scroll = True
