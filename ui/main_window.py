@@ -133,6 +133,7 @@ class MainWindow(QMainWindow):
 
         self._log_widget = LogWidget()
         self._log_widget.setObjectName("logArea")
+        self._log_widget.help_requested.connect(self._open_manual)
         self._splitter.addWidget(self._log_widget)
 
         self._splitter.setStretchFactor(0, 3)
@@ -156,7 +157,6 @@ class MainWindow(QMainWindow):
         self._top_bar.fullscreen_toggled.connect(self._toggle_fullscreen)
         self._top_bar.signoff_manual_release.connect(self._on_signoff_button_clicked)
         self._top_bar.settings_requested.connect(self._open_settings)
-        self._top_bar.help_requested.connect(self._open_manual)
         self._top_bar.embed_mute_toggled.connect(self._on_embed_mute_toggled)
 
         # AlarmSystem → VideoWidget/TopBar
@@ -632,7 +632,7 @@ class MainWindow(QMainWindow):
         self._logger.info("[settings] 설정창 열림")
 
     def _open_manual(self):
-        """상단바 「?」 — manual/사용안내.html을 기본 브라우저로 연다(인터넷 불필요)."""
+        """로그창 머리줄 「?」 — manual/사용안내.html을 기본 브라우저로 연다(인터넷 불필요)."""
         path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "manual", "사용안내.html",

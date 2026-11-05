@@ -288,6 +288,7 @@ QPushButton#btnScrollResume:hover {
 /* 검색 / DEBUG / 헤더 버튼 */
 QPushButton#btnLogClear,
 QPushButton#btnLogFolder,
+QPushButton#btnLogHelp,
 QPushButton#btnLogDebug,
 QPushButton#btnLogSearch,
 QPushButton#btnLogSearchClose {
@@ -301,6 +302,7 @@ QPushButton#btnLogSearchClose {
 
 QPushButton#btnLogClear:hover,
 QPushButton#btnLogFolder:hover,
+QPushButton#btnLogHelp:hover,
 QPushButton#btnLogDebug:hover,
 QPushButton#btnLogSearch:hover,
 QPushButton#btnLogSearchClose:hover {

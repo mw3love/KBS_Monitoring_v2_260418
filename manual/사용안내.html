@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KBS Monitoring 사용안내</title>
 <!--
-  프로그램 상단바 「?」 버튼이 이 파일을 기본 브라우저로 연다(인터넷 없이 동작).
+  프로그램 로그창 머리줄의 「?」 버튼이 이 파일을 기본 브라우저로 연다(인터넷 없이 동작).
   그림은 ../docs/screenshots/ — manual/capture_screens.py로 다시 찍는다.
   숫자(운영 실적 등)는 docs/성과_근거.md가 단일 출처. 여기엔 사용법만 쓴다.
   인쇄(Ctrl+P → PDF로 저장)하면 왼쪽 목차가 빠지고 장마다 새 쪽에서 시작한다.
@@ -195,11 +195,11 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
       <span class="pin" style="left:38.7%;top:1.6%">2</span>
       <span class="pin" style="left:56%;top:1.6%">3</span>
       <span class="pin" style="left:79%;top:1.6%">4</span>
-      <span class="pin" style="left:96.5%;top:11%">5</span>
+      <span class="pin" style="left:87.5%;top:1.6%">5</span>
       <span class="pin" style="left:4%;top:40%">6</span>
-      <span class="pin" style="left:11%;top:72%">7</span>
+      <span class="pin" style="left:11%;top:81%">7</span>
     </div>
-    <figcaption>실제 운영 화면. 번호는 바로 아래쪽 영역을 가리킵니다(5번은 그 위의 오른쪽 끝 아이콘들). 창이 좁으면 상단바가 두 줄로 바뀌고, 로그창은 영상이 크게 보이는 쪽(아래 또는 오른쪽)으로 자동 이동합니다.</figcaption>
+    <figcaption>실제 운영 화면. 번호는 바로 아래쪽 영역을 가리킵니다(5번은 그 오른쪽 아이콘들, 7번은 기록창 — 머리줄 오른쪽 끝이 「?」). 창이 좁으면 상단바가 두 줄로 바뀌고, 로그창은 영상이 크게 보이는 쪽(아래 또는 오른쪽)으로 자동 이동합니다.</figcaption>
   </figure>
 
   <div class="tbl-wrap"><table>
@@ -208,9 +208,9 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
     <tr><td>2</td><td>감지 현황</td><td><b>V</b> = 영상 감지영역 개수, <b>A</b> = 오디오 레벨미터 감지영역 개수, <b>EA</b> = 임베디드 오디오 감시(1=켜짐). 경보 중인 종류는 빨갛게 바뀝니다.</td></tr>
     <tr><td>3</td><td>제어 버튼</td><td><span class="btn">감지 ON</span> 전체 감시 켜기/끄기 · <span class="btn">영역 표시</span> 감지영역 테두리 보이기 · <span class="btn">알림음</span> 경보음 켜기/끄기 · <span class="btn">알림 확인 ACK</span> 울리는 경보 멈추기(<a href="#c2">2장</a>)</td></tr>
     <tr><td>4</td><td>정파 버튼(그룹별)</td><td>지금 정파 상태와 다음 단계까지 남은 시간. 누르면 상태를 손으로 바꿉니다(<a href="#c3">3장</a>).</td></tr>
-    <tr><td>5</td><td>사용안내 · 설정 · 주간/야간 · 전체화면</td><td><span class="btn">?</span> 이 안내서 열기 · 톱니바퀴 = 설정창 · 달 = 밝은/어두운 화면 · 네모 = 전체화면(<kbd>F11</kbd>)</td></tr>
+    <tr><td>5</td><td>설정 · 주간/야간 · 전체화면</td><td>톱니바퀴 = 설정창 · 달 = 밝은/어두운 화면 · 네모 = 전체화면(<kbd>F11</kbd>)</td></tr>
     <tr><td>6</td><td>영상 (16채널)</td><td><b>빨간 테두리 = 영상 감지영역</b>, <b>주황 테두리 = 오디오 레벨미터 감지영역</b>입니다(영역 표시 ON일 때). 경보가 나면 그 영역이 채워지며 깜빡입니다.</td></tr>
-    <tr><td>7</td><td>시스템 로그</td><td>무슨 일이 언제 있었는지 위에서부터 시간순으로 쌓입니다. 아래 색 표를 보세요.</td></tr>
+    <tr><td>7</td><td>시스템 로그</td><td>무슨 일이 언제 있었는지 위에서부터 시간순으로 쌓입니다. 아래 색 표를 보세요. 머리줄 오른쪽 끝 <span class="btn">?</span>가 이 안내서를 엽니다.</td></tr>
   </table></div>
 
   <div class="note"><b>버튼 색 읽는 법</b> 주황 불이 켜진 버튼 = 켜짐(정상). <b>빨간색은 주의가 필요한 상태에만</b> 씁니다 — 감지 OFF, 알림음·방송소리 음소거, 경보 중인 ACK 버튼.</div>

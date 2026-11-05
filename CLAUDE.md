@@ -202,7 +202,7 @@ kbs_monitoring_v2/
 ├── config/
 │   └── default_config.json
 └── resources/
-    ├── icons/        # 체크 아이콘 + Phosphor fill SVG(검색·폴더, MIT — PHOSPHOR_LICENSE.txt)
+    ├── icons/        # 체크 아이콘 + Phosphor fill SVG(검색·폴더, MIT — PHOSPHOR_LICENSE.txt) + help_circle.svg(자체 제작, 로그창 「?」)
     ├── sounds/
     └── styles/
         ├── dark_theme.qss

@@ -304,6 +304,7 @@ class LogWidget(QWidget):
     }
 
     log_cleared = Signal()
+    help_requested = Signal()   # 머리줄 「?」 — MainWindow가 manual/사용안내.html을 연다
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -371,6 +372,15 @@ class LogWidget(QWidget):
         self._btn_clear.setToolTip("화면 로그 초기화 (파일 변경 없음)")
         self._btn_clear.clicked.connect(self.clear_logs)
         header_row.addWidget(self._btn_clear)
+
+        # 사용안내 — 상단바가 아니라 여기 둔다: 상단바에 넣으면 한 줄 기준 폭이 늘어
+        # 200% 배율 운영 창(논리 폭 1273px)에서 두 줄로 바뀌었다(2026-11-05 실측)
+        self._btn_help = QPushButton()
+        self._btn_help.setObjectName("btnLogHelp")
+        self._btn_help.setFixedSize(28, 24)
+        self._btn_help.setToolTip("사용안내 (브라우저로 열림)")
+        self._btn_help.clicked.connect(self.help_requested)
+        header_row.addWidget(self._btn_help)
         self._apply_header_icons(dark=True)   # 기본 다크. 테마 전환 시 set_theme가 다시 칠함
 
         main_layout.addWidget(header_widget)
@@ -616,7 +626,8 @@ class LogWidget(QWidget):
         """헤더 아이콘(검색·폴더)을 테마 글자색으로 칠한다 — 상단바 아이콘과 같은 색."""
         color = "#dddddd" if dark else "#404040"
         for btn, name in ((self._btn_search, "ph_magnifying-glass-fill.svg"),
-                          (self._btn_open_folder, "ph_folder-open-fill.svg")):
+                          (self._btn_open_folder, "ph_folder-open-fill.svg"),
+                          (self._btn_help, "help_circle.svg")):
             btn.setIcon(_tinted_svg_icon(name, color))
             btn.setIconSize(QSize(16, 16))
 
