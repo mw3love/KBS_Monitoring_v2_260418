@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KBS Monitoring 소개서</title>
 <!--
-  심사위원용 소개서 (A4 4쪽). 숫자는 전부 docs/성과_근거.md에서 가져왔다 — 바꿀 땐 거기부터.
+  심사위원용 소개서 (A4 5쪽). 숫자는 전부 docs/성과_근거.md에서 가져왔다 — 바꿀 땐 거기부터.
   PDF 만들기(이 폴더에서):
     msedge --headless --no-pdf-header-footer --print-to-pdf="KBS_Monitoring_소개서.pdf" "이 파일의 file:/// 주소"
   또는 브라우저로 열어 Ctrl+P → PDF로 저장(여백 없음, 배경 그래픽 켜기).
@@ -124,7 +124,7 @@ code{font-family:Consolas,monospace; font-size:.92em; background:var(--panel); b
     </ul>
   </div>
 
-  <div class="foot"><span>숫자 출처: 감시PC 운영 로그(저장소 docs/성과_근거.md)</span><span>1 / 4</span></div>
+  <div class="foot"><span>숫자 출처: 감시PC 운영 로그(저장소 docs/성과_근거.md)</span><span>1 / 5</span></div>
 </section>
 
 <!-- ───────────── 2쪽: 문제와 해결 ───────────── -->
@@ -184,15 +184,47 @@ code{font-family:Consolas,monospace; font-size:.92em; background:var(--panel); b
     <li><b>켤 때마다 자가점검</b> — Python 버전·감지영역 수·녹화 도구·디스크 여유를 점검해 텔레그램으로 보고한다.</li>
   </ul>
 
-  <div class="foot"><span>상세: 저장소 README.md · docs_기능_레퍼런스.md</span><span>2 / 4</span></div>
+  <div class="foot"><span>상세: 저장소 README.md · docs_기능_레퍼런스.md</span><span>2 / 5</span></div>
 </section>
 
-<!-- ───────────── 3쪽: 실운영 검증 ───────────── -->
+<!-- ───────────── 3쪽: 설정 화면 ───────────── -->
+<section class="page">
+  <div class="runhead"><span><b>KBS Monitoring v2</b> · 소개서</span><span>설정 화면</span></div>
+
+  <h2>설정은 모두 화면에서 <span class="tag">경제성</span> <span class="tag">실현가능성</span></h2>
+  <p class="muted">감시 구역·판정 기준·정파 시간·알림을 <b>7개 탭 설정창</b>에서 바꾼다. 총국마다 멀티뷰어 배치와 방송 편성이 달라도 코드를 고치지 않고 그 총국에 맞춰 쓸 수 있다.</p>
+
+  <figure style="margin-top:3mm">
+    <img src="set_sensitivity.jpg" alt="감도설정 탭">
+    <figcaption>감도설정 — 블랙·정지화면(스틸) 판정 기준과 알림 시간. 항목마다 범위와 기본값이 함께 적혀 있다(전주총국 감시PC 화면).</figcaption>
+  </figure>
+
+  <div class="cols3" style="margin-top:4mm">
+    <figure><img src="set_video_roi.jpg" alt="비디오 영역 설정 탭" style="height:34mm; object-fit:cover; object-position:left top"><figcaption>비디오 영역 설정 — 16분할 화면 중 감시할 구역(전주 8개)을 끌어서 지정</figcaption></figure>
+    <figure><img src="set_signoff.jpg" alt="정파설정 탭" style="height:34mm; object-fit:cover; object-position:left top"><figcaption>정파설정 — 채널 그룹별 정파 시간·요일. 그 시간엔 경보를 멈춤</figcaption></figure>
+    <figure><img src="set_recording.jpg" alt="영상설정 탭" style="height:34mm; object-fit:cover; object-position:left top"><figcaption>영상설정 — 캡처 포트와 자동 녹화(사고 전후 10초, 보관 30일)</figcaption></figure>
+  </div>
+
+  <h3>7개 탭</h3>
+  <table>
+    <tr><th>탭</th><th>하는 일</th></tr>
+    <tr><td>영상설정</td><td>캡처 포트 선택, 자동 녹화 시간·보관 기간·화질</td></tr>
+    <tr><td>비디오 영역 / 오디오 레벨미터 영역</td><td>감시할 구역을 화면 위에서 끌어 만들고 옮김(여러 개 한꺼번에 복사·이동)</td></tr>
+    <tr><td>감도설정</td><td>블랙·정지화면·오디오 레벨미터·임베디드 오디오 판정 기준과 알림 시간</td></tr>
+    <tr><td>정파설정</td><td>채널 그룹별 정파 시작·해제 시간과 요일</td></tr>
+    <tr><td>알림설정</td><td>경보음, 텔레그램 봇, 알림을 보낼 감지·시스템 이벤트 선택</td></tr>
+    <tr><td>저장/불러오기</td><td>설정 전체를 파일(JSON)로 내보내고 불러와 바로 적용</td></tr>
+  </table>
+
+  <div class="foot"><span>상세: 저장소 README.md · docs_기능_레퍼런스.md</span><span>3 / 5</span></div>
+</section>
+
+<!-- ───────────── 4쪽: 실운영 검증 ───────────── -->
 <section class="page">
   <div class="runhead"><span><b>KBS Monitoring v2</b> · 소개서</span><span>실운영 검증</span></div>
 
   <h2>전주총국 감시PC 실운영 <span class="tag">실현가능성</span></h2>
-  <p class="muted">늦어도 2026년 5월부터 전주총국 감시PC에서 실제 방송을 감시하고 있다. 아래는 운영 로그가 남아 있는 90일의 기록이다.</p>
+  <p class="muted">2026년 5월부터 전주총국 감시PC에서 실제 방송을 감시하고 있다. 아래는 운영 로그가 남아 있는 90일의 기록이다.</p>
   <table style="margin-top:2mm">
     <tr><th>항목</th><th>결과</th><th>확인 방법</th></tr>
     <tr><td>연속 운영</td><td class="num"><b>90일</b> (2026.8.7 ~ 11.5)</td><td>10분마다 남는 상태 기록</td></tr>
@@ -241,10 +273,10 @@ code{font-family:Consolas,monospace; font-size:.92em; background:var(--panel); b
     <li class="hit"><b>이후 85일 재발 0회</b></li>
   </ol>
 
-  <div class="foot"><span>숫자 출처: 감시PC 운영 로그(저장소 docs/성과_근거.md) · 추적 기록: fix/ 폴더</span><span>3 / 4</span></div>
+  <div class="foot"><span>숫자 출처: 감시PC 운영 로그(저장소 docs/성과_근거.md) · 추적 기록: fix/ 폴더</span><span>4 / 5</span></div>
 </section>
 
-<!-- ───────────── 4쪽: 확산·경제성·팀 ───────────── -->
+<!-- ───────────── 5쪽: 확산·경제성·팀 ───────────── -->
 <section class="page">
   <div class="runhead"><span><b>KBS Monitoring v2</b> · 소개서</span><span>확산 · 경제성 · 팀</span></div>
 
@@ -309,7 +341,7 @@ code{font-family:Consolas,monospace; font-size:.92em; background:var(--panel); b
     </ul>
   </div>
 
-  <div class="foot"><span>전주총국 기술국 · KBS Monitoring v2.8.21 기준(2026.11)</span><span>4 / 4</span></div>
+  <div class="foot"><span>전주총국 기술국 · KBS Monitoring v2.8.21 기준(2026.11)</span><span>5 / 5</span></div>
 </section>
 
 </body>
