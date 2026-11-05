@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QBoxLayout, QLabel,
     QPushButton, QSlider, QFrame,
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QSize, QEvent
+from PySide6.QtCore import Qt, QTimer, Signal, QSize, QEvent, QRectF
 from PySide6.QtGui import QFont, QColor, QPainter, QPixmap, QIcon, QPen
 
 
@@ -253,8 +253,9 @@ class TopBar(QWidget):
     # 압축 폭은 글자 실측(최소 폭 70~75 / 정파 최장 문구 129)에 여유를 둔 값
     _COMPACT_BTN_W   = {"btnDetection": 76, "btnRoi": 76, "btnMuteText": 62,
                         "btnAlarmAck": 76, "btnSignoff": 132,
-                        "btnSettings": 32, "btnDark": 32, "btnFullscreen": 32}
+                        "btnHelp": 32, "btnSettings": 32, "btnDark": 32, "btnFullscreen": 32}
 
+    help_requested          = Signal()
     settings_requested      = Signal()
     roi_visibility_changed  = Signal(bool)
     detection_toggled       = Signal(bool)
@@ -446,6 +447,15 @@ class TopBar(QWidget):
 
         ctrl_layout.addStretch()
 
+        self._btn_help = QPushButton()
+        self._btn_help.setObjectName("btnHelp")
+        self._btn_help.setFixedSize(36, 36)
+        self._btn_help.setIcon(self._make_help_icon())
+        self._btn_help.setIconSize(QSize(22, 22))
+        self._btn_help.setToolTip("사용안내 (브라우저로 열림)")
+        self._btn_help.clicked.connect(self.help_requested)
+        ctrl_layout.addWidget(self._btn_help)
+
         self._btn_settings = QPushButton()
         self._btn_settings.setObjectName("btnSettings")
         self._btn_settings.setFixedSize(36, 36)
@@ -484,7 +494,7 @@ class TopBar(QWidget):
             (b, b.minimumWidth(), self._COMPACT_BTN_W[b.objectName()])
             for b in (self._btn_detection, self._btn_roi, self._btn_mute, self._btn_ack,
                       *self._btn_signoff.values(),
-                      self._btn_settings, self._btn_dark, self._btn_fullscreen)
+                      self._btn_help, self._btn_settings, self._btn_dark, self._btn_fullscreen)
         ]
 
     # ── 한 줄 / 두 줄 전환 ─────────────────────────────────────────
@@ -732,6 +742,26 @@ class TopBar(QWidget):
         painter.end()
         return QIcon(px)
 
+    def _make_help_icon(self) -> QIcon:
+        """원 테두리 안에 「?」 — 톱니바퀴 아이콘과 같은 크기·색."""
+        size = 22
+        px = QPixmap(size, size)
+        px.fill(Qt.transparent)
+        painter = QPainter(px)
+        painter.setRenderHint(QPainter.Antialiasing)
+        fg = QColor("#dddddd") if self._dark_mode else QColor("#404040")
+        pen = QPen(fg)
+        pen.setWidthF(2.0)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawEllipse(QRectF(1.5, 1.5, size - 3, size - 3))
+        font = QFont("Segoe UI", 11, QFont.Bold)
+        font.setPixelSize(14)
+        painter.setFont(font)
+        painter.drawText(QRectF(0, 0, size, size), Qt.AlignCenter, "?")
+        painter.end()
+        return QIcon(px)
+
     def _make_gear_icon(self) -> QIcon:
         from PySide6.QtGui import QPainterPath
         size = 22
@@ -849,6 +879,7 @@ class TopBar(QWidget):
         self._btn_fullscreen.setIcon(
             self._make_fullscreen_icon(self._btn_fullscreen.isChecked()))
         self._btn_settings.setIcon(self._make_gear_icon())
+        self._btn_help.setIcon(self._make_help_icon())
         self._meter_l.set_theme(checked)
         self._meter_r.set_theme(checked)
         self.dark_mode_toggled.emit(checked)

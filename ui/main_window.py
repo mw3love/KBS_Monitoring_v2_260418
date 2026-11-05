@@ -156,6 +156,7 @@ class MainWindow(QMainWindow):
         self._top_bar.fullscreen_toggled.connect(self._toggle_fullscreen)
         self._top_bar.signoff_manual_release.connect(self._on_signoff_button_clicked)
         self._top_bar.settings_requested.connect(self._open_settings)
+        self._top_bar.help_requested.connect(self._open_manual)
         self._top_bar.embed_mute_toggled.connect(self._on_embed_mute_toggled)
 
         # AlarmSystem → VideoWidget/TopBar
@@ -629,6 +630,20 @@ class MainWindow(QMainWindow):
             lambda: self._logger.info("[settings] 설정창 닫힘"))
         self._settings_dlg.show()
         self._logger.info("[settings] 설정창 열림")
+
+    def _open_manual(self):
+        """상단바 「?」 — manual/사용안내.html을 기본 브라우저로 연다(인터넷 불필요)."""
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "manual", "사용안내.html",
+        )
+        try:
+            os.startfile(path)
+            self._logger.info("[help] 사용안내 열림")
+        except Exception as e:
+            self._logger.warning(f"[help] 사용안내 열기 실패: {e}")
+            self._log_widget.add_log(f"사용안내를 열 수 없습니다 ({path}): {e}",
+                                     log_type="error", source="사용안내")
 
     @staticmethod
     def _load_signoff_sounds(cfg: dict) -> dict:
