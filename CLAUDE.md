@@ -6,6 +6,9 @@
 - **핵심 변경**: multiprocessing 기반 아키텍처 (UI/감지 프로세스 분리)
 - **실적·숫자 단일 출처**: `docs/성과_근거.md` — 출품내역서·소개서·사용안내·발표자료는 운영 기간·가동률·감지 건수·
   테스트 수를 여기서만 가져간다(문서마다 따로 쓰다 "0.1초 주기" 같은 어긋남이 생겼음). 숫자를 바꾸면 이 파일부터.
+- **2026 미디어창의기술전 산출물(KBS Monitoring 부분)**: 심사위원 소개서 `docs/소개서/`(A4 4쪽 HTML·PDF) ·
+  발표 덱(claude.ai Slides, 비공개) https://claude.ai/artifact/ARkmvQJD3DCBmjZVAT8zra · 사용안내 `manual/사용안내.html`.
+  출품내역서(두 프로젝트 종합)는 대회 폴더에서 별도 세션으로 작성
 - **화면 캡처**: `manual/capture_screens.py` — README·사용안내 그림을 한 번에 다시 찍는다(설정창은 별도로 띄워 캡처,
   텔레그램 토큰·채팅 ID 가림)
 - **2026-07-13 작업 폴더 이전**: Google Drive 동기화 폴더(`G:\내 드라이브\A1. 개인 자료\
