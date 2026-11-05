@@ -1,0 +1,31 @@
+<section id="detect" data-transition="fade" style="background:#F6F4F0;color:#1B2026;font-family:'Noto Sans KR', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:28px;font-weight:700;color:#B4532F;letter-spacing:1px">무엇을 잡나</p>
+<h2 style="font-family:'IBM Plex Sans KR', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1.1">네 가지를 동시에, 0.2초마다</h2>
+</div>
+<div style="display:flex;gap:32px">
+<div style="flex:1;display:flex;flex-direction:column;gap:16px;background:#FFFDF9;border:1px solid #E2DCD2;border-top:10px solid #CC0000;border-radius:16px;padding:36px">
+<h3 style="font-size:40px;font-weight:700">블랙</h3>
+<p style="font-family:'IBM Plex Sans KR', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1">5초</p>
+<p style="font-size:28px;line-height:1.45;color:#4A4F57">영역의 98%가 아주 어두움. 로고만 남은 장면·움직이는 자막은 제외</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px;background:#FFFDF9;border:1px solid #E2DCD2;border-top:10px solid #7B2FBE;border-radius:16px;padding:36px">
+<h3 style="font-size:40px;font-weight:700">정지화면</h3>
+<p style="font-family:'IBM Plex Sans KR', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1">120초</p>
+<p style="font-size:28px;line-height:1.45;color:#4A4F57">영역을 25칸으로 나눠 모든 칸이 거의 안 움직임</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px;background:#FFFDF9;border:1px solid #E2DCD2;border-top:10px solid #1F7A1F;border-radius:16px;padding:36px">
+<h3 style="font-size:40px;font-weight:700">오디오 레벨미터</h3>
+<p style="font-family:'IBM Plex Sans KR', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1">60초</p>
+<p style="font-size:28px;line-height:1.45;color:#4A4F57">화면 속 레벨미터의 초록 막대가 사라짐</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px;background:#FFFDF9;border:1px solid #E2DCD2;border-top:10px solid #1E5A9E;border-radius:16px;padding:36px">
+<h3 style="font-size:40px;font-weight:700">임베디드 오디오</h3>
+<p style="font-family:'IBM Plex Sans KR', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1">60초</p>
+<p style="font-size:28px;line-height:1.45;color:#4A4F57">실제로 들어오는 소리가 -50dB 이하</p>
+</div>
+</div>
+<p style="font-size:28px;line-height:1.5;color:#4A4F57">시간은 기본값이며 국별로 조정합니다. 정상 복귀도 일정 시간 이어져야 인정해, 경계에서 알림이 깜빡이지 않습니다.</p>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-size:24px;color:#6B6F76">숫자 = 알림까지 이어져야 하는 시간(기본값)</p>
+<aside>이 프로그램은 화면에 그린 감지영역마다 네 가지를 동시에 봅니다. 블랙은 5초, 정지화면은 2분, 오디오는 1분 이어지면 알립니다. 블랙은 방송사 로고만 남은 의도된 검은 장면이나 흐르는 자막까지 구분해 헛알림을 줄였습니다. 반대로 정상으로 돌아왔다고 판단할 때도 일정 시간 지켜봐서, 경계에서 알림이 켜졌다 꺼졌다 반복하지 않습니다.</aside>
+</section>

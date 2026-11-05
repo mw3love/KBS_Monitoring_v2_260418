@@ -1,0 +1,23 @@
+<section id="arch" data-transition="fade" style="background:#F6F4F0;color:#1B2026;font-family:'Noto Sans KR', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:12px">
+<p style="font-size:28px;font-weight:700;color:#B4532F;letter-spacing:1px">어떻게 버티나</p>
+<h2 style="font-family:'IBM Plex Sans KR', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1.1">세 부분으로 나눠, 서로 지킵니다</h2>
+<div style="position:absolute;left:240px;top:340px;width:560px;height:200px;display:flex;flex-direction:column;justify-content:center;gap:8px;background:#FFFDF9;border:2px solid #D8D1C6;border-radius:16px;padding:28px 40px">
+<h3 style="font-size:44px;font-weight:700;text-align:center">화면</h3>
+<p style="font-size:28px;line-height:1.4;color:#4A4F57;text-align:center">영상 표시 · 경보음 · 조작</p>
+</div>
+<div style="position:absolute;left:1120px;top:340px;width:560px;height:200px;display:flex;flex-direction:column;justify-content:center;gap:8px;background:#FFFDF9;border:3px solid #C8623F;border-radius:16px;padding:28px 40px">
+<h3 style="font-size:44px;font-weight:700;text-align:center">감지</h3>
+<p style="font-size:28px;line-height:1.4;color:#4A4F57;text-align:center">0.2초 판정 · 녹화 · 감지 알림</p>
+</div>
+<div style="position:absolute;left:680px;top:680px;width:560px;height:200px;display:flex;flex-direction:column;justify-content:center;gap:8px;background:#1B2026;border:2px solid #1B2026;border-radius:16px;padding:28px 40px">
+<h3 style="font-size:44px;font-weight:700;text-align:center;color:#F3EFE9">감시자</h3>
+<p style="font-size:28px;line-height:1.4;color:#C9C2B8;text-align:center">생존 확인 · 재기동 · 시스템 알림</p>
+</div>
+<x-connector x1="1120" y1="440" x2="800" y2="440" head="end" style="color:#6B6F76;border-width:3px"></x-connector>
+<p style="position:absolute;left:800px;top:378px;width:320px;font-size:26px;color:#6B6F76;text-align:center">영상 · 결과</p>
+<x-connector x1="800" y1="680" x2="560" y2="540" head="end" style="color:#C8623F;border-width:3px"></x-connector>
+<x-connector x1="1120" y1="680" x2="1360" y2="540" head="end" style="color:#C8623F;border-width:3px"></x-connector>
+<p style="position:absolute;left:128px;top:600px;width:420px;font-size:28px;line-height:1.4;color:#1B2026;text-align:right">30초 멈추거나 고장 나면<br><b>대신 텔레그램</b></p>
+<p style="position:absolute;left:1380px;top:600px;width:412px;font-size:28px;line-height:1.4;color:#1B2026">10초 멈추면<br><b>다시 띄움</b></p>
+<aside>v1이 멈추던 근본 원인은 한 덩어리 구조였습니다. 그래서 v2는 화면, 감지, 감시자 세 프로그램으로 나눴습니다. 화면이 바쁘거나 멈춰도 감지는 따로 돌아 사고를 놓치지 않습니다. 감시자는 감지가 10초 응답이 없으면 다시 띄우고, 화면이 30초 멈추거나 내부가 고장 나면 화면 대신 텔레그램을 보냅니다. 고장 난 화면은 메시지조차 못 보내기 때문에, 보내는 주체를 아예 나눈 것이 핵심입니다.</aside>
+</section>

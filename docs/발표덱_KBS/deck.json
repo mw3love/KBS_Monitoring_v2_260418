@@ -1,0 +1,21 @@
+{
+  "v": 4,
+  "createdOnFiles": {"v": 1, "at": "2026-11-05T05:00:00Z"},
+  "lists": "css",
+  "title": "KBS Monitoring v2 발표",
+  "cover": "cover",
+  "order": ["cover", "kpis", "problem", "detect", "alert", "arch", "recover", "demo", "proof", "trace", "spread", "team", "close"],
+  "sections": {
+    "s1": {"description": "무엇을 만들었고 무엇이 증명됐는지 한눈에", "start": "cover"},
+    "s2": {"description": "기존 감시의 두 가지 빈틈", "start": "problem"},
+    "s3": {"description": "4가지 감지, 3중 알림, 세 부분 분리와 자동 복구", "start": "detect"},
+    "s4": {"description": "감시PC 원격 실시간 시연", "start": "demo"},
+    "s5": {"description": "전주총국 90일 실운영 기록과 고장 추적", "start": "proof"},
+    "s6": {"description": "비용 0원 확산 경로, 팀, 다음 단계", "start": "spread"}
+  },
+  "faces": {
+    "ibm-plex-sans-kr": {"family": "IBM Plex Sans KR", "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap"},
+    "noto-sans-kr": {"family": "Noto Sans KR", "href": "https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap"}
+  },
+  "designSystems": []
+}
