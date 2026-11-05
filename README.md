@@ -253,7 +253,7 @@ kbs_monitoring_v2/
 │   └── logger.py                 # 프로세스별 파일 로그
 ├── config/
 │   └── default_config.json
-├── docs/                         # 성과 근거·종합점검·스크린샷
+├── docs/                         # 성과 근거·종합점검·스크린샷·심사위원용 소개서(소개서/)
 ├── fix/                          # 사고 분석 기록
 ├── manual/                       # 사용안내 + 화면 캡처 스크립트
 └── tests/

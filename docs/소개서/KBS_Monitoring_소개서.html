@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KBS Monitoring 소개서</title>
+<!--
+  심사위원용 소개서 (A4 4쪽). 숫자는 전부 docs/성과_근거.md에서 가져왔다 — 바꿀 땐 거기부터.
+  PDF 만들기(이 폴더에서):
+    msedge --headless --no-pdf-header-footer --print-to-pdf="KBS_Monitoring_소개서.pdf" "이 파일의 file:/// 주소"
+  또는 브라우저로 열어 Ctrl+P → PDF로 저장(여백 없음, 배경 그래픽 켜기).
+-->
+<style>
+@page{size:A4; margin:0}
+:root{
+  --ink:#1D2125; --ink-2:#555D66; --ink-3:#8A929B; --line:#E2DED7; --paper:#FFFFFF;
+  --accent:#C8623F; --accent-soft:#FBEEE8; --accent-ink:#9B4526; --panel:#F7F5F2;
+  --c-black:#cc0000; --c-still:#7B2FBE; --c-audio:#1f7a1f; --c-embed:#1e5a9e; --c-recover:#1aa68a;
+}
+*{box-sizing:border-box}
+html,body{margin:0; background:#E9E6E1}
+body{
+  font-family:"Pretendard","Malgun Gothic","맑은 고딕",sans-serif; color:var(--ink);
+  font-size:10.2pt; line-height:1.6; word-break:keep-all;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+.page{
+  width:210mm; height:297mm; margin:10mm auto; background:var(--paper); position:relative;
+  padding:12mm 15mm 12mm; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 2px 14px rgba(0,0,0,.12);
+}
+@media print{ html,body{background:#fff} .page{margin:0; box-shadow:none; break-after:page} .page:last-child{break-after:auto} }
+.runhead{display:flex; justify-content:space-between; font-size:8pt; color:var(--ink-3);
+  border-bottom:1px solid var(--line); padding-bottom:2.5mm; margin-bottom:5mm}
+.runhead b{color:var(--accent); font-weight:700}
+.foot{margin-top:auto; padding-top:3mm; display:flex; justify-content:space-between; font-size:7.6pt; color:var(--ink-3)}
+h1{font-size:27pt; line-height:1.15; margin:0 0 2mm; letter-spacing:-.01em}
+h2{font-size:15pt; margin:0 0 3mm; letter-spacing:-.01em; display:flex; align-items:center; gap:3mm}
+h3{font-size:11pt; margin:5mm 0 2mm}
+p{margin:1.5mm 0}
+ul{margin:1.5mm 0; padding-left:5mm}
+li{margin:.8mm 0}
+.tag{display:inline-block; font-size:7.8pt; font-weight:700; color:var(--accent-ink); background:var(--accent-soft);
+  border-radius:99px; padding:.3mm 2.6mm; letter-spacing:.02em; vertical-align:middle}
+.eyebrow{font-size:9pt; color:var(--accent); font-weight:700; letter-spacing:.04em; margin-bottom:2mm}
+.sub{font-size:12pt; color:var(--ink-2); margin:0 0 3mm; line-height:1.5}
+.who{font-size:9.2pt; color:var(--ink-2)}
+.kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:3mm; margin:6mm 0 5mm}
+.kpi{border:1px solid var(--line); border-top:3px solid var(--accent); border-radius:2mm; padding:3mm 3.2mm 2.8mm; background:var(--panel)}
+.kpi .n{font-size:20pt; font-weight:800; line-height:1.1; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+.kpi .n small{font-size:10pt; font-weight:700; margin-left:.6mm}
+.kpi .l{font-size:8.6pt; color:var(--ink-2); line-height:1.4; margin-top:1.2mm}
+figure{margin:0}
+figure img{display:block; width:100%; border-radius:1.6mm; border:1px solid var(--line)}
+figcaption{font-size:8.2pt; color:var(--ink-3); margin-top:1.5mm}
+.box{border:1px solid var(--line); border-radius:2mm; padding:3.5mm 4mm; background:var(--panel)}
+.box.accent{background:var(--accent-soft); border-color:#F0D3C6}
+.cols{display:grid; grid-template-columns:1fr 1fr; gap:4mm}
+.cols3{display:grid; grid-template-columns:repeat(3,1fr); gap:3mm}
+.cols4{display:grid; grid-template-columns:repeat(4,1fr); gap:2.5mm}
+.card{border:1px solid var(--line); border-radius:2mm; padding:2.8mm 3mm; background:#fff}
+.card h4{margin:0 0 1mm; font-size:10pt; display:flex; align-items:center; gap:1.6mm}
+.card p{margin:0; font-size:8.8pt; color:var(--ink-2); line-height:1.5}
+.dot{width:2.6mm; height:2.6mm; border-radius:50%; display:inline-block; flex:none}
+table{width:100%; border-collapse:collapse; font-size:8.9pt}
+th,td{border-bottom:1px solid var(--line); padding:1.2mm 2mm; text-align:left; vertical-align:top}
+th{font-weight:700; color:var(--ink-2); background:var(--panel); border-bottom:1.5px solid #D5D0C8; white-space:nowrap}
+td.num{font-variant-numeric:tabular-nums; white-space:nowrap}
+.timeline{list-style:none; padding:0; margin:2mm 0; position:relative}
+.timeline::before{content:""; position:absolute; left:2.1mm; top:1.5mm; bottom:1.5mm; width:.5mm; background:var(--line)}
+.timeline li{position:relative; padding-left:7.5mm; margin:1.6mm 0; font-size:9pt; line-height:1.5}
+.timeline li::before{content:""; position:absolute; left:.8mm; top:1.4mm; width:3.2mm; height:3.2mm; border-radius:50%;
+  background:#fff; border:.6mm solid var(--ink-3)}
+.timeline li.hit::before{border-color:var(--accent); background:var(--accent)}
+.timeline b{font-variant-numeric:tabular-nums}
+.big{font-size:11.5pt; font-weight:700; line-height:1.5}
+.muted{color:var(--ink-2)}
+.small{font-size:8.4pt; color:var(--ink-2)}
+.diagram{width:100%; height:auto; display:block}
+.diagram text{font-family:inherit; fill:var(--ink)}
+.diagram .sub2{fill:var(--ink-2)}
+.diagram .bx{fill:#fff; stroke:#D5D0C8; stroke-width:1.4}
+.diagram .hl{stroke:var(--accent); stroke-width:2}
+.diagram .ar{stroke:var(--ink-3); stroke-width:1.4; fill:none}
+.tg{display:grid; grid-template-columns:1fr 1fr; gap:3mm; align-items:start}
+.tg img{border-radius:1.6mm; height:40mm; width:100%; object-fit:contain; object-position:left top; border:0}
+.steps{counter-reset:s; list-style:none; padding:0; margin:2mm 0}
+.steps li{counter-increment:s; position:relative; padding-left:7mm; margin:1.5mm 0; font-size:9.2pt}
+.steps li::before{content:counter(s); position:absolute; left:0; top:.2mm; width:5mm; height:5mm; border-radius:50%;
+  background:var(--accent); color:#fff; font-size:8pt; font-weight:700; text-align:center; line-height:5mm}
+code{font-family:Consolas,monospace; font-size:.92em; background:var(--panel); border:1px solid var(--line); border-radius:1mm; padding:0 1.2mm}
+</style>
+</head>
+<body>
+
+<!-- ───────────── 1쪽: 한눈에 ───────────── -->
+<section class="page">
+  <div class="runhead"><span><b>2026 미디어창의기술전</b> · 연구개발형식</span><span>무인 방송 인프라 감시 솔루션 — 방송신호 감시</span></div>
+
+  <div class="eyebrow">전주총국 기술국 자체 개발 · 실운영 중</div>
+  <h1>KBS Monitoring v2</h1>
+  <p class="sub">16채널 방송 화면과 소리를 <b>0.2초마다</b> 살펴 블랙·정지화면·오디오 이상을 즉시 알리고,
+  사고 앞뒤 영상을 남기며, 고장이 나도 <b>스스로 복구하는</b> 무인 감시 프로그램</p>
+  <div class="who">김민우 · 김대현 · 박인근 (전주총국 기술국)</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n">90<small>일</small></div><div class="l">로그로 확인한 연속 실운영<br>(2026.8.7 ~ 11.5)</div></div>
+    <div class="kpi"><div class="n">99.89<small>%+</small></div><div class="l">가동률 하한<br>(재시작 시간을 넉넉히 정지로 계산)</div></div>
+    <div class="kpi"><div class="n">5 / 5</div><div class="l">캡처 신호가 끊긴 순간<br>1~3초 안에 스스로 복구</div></div>
+    <div class="kpi"><div class="n">0<small>회</small></div><div class="l">원인을 잡은 뒤 85일간<br>화면 프로그램 고장 재발</div></div>
+  </div>
+
+  <figure>
+    <img src="main.jpg" alt="KBS Monitoring v2 실제 운영 화면" style="height:106mm; object-fit:cover; object-position:top">
+    <figcaption>전주총국 감시PC의 실제 운영 화면(2026.11.5, 아래 기록창 생략). 위: 상태·조작 버튼 / 아래: 16채널 영상과 감지영역(빨강=영상, 주황=오디오 레벨미터)</figcaption>
+  </figure>
+
+  <div class="box accent" style="margin-top:5mm">
+    <div class="big">무엇이 달라졌나</div>
+    <ul>
+      <li><b>정지화면까지 잡는다.</b> 기존 자체 감지 프로그램은 블랙만 잡아 정지화면 사고를 놓쳤다. 지금은 블랙·정지화면·오디오 레벨미터·임베디드 오디오 4가지를 동시에 본다.</li>
+      <li><b>사람이 없어도 버틴다.</b> 화면·감지·감시자 세 부분으로 나눠, 한 부분이 멈추면 다른 부분이 되살리거나 대신 알린다.</li>
+      <li><b>추가 비용 0원.</b> 기존 PC와 캡처보드, 오픈소스로만 만들었고 설치는 파일 3개를 차례로 누르면 끝난다.</li>
+    </ul>
+  </div>
+
+  <div class="foot"><span>숫자 출처: 감시PC 운영 로그(저장소 docs/성과_근거.md)</span><span>1 / 4</span></div>
+</section>
+
+<!-- ───────────── 2쪽: 문제와 해결 ───────────── -->
+<section class="page">
+  <div class="runhead"><span><b>KBS Monitoring v2</b> · 소개서</span><span>문제와 해결</span></div>
+
+  <h2>왜 만들었나 <span class="tag">개선효과</span></h2>
+  <div class="cols">
+    <div class="box">
+      <div class="big">문제 1 · 정지화면 공백</div>
+      <p class="muted">전주총국이 몇 년 전 만든 블랙 감지 프로그램은 화면이 <b>멈춘</b> 사고를 알아채지 못했다. 실제로 정지화면 사고를 놓친 일이 있었다.</p>
+    </div>
+    <div class="box">
+      <div class="big">문제 2 · 오래 켜 두면 멈춤</div>
+      <p class="muted">이전 버전(v1)은 화면과 감지가 한 덩어리라, 장기 운영 중 화면 쪽이 바쁘거나 멈추면 <b>감지까지 같이 멈췄다</b>. 무인 감시에서 가장 위험한 고장이다.</p>
+    </div>
+  </div>
+
+  <h3>무엇을 잡나 — 4가지 동시 감시</h3>
+  <div class="cols4">
+    <div class="card"><h4><span class="dot" style="background:var(--c-black)"></span>블랙</h4><p>감지영역의 98%가 아주 어두운 상태 5초. 로고만 남은 검은 장면·움직이는 자막은 제외</p></div>
+    <div class="card"><h4><span class="dot" style="background:var(--c-still)"></span>정지화면</h4><p>감지영역 25칸이 모두 거의 안 움직이는 상태 120초</p></div>
+    <div class="card"><h4><span class="dot" style="background:var(--c-audio)"></span>오디오 레벨미터</h4><p>화면 속 오디오 미터의 초록 막대가 사라진 상태 60초</p></div>
+    <div class="card"><h4><span class="dot" style="background:var(--c-embed)"></span>임베디드 오디오</h4><p>실제 소리가 -50dB 이하 60초</p></div>
+  </div>
+  <p class="small">시간은 기본값이며 국별로 조정한다. 정상 복귀도 일정 시간 이어져야 인정해(히스테리시스) 경계에서 알림이 깜빡이지 않는다.</p>
+
+  <h3>어떻게 알리나</h3>
+  <div class="cols3">
+    <div class="card"><h4>화면 · 소리</h4><p>이상 채널의 감지영역이 깜빡이고 경보음이 반복된다. <b>ACK</b>로 끄면 같은 이상은 다시 울리지 않는다.</p></div>
+    <div class="card"><h4>텔레그램</h4><p>채널 사진과 함께 즉시 발송, 복구되면 지속 시간을 알린다. 화면 전체가 꺼지면 채널별 알림을 1통으로 묶는다.</p></div>
+    <div class="card"><h4>자동 녹화</h4><p>사고 <b>10초 전부터</b> 10초 뒤까지 소리와 함께 MP4로 저장(기본값). 원인 분석·보고에 그대로 쓴다.</p></div>
+  </div>
+
+  <h2 style="margin-top:6mm">어떻게 버티나 — 세 부분 분리 <span class="tag">창의성</span></h2>
+  <svg class="diagram" viewBox="0 0 760 210" role="img" aria-label="화면·감지·감시자 세 프로세스 구조">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8A929B"/></marker></defs>
+    <rect class="bx" x="10" y="22" width="225" height="92" rx="10"/>
+    <text x="122" y="52" text-anchor="middle" font-weight="700" font-size="17">화면 (UI)</text>
+    <text class="sub2" x="122" y="76" text-anchor="middle" font-size="13">영상 표시 · 경보음 · 조작</text>
+    <rect class="bx hl" x="267" y="22" width="225" height="92" rx="10"/>
+    <text x="379" y="52" text-anchor="middle" font-weight="700" font-size="17">감지 (Detection)</text>
+    <text class="sub2" x="379" y="76" text-anchor="middle" font-size="13">0.2초 판정 · 녹화 · 감지 알림</text>
+    <rect class="bx" x="524" y="22" width="225" height="92" rx="10"/>
+    <text x="636" y="52" text-anchor="middle" font-weight="700" font-size="17">감시자 (Watchdog)</text>
+    <text class="sub2" x="636" y="76" text-anchor="middle" font-size="13">생존 확인 · 재기동 · 시스템 알림</text>
+    <path class="ar" d="M267 68 L238 68" marker-end="url(#ah)"/>
+    <text class="sub2" x="252" y="14" text-anchor="middle" font-size="11.5">← 영상·결과</text>
+    <path class="ar" d="M636 114 C636 160 379 160 379 116" marker-end="url(#ah)"/>
+    <path class="ar" d="M636 114 C636 200 122 200 122 116" marker-end="url(#ah)"/>
+    <text class="sub2" x="508" y="140" text-anchor="middle" font-size="12">10초 멈추면 다시 띄움</text>
+    <text class="sub2" x="379" y="206" text-anchor="middle" font-size="12">30초 멈추거나 내부가 고장 나면 대신 텔레그램</text>
+  </svg>
+  <ul class="small" style="margin-top:2mm">
+    <li><b>캡처 신호 상실 자동 복구</b> — 캡처보드가 신호를 잃으면 "정상인 척 새까만 화면"을 계속 보내 사람이 재시작할 때까지 굳어 있었다. 화면 전체가 8초 넘게 검게 멈추면 캡처 장치만 다시 연결한다.</li>
+    <li><b>고장 난 화면 대신 알리기</b> — 화면 프로그램이 내부 고장 나면 텔레그램조차 못 보낸다. 그래서 고장 표시 파일만 남기고 감시자가 대신 보낸다(실측 1초).</li>
+    <li><b>켤 때마다 자가점검</b> — Python 버전·감지영역 수·녹화 도구·디스크 여유를 점검해 텔레그램으로 보고한다.</li>
+  </ul>
+
+  <div class="foot"><span>상세: 저장소 README.md · docs_기능_레퍼런스.md</span><span>2 / 4</span></div>
+</section>
+
+<!-- ───────────── 3쪽: 실운영 검증 ───────────── -->
+<section class="page">
+  <div class="runhead"><span><b>KBS Monitoring v2</b> · 소개서</span><span>실운영 검증</span></div>
+
+  <h2>전주총국 감시PC 실운영 <span class="tag">실현가능성</span></h2>
+  <p class="muted">늦어도 2026년 5월부터 전주총국 감시PC에서 실제 방송을 감시하고 있다. 아래는 운영 로그가 남아 있는 90일의 기록이다.</p>
+  <table style="margin-top:2mm">
+    <tr><th>항목</th><th>결과</th><th>확인 방법</th></tr>
+    <tr><td>연속 운영</td><td class="num"><b>90일</b> (2026.8.7 ~ 11.5)</td><td>10분마다 남는 상태 기록</td></tr>
+    <tr><td>가동률</td><td class="num"><b>99.89% 이상</b></td><td>기록이 15분 넘게 빈 8구간(대부분 버전 교체)을 모두 정지로 계산</td></tr>
+    <tr><td>버전 교체</td><td class="num">10회 (v2.8.9 → v2.8.21)</td><td>운영하면서 고치고 바로 반영</td></tr>
+    <tr><td>감지 부분 자동 재기동</td><td class="num">3회, 모두 1초 안에</td><td>사람 손 없이 복구. 2건은 윈도우 시계 보정 오판 → 수정함</td></tr>
+    <tr><td>메모리</td><td class="num">41일 · 44일 연속에도 증가 없음</td><td>장기 누수 없음</td></tr>
+    <tr><td>자동 테스트</td><td class="num">94개 모두 통과</td><td>운영 환경(Python 3.13)에서 2026.11.5 실행</td></tr>
+  </table>
+
+  <div class="cols" style="margin-top:3.5mm">
+    <div>
+      <h3 style="margin-top:0">캡처 신호 상실 → 자동 복구</h3>
+      <table>
+        <tr><th>일시</th><th>복구까지</th></tr>
+        <tr><td class="num">10.3 14:43</td><td>2초</td></tr>
+        <tr><td class="num">10.4 09:37</td><td>3초</td></tr>
+        <tr><td class="num">10.21 21:11</td><td>3초</td></tr>
+        <tr><td class="num">10.27 08:57</td><td>1초</td></tr>
+        <tr><td class="num">10.30 18:27</td><td>1초</td></tr>
+      </table>
+      <p class="small">예전엔 근무자가 알아채고 프로그램을 재시작할 때까지 전 채널이 검게 굳어 있던 상황이다.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">프로그램이 알린 이상</h3>
+      <table>
+        <tr><th>종류</th><th>알림</th><th>복구</th></tr>
+        <tr><td>블랙</td><td class="num">27</td><td class="num">11</td></tr>
+        <tr><td>정지화면</td><td class="num">6</td><td class="num">5</td></tr>
+        <tr><td>임베디드 오디오 무음</td><td class="num">2</td><td class="num">2</td></tr>
+        <tr><td>오디오 레벨미터</td><td class="num">1</td><td class="num">—</td></tr>
+        <tr><td>정파 진입 / 해제</td><td class="num">124</td><td class="num">111</td></tr>
+      </table>
+      <p class="small">이 기간 실제 방송사고는 없었다. 알린 이상은 대부분 <b>모니터링·전송 장비 쪽 오류</b>였다. 예: 10.14 새벽 2시 39분 노고 1UHD 정지화면 — 근무자가 화면을 보지 않는 시간에 알리고 녹화를 남김.</p>
+    </div>
+  </div>
+
+  <h2 style="margin-top:4mm">재현 안 되는 고장을 끝까지 추적 <span class="tag">협력노력성</span></h2>
+  <p class="muted">켜 두고 4~5일 지나면 화면 쪽만 조용히 고장 나 경보음·설정창이 먹통이 되는 일이 6번 있었다. 재현이 안 돼 용의자를 하나씩 빼며 좁혔다.</p>
+  <ol class="timeline">
+    <li><b>1~3차 (5.26 ~ 7.6)</b> 고장 순간을 기록하는 장치를 심어 둠</li>
+    <li class="hit"><b>4차 (7.11)</b> 고장 난 화면은 텔레그램도 못 보낸다는 것을 발견 → <b>감시자가 대신 알리게</b> 구조 변경. 42시간 방치 → 즉시 통보</li>
+    <li><b>1라운드</b> 의심 기능 3개를 끔 → 5차(7.24) 재발로 무죄 확정</li>
+    <li class="hit"><b>2라운드</b> Python 3.14 → 3.13 → 13일 무사고</li>
+    <li><b>6차 (8.11)</b> 재배포 때 3.13 환경이 조용히 빠져 3.14로 돈 것을 찾아냄 → 결론 재확인, 빠지면 경고하도록 고침</li>
+    <li class="hit"><b>이후 85일 재발 0회</b></li>
+  </ol>
+
+  <div class="foot"><span>숫자 출처: 감시PC 운영 로그(저장소 docs/성과_근거.md) · 추적 기록: fix/ 폴더</span><span>3 / 4</span></div>
+</section>
+
+<!-- ───────────── 4쪽: 확산·경제성·팀 ───────────── -->
+<section class="page">
+  <div class="runhead"><span><b>KBS Monitoring v2</b> · 소개서</span><span>확산 · 경제성 · 팀</span></div>
+
+  <h2>추가 비용 없이 어느 총국에나 <span class="tag">경제성</span></h2>
+  <div class="cols">
+    <div class="box">
+      <div class="big">예산 0원</div>
+      <p class="muted">기존 감시PC와 캡처보드에 무료 오픈소스(Python, PySide6, OpenCV, ffmpeg)만 썼다. 장비·라이선스 구매나 외주가 없다.</p>
+    </div>
+    <div class="box">
+      <div class="big">이미 깔린 자리에 바꿔 끼우기</div>
+      <p class="muted">이전 버전(v1)이 <b>춘천·제주·대구·대전·부산·광주·송신인프라부 등</b>에 배포됐다. 지금 v1을 쓰는 곳은 같은 장비 그대로 v2로 교체할 수 있다.</p>
+    </div>
+  </div>
+
+  <h3>설치는 3단계, 설명서는 프로그램 안에</h3>
+  <div class="cols">
+    <div>
+      <ol class="steps">
+        <li><code>python313_전환.bat</code> — 실행 환경 자동 구성</li>
+        <li><code>install_ffmpeg.bat</code> — 녹화 소리 합성 도구</li>
+        <li><code>실행.bat</code> — 켜기 (자동 시작 등록 가능)</li>
+      </ol>
+      <p class="small">개발자가 현장에 가지 않아도 되도록 설계했다. 문제가 생기면 시스템 알림 텔레그램이 무엇을 확인할지 알려 준다.</p>
+    </div>
+    <div class="box">
+      <div class="big" style="font-size:10.5pt">상단바 「?」 = 사용안내</div>
+      <p class="muted" style="font-size:9pt">근무자용(경보가 울리면·시스템 알림이 오면)과 관리 담당용(설치·설정·문제 해결)으로 나눈 안내서가 인터넷 없이 열린다. 인쇄하면 그대로 매뉴얼이 된다.</p>
+    </div>
+  </div>
+
+  <h3>텔레그램 실제 화면</h3>
+  <div class="tg">
+    <figure><img src="../screenshots/telegram/still.jpg" alt="정지화면 감지 텔레그램"><figcaption>감지 알림 — 채널 사진 첨부</figcaption></figure>
+    <figure><img src="../screenshots/telegram/ui_crash.jpg" alt="UI 손상 감지 시스템 텔레그램"><figcaption>시스템 알림 — 화면 고장을 감시자가 대신 보고(8.11)</figcaption></figure>
+  </div>
+
+  <h2 style="margin-top:4mm">팀과 개발 방식 <span class="tag">협력노력성</span></h2>
+  <div class="cols">
+    <table>
+      <tr><th>출품자</th><th>맡은 일</th></tr>
+      <tr><td>김민우</td><td>개발 · 발표</td></tr>
+      <tr><td>김대현</td><td>현장 검증</td></tr>
+      <tr><td>박인근</td><td>근무자 관점 검토(사용안내 포함)</td></tr>
+    </table>
+    <table>
+      <tr><th>개발 기록</th><th>규모</th></tr>
+      <tr><td>개발 기간</td><td class="num">2026.4.18 ~ 운영 중</td></tr>
+      <tr><td>변경 기록(커밋)</td><td class="num">203건</td></tr>
+      <tr><td>코드</td><td class="num">약 18,000줄</td></tr>
+      <tr><td>사고 분석 문서</td><td class="num">6건</td></tr>
+    </table>
+  </div>
+  <p class="small" style="margin-top:2mm">AI 개발 도구를 활용해 소수 인원이 짧은 기간에 만들고, 운영하면서 나온 문제를 기록·분석해 바로 고치는 방식으로 다듬었다.</p>
+
+  <div class="box accent" style="margin-top:4mm">
+    <div class="big" style="font-size:10.5pt">다음 단계 (구상)</div>
+    <ul style="font-size:9pt">
+      <li>v1을 쓰는 총국을 v2로 교체</li>
+      <li>쌓인 알림 기록으로 일간·주간 요약 리포트(숫자는 프로그램이 세고, 문장만 AI가)</li>
+      <li>알림이 울린 <b>뒤에</b> AI(KAIROS)가 "무엇으로 보이는지" 해석을 덧붙이기 — 경보 자체는 AI가 막지 않는다</li>
+    </ul>
+  </div>
+
+  <div class="foot"><span>전주총국 기술국 · KBS Monitoring v2.8.21 기준(2026.11)</span><span>4 / 4</span></div>
+</section>
+
+</body>
+</html>
