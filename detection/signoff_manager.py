@@ -134,6 +134,8 @@ class SignoffManager:
         self._exit_released: Dict[int, bool] = {}
 
         self._latest_video: Dict[str, bool] = {}
+        # 히스테리시스를 거친 스틸(연속 N프레임 움직여야 False). SIGNOFF 중 해제·조기복귀 판정용.
+        self._latest_still_hold: Dict[str, bool] = {}
 
         self._dbg_prev_still: Dict[int, Optional[bool]] = {}
         self._dbg_last_prep_log: Dict[int, float] = {}
@@ -242,8 +244,24 @@ class SignoffManager:
 
     # ── 감지 데이터 수신 ──────────────────────────────────────────────────────
 
-    def update_detection(self, still_results: dict):
+    def update_detection(self, still_results: dict, still_hold: Optional[dict] = None):
+        """still_results: 프레임 단위 스틸(진입 판정용).
+        still_hold: 히스테리시스를 거친 스틸(해제·조기복귀 판정용). 없으면 still_results로 대신한다.
+        """
         self._latest_video.update(still_results)
+        if still_hold:
+            self._latest_still_hold.update(still_hold)
+
+    def _is_still_for_exit(self, v_label: str) -> bool:
+        """SIGNOFF 중 '아직 멈춰 있나' 판정. 일반 스틸 경보와 같은 기준(연속 N프레임 움직임만 움직임).
+
+        움직이는 컬러바처럼 프레임 단위 스틸이 깜빡이면, 프레임 단위 값으로는 드문 움직임도
+        '연속 움직임'으로 쌓여 정파⇄정파준비가 반복됐다(2026-11-10 새벽). 그래서 해제 쪽만
+        히스테리시스 값을 쓴다. 값이 없으면(구버전 호출·테스트) 프레임 단위 값으로 폴백.
+        """
+        if v_label in self._latest_still_hold:
+            return self._latest_still_hold[v_label]
+        return self._latest_video.get(v_label, True)
 
     def update_media_names(self, media_name_map: Dict[str, str]):
         self._media_names = dict(media_name_map)
@@ -496,7 +514,7 @@ class SignoffManager:
         if not v_label:
             return
         now = time.time()
-        is_still = self._latest_video.get(v_label, True)
+        is_still = self._is_still_for_exit(v_label)
         is_not_still = not is_still
         prev_exit_still = self._dbg_prev_exit_still.get(gid)
         media = self._media_names.get(v_label, "")
@@ -539,7 +557,7 @@ class SignoffManager:
         if not v_label:
             return
         now = time.time()
-        is_still = self._latest_video.get(v_label, True)
+        is_still = self._is_still_for_exit(v_label)
         is_not_still = not is_still
         prev_revert_still = self._dbg_prev_revert_still.get(gid)
         media = self._media_names.get(v_label, "")

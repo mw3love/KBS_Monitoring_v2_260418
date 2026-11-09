@@ -804,7 +804,9 @@ def run(result_queue, cmd_queue, shutdown_event,
 
                     # SignoffManager 에 스틸 결과 공급
                     still_map = {lbl: v.get("still", False) for lbl, v in vid_results.items()}
-                    signoff_mgr.update_detection(still_map)
+                    still_hold_map = {lbl: v.get("still_hold", v.get("still", False))
+                                      for lbl, v in vid_results.items()}
+                    signoff_mgr.update_detection(still_map, still_hold_map)
 
                     # 알람 이벤트 발행
                     with _last_frame_lock:

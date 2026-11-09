@@ -218,6 +218,42 @@
 
 ---
 
+## 9. 움직이는 컬러바에 의한 정파⇄정파준비 반복 — 해제 판정에 히스테리시스 적용 (2026-11-10)
+
+### 사례
+2026-11-10 새벽 정파 중 **움직이는 컬러바**가 송출되자 1TV가 01:02~04:26에 정파 진입↔정파준비 복귀를 **7회**,
+2TV가 02:46~04:27에 **4회** 왕복했다. 정파 텔레그램 약 26통·정파 알림음 반복. 그 사이 블랙·오디오 경보는 0건
+(실제 피해는 소음뿐).
+
+- §8 묶음 처리는 작동하지 않았다: 전환 간격이 5~25분이라 「10분 안 3회」에 한 번도 안 걸림.
+- **결정적 증거**: 같은 시간 일반 스틸 경보는 V1을 01:00~04:07, V5를 00:49~04:45 동안 **한 번도 끊기지 않은
+  스틸**로 봤다(UI 로그 DIAG `dur=11216s`, `dur=14124s`). 정파 판정만 「움직였다」고 판단했다.
+
+### 원인 — 같은 신호를 반대 방향 히스테리시스로 해석
+컬러바처럼 미세하게 움직이는 화면은 프레임 단위 스틸(`still`)이 「멈춤·움직임」으로 깜빡인다.
+- 일반 스틸 경보(`DetectionState`, `still_reset_frames`=3): 움직임이 **3프레임 연속**이어야 리셋 → 깜빡임 무시.
+- 정파 조기복귀(`_tick_signoff_revert`)·해제(`_tick_exit_preparation`): 1초마다 프레임 단위 값을 보고, 움직임이
+  한 번 보이면 타이머 시작·**멈춤 3초 연속**이어야 리셋 → 2~3초에 한 번만 움직여도 「30초 연속 움직임」으로 쌓임.
+§8의 `exit_trigger_sec` 둔감화(5→30초)로는 못 막는다(깜빡임이 시간과 무관하게 연속으로 쌓이는 구조).
+
+### 변경
+- `detector.py`가 `still_hold`(= 스틸 상태의 `alert_start_time is not None`, 즉 3프레임 연속 움직임 전까지 True)를
+  결과에 추가하고, `detection_process`가 이를 `SignoffManager.update_detection(still_map, still_hold_map)`로 넘긴다.
+- SIGNOFF 중 두 판정(조기복귀·해제준비 해제)만 `_is_still_for_exit()`로 이 값을 쓴다 — 일반 스틸 경보와 같은 기준.
+- **진입(`_tick_preparation`)은 프레임 단위 값 그대로**(이번 문제와 무관, §3 오진입 위험을 건드리지 않기 위해).
+
+### 수용한 비용
+오진입 후 본방송이 다시 나올 때 복귀가 약간 늦어질 수 있다(3프레임 연속 움직임이 필요). 정상 방송은 연속 움직임이
+흔해 영향은 작다고 판단(추정, 테스트 `test_motion_with_occasional_still_frame_reverts_with_still_hold`로 대리 확인).
+
+### 핵심 코드 위치
+- `detection/detector.py` `detect_frame` 결과의 `still_hold`
+- `processes/detection_process.py` `still_hold_map`
+- `detection/signoff_manager.py` `update_detection`, `_is_still_for_exit`, `_tick_signoff_revert`, `_tick_exit_preparation`
+- 테스트: `tests/test_signoff_manager.py` `test_flicker_*`, `test_continuous_motion_*`, `test_motion_with_occasional_*`
+
+---
+
 ## 부록 — 관련 참조
 
 - 코드 규칙: `detection/CLAUDE.md` "히스테리시스 원칙", "정파 억제 규칙"

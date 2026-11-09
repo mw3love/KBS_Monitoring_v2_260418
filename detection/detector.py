@@ -239,6 +239,9 @@ class Detector:
                 results[label] = {
                     "black": is_black,
                     "still": is_still,
+                    # 히스테리시스를 거친 스틸 지속 여부: 연속 still_reset_frames 프레임
+                    # 움직여야 False. 정파 해제·조기복귀 판정용(깜빡이는 미세 움직임 무시).
+                    "still_hold": still_state.alert_start_time is not None,
                     "dark_ratio": dark_ratio,
                     "black_alerting": black_alerting,
                     "still_alerting": still_alerting,

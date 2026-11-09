@@ -389,6 +389,85 @@ def test_auto_off_signoff_no_revert():
     assert mgr.get_state(1) == SignoffState.SIGNOFF, "auto OFF인데 조기복귀됨"
 
 
+# ── 깜빡이는 미세 움직임(움직이는 컬러바) — 2026-11-10 새벽 정파⇄정파준비 반복 ──
+
+def _simulate_signoff_seconds(frame_pattern_for_second, seconds, use_hold=True,
+                              exit_trigger=30.0, fps=8, reset_frames=3):
+    """SIGNOFF 상태에서 초당 fps 프레임의 스틸 패턴을 흘려 넣고, 1초마다 tick.
+
+    frame_pattern_for_second(k) → 길이 fps의 bool 리스트(True=그 프레임 스틸).
+    use_hold=False면 예전처럼 프레임 단위 값만 넘긴다(원인 재현용).
+    반환: (최종 상태, 발행된 SignoffStateChange 목록)
+    """
+    from ipc.messages import SignoffStateChange
+    from detection.detection_state import DetectionState
+    mgr, q = _make_manager()
+    grp = _make_group(prep_start="00:30", end="05:00", exit_prep_start="04:30",
+                      every_day=True, exit_trigger=exit_trigger)
+    mgr.set_group(grp)
+    mgr.set_state_direct(1, "SIGNOFF")
+    _drain(q)
+
+    st = DetectionState(roi=None)   # detector.py의 스틸 상태와 같은 히스테리시스
+    fake_t = [1_000_000.0]
+    fake_now = real_datetime.datetime(2026, 11, 10, 2, 0, 0)  # 해제준비(04:30) 전
+    with patch("detection.signoff_manager.datetime") as mock_dt, \
+            patch("detection.signoff_manager.time.time", side_effect=lambda: fake_t[0]):
+        mock_dt.datetime.now.return_value = fake_now
+        mock_dt.timedelta = real_datetime.timedelta
+        for k in range(seconds):
+            for raw in frame_pattern_for_second(k):
+                st.update(raw, 9999.0, reset_frames=reset_frames)
+                hold = st.alert_start_time is not None
+                if use_hold:
+                    mgr.update_detection({"V1": raw}, {"V1": hold})
+                else:
+                    mgr.update_detection({"V1": raw})
+            fake_t[0] += 1.0
+            mgr._tick_impl()
+    sc = [m for m in _drain(q) if isinstance(m, SignoffStateChange)]
+    return mgr.get_state(1), sc
+
+
+def _flicker_pattern(k):
+    """움직이는 컬러바 흉내: 스틸/움직임이 번갈아 깜빡이되 움직임이 3프레임 연속은 안 됨.
+    1초 tick이 보는 마지막 프레임은 3초 중 2초가 '움직임'."""
+    S, N = True, False
+    if k % 3 == 2:
+        return [S, N, S, N, S, N, N, S]
+    return [S, N, S, N, S, N, S, N]
+
+
+def test_flicker_raw_signal_would_revert():
+    """원인 재현: 프레임 단위 값만 쓰면 깜빡임이 '30초 연속 움직임'으로 쌓여 조기복귀하고,
+    정파준비에선 다시 스틸로 쌓여 재진입 — 정파⇄정파준비가 반복된다."""
+    _, sc = _simulate_signoff_seconds(_flicker_pattern, seconds=120, use_hold=False)
+    reverts = [m for m in sc if m.source == "auto-revert"]
+    assert len(reverts) >= 2, f"원인 재현 실패(반복 복귀 없음): {[(m.new_state, m.source) for m in sc]}"
+
+
+def test_flicker_no_revert_with_still_hold():
+    """수정 후: 일반 스틸 경보와 같은 기준(3프레임 연속 움직임)이면 깜빡임에 복귀하지 않는다."""
+    state, sc = _simulate_signoff_seconds(_flicker_pattern, seconds=600, use_hold=True)
+    assert state == SignoffState.SIGNOFF
+    assert not sc, f"깜빡임에 상태 전환 발생: {[(m.new_state, m.source) for m in sc]}"
+
+
+def test_continuous_motion_still_reverts_with_still_hold():
+    """수정 후에도 진짜로 계속 움직이면(본방송 복귀·가짜 정파) 30초 뒤 정파준비로 복귀한다."""
+    state, sc = _simulate_signoff_seconds(lambda k: [False] * 8, seconds=35, use_hold=True)
+    assert state == SignoffState.PREPARATION, "연속 움직임인데 복귀 안 함"
+    assert any(m.source == "auto-revert" for m in sc)
+
+
+def test_motion_with_occasional_still_frame_reverts_with_still_hold():
+    """정상 방송처럼 대부분 움직이고 가끔 한 프레임 멈추는 화면도 복귀한다(과보정 방지)."""
+    S, N = True, False
+    state, _ = _simulate_signoff_seconds(lambda k: [N, N, N, N, S, N, N, N], seconds=40,
+                                         use_hold=True)
+    assert state == SignoffState.PREPARATION, "간헐 정지 프레임 때문에 복귀가 막힘"
+
+
 # ── auto_preparation OFF = 완전 수동 모드 (W11) ───────────────────────────────
 
 def test_auto_off_signoff_persists_at_end_time():
@@ -467,6 +546,10 @@ if __name__ == "__main__":
         test_signoff_reverts_to_prep_before_exit_prep,
         test_signoff_still_no_revert_before_exit_prep,
         test_auto_off_signoff_no_revert,
+        test_flicker_raw_signal_would_revert,
+        test_flicker_no_revert_with_still_hold,
+        test_continuous_motion_still_reverts_with_still_hold,
+        test_motion_with_occasional_still_frame_reverts_with_still_hold,
         test_auto_off_signoff_persists_at_end_time,
         test_auto_off_preparation_persists_outside_window,
         test_from_dict_defaults_and_validation,
