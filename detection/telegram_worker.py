@@ -23,6 +23,8 @@ except ImportError:
 
 _SEND_RETRY_COUNT = 2
 _SEND_RETRY_DELAYS = (5.0, 10.0)   # 재시도 간 가벼운 백오프 (1차 5초, 2차 10초)
+# 사진 업로드가 시간 초과돼 글자만 다시 보낼 때 본문 끝에 붙이는 안내
+_PHOTO_DROPPED_NOTE = "\n\U0001F4F7 사진 업로드 지연으로 사진 없이 재전송"
 # (연결, 응답) 대기 초. 응답 대기가 짧으면 서버가 느릴 때 이미 전달된 메시지를 실패로 오판한다.
 _SEND_TIMEOUT = (10.0, 40.0)
 
@@ -343,8 +345,11 @@ class TelegramWorker:
         requests는 응답 본문을 읽다 시간 초과되면 ReadTimeout이 아니라
         ConnectionError(ReadTimeoutError)로 감싸고, 요청 후 서버가 끊으면
         ConnectionError(ProtocolError)를 낸다. 둘 다 요청은 이미 간 경우라 재전송하지 않는다.
-        연결 자체 실패(NewConnectionError·ConnectTimeout 등)는 확실히 안 나갔으므로 재시도한다."""
+        연결 자체 실패(NewConnectionError·ConnectTimeout 등)는 확실히 안 나갔으므로 재시도한다.
+        단 요청을 '올리는 도중' 시간 초과(_is_upload_timeout)는 요청이 끝까지 안 갔으므로 재시도한다."""
         if not _REQUESTS_AVAILABLE:
+            return False
+        if TelegramWorker._is_upload_timeout(exc):
             return False
         if isinstance(exc, _requests.exceptions.ReadTimeout):
             return True
@@ -356,6 +361,27 @@ class TelegramWorker:
                 inner = inner.reason
             return isinstance(inner, (ProtocolError, ReadTimeoutError))
         return False
+
+    @staticmethod
+    def _is_upload_timeout(exc: Exception) -> bool:
+        """요청 본문(사진)을 올리는 도중 시간 초과 — 요청이 끝까지 안 갔으므로 텔레그램이
+        메시지를 만들 수 없다(재전송해도 중복 없음).
+
+        형태: ConnectionError(ProtocolError('Connection aborted.', TimeoutError('The write
+        operation timed out'))). 2026-11-12 04:45·11-17 01:19 정파 알림 2건이 이 형태로
+        '전달 여부 불명' 처리돼 재전송 안 됐고, 실제로 둘 다 도착하지 않았다."""
+        if not _REQUESTS_AVAILABLE:
+            return False
+        if not isinstance(exc, _requests.exceptions.ConnectionError):
+            return False
+        from urllib3.exceptions import MaxRetryError, ProtocolError
+        inner = exc.args[0] if exc.args else None
+        if isinstance(inner, MaxRetryError):
+            inner = inner.reason
+        if not isinstance(inner, ProtocolError):
+            return False
+        return any(isinstance(a, TimeoutError) and "write operation" in str(a)
+                   for a in inner.args)
 
     def _log_with_suppression(self, msg: str):
         n = self._consecutive_failures
@@ -425,9 +451,10 @@ class TelegramWorker:
         timeout = _SEND_TIMEOUT
 
         from ipc.messages import TelegramStatus
+        use_photo = bool(item.get("jpeg_bytes"))
         for attempt in range(1 + _SEND_RETRY_COUNT):
             try:
-                if item.get("jpeg_bytes"):
+                if use_photo:
                     resp = _requests.post(
                         f"{base}/sendPhoto",
                         data={"chat_id": self._chat_id, "caption": text, "parse_mode": "HTML"},
@@ -475,6 +502,11 @@ class TelegramWorker:
                               f"({alarm_type} {channel_str}): {exc}", error=True)
                     self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
                     return False
+                if use_photo and self._is_upload_timeout(exc):
+                    use_photo = False
+                    text += _PHOTO_DROPPED_NOTE
+                    self._log(f"사진 업로드 시간 초과 — 사진 없이 재전송 ({alarm_type} {channel_str})",
+                              error=True)
                 if attempt < _SEND_RETRY_COUNT:
                     self._log(f"전송 실패 — {_SEND_RETRY_DELAYS[attempt]:.0f}초 후 재시도 "
                               f"({attempt + 1}/{_SEND_RETRY_COUNT}): {error_desc}")
@@ -599,6 +631,11 @@ class TelegramWorker:
                               f"({item['group_name']}): {exc}", error=True)
                     self._emit(TelegramStatus(event="failed", queue_size=self._queue.qsize()))
                     return False
+                if use_photo and self._is_upload_timeout(exc):
+                    use_photo = False
+                    text += _PHOTO_DROPPED_NOTE
+                    self._log(f"{log_kind} 사진 업로드 시간 초과 — 사진 없이 재전송 "
+                              f"({item['group_name']})", error=True)
                 if attempt < _SEND_RETRY_COUNT:
                     self._log(f"{log_kind} 전송 실패 — {_SEND_RETRY_DELAYS[attempt]:.0f}초 후 재시도 "
                               f"({attempt + 1}/{_SEND_RETRY_COUNT}): {error_desc}")
