@@ -1,6 +1,6 @@
 """발표 HTML(../KBS_발표_본쪽.html)을 만든다. 실행: python build.py → python check.py
 
-- 도식 쪽: 도식/<이름>.html (원리·구조·Q&A 등). 그림 자리 {{FIG0}} = 그 장 원본 그림, {{IMG:저장소 상대경로}} = 저장소 그림
+- 도식 쪽: 도식/<이름>.html (원리·구조·Q&A 등). 그림 자리 {{FIG0}} = 그 장 원본 그림, {{IMG:저장소 상대경로}} = 저장소 그림, {{ICON:이름}} = 선 아이콘(아래 ICONS)
 - 설정 탭 쪽: 아래 SETTINGS 표 + docs/screenshots/ 캡처(manual/capture_screens.py로 다시 찍음)
 - 원본_스크롤판.html: 예전 장별 해설. 지금은 그림({{FIG0}})만 가져다 쓴다
 2026-11-18: 발표자용 본쪽+보조쪽 파일은 없앰(사용자 결정). 발표자 공부 자료는 ../KBS_발표_학습자료.html
@@ -39,6 +39,33 @@ SETTINGS = [
  ("저장/불러오기", "07_save_load.png",
   ["지금 설정 전체를 파일 하나로 저장", "다른 PC에서 불러오면 바로 적용 — 다른 국으로 옮길 때 씀", "기본값으로 초기화"], "17 확산"),
 ]
+# 선 아이콘(24칸 격자 · 선 굵기 2, 09 덤 기능 카드 아이콘과 같은 모양). 도식에서 {{ICON:이름}}으로 쓴다
+ICONS = {
+ "tower": '<circle cx="12" cy="9" r="2"/><path d="M12 11v11M8.5 22L12 11l3.5 11"/><path d="M8 5.5a5 5 0 0 0 0 7M16 5.5a5 5 0 0 1 0 7M5 3a9 9 0 0 0 0 12M19 3a9 9 0 0 1 0 12"/>',
+ "multiview": '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8.7 3v14M15.3 3v14M2 10h20M8 21h8M12 17v4"/>',
+ "capture": '<rect x="2" y="5" width="20" height="12" rx="2"/><rect x="6" y="8" width="6" height="6" rx="1"/><path d="M15 9h3M15 13h3M5 17v3M9 17v3M13 17v3M17 17v3"/>',
+ "pc": '<rect x="2" y="4" width="14" height="11" rx="1.5"/><path d="M5.5 20h7M9 15v5"/><rect x="18" y="4" width="4" height="16" rx="1"/><path d="M20 7.5v.01"/>',
+ "bell": '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/>',
+ "screen": '<rect x="2" y="4" width="20" height="14" rx="2"/><path d="M10 8.5v5l4.5-2.5z"/><path d="M8 21h8"/>',
+ "meter": '<path d="M3 21h18M6 18v-6M10 18V6M14 18v-8M18 18V9"/>',
+ "wave": '<path d="M2 12h3l2-6 3 12 3-9 2 6 2-3h5"/>',
+ "shield": '<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+ "monitor": '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+ "search": '<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/>',
+ "speaker": '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
+ "plane": '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
+ "rec": '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3"/><circle cx="7" cy="12" r="1.5" fill="currentColor"/>',
+}
+def icon(spec):
+    """{{ICON:이름}} 또는 {{ICON:이름@x,y,크기}}(SVG 도식 안에 넣을 때 자리 지정) → 선 아이콘 svg"""
+    name, _, pos = spec.partition("@")
+    at = ""
+    if pos:
+        x, y, s = pos.split(",")
+        at = f' x="{x}" y="{y}" width="{s}" height="{s}"'
+    return (f'<svg class="ico"{at} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+            f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{ICONS[name]}</svg>')
+
 def strip_images(html):
     imgs = []
     def rep(m):
@@ -59,6 +86,7 @@ def diagram(name, figs):
     body = re.sub(r"<!--.*?-->", "", src, flags=re.S)
     body = re.sub(r"\{\{FIG(\d)\}\}", lambda m: figs[int(m.group(1))], body)
     body = re.sub(r"\{\{IMG:(.*?)\}\}", lambda m: img_uri(m.group(1)), body)
+    body = re.sub(r"\{\{ICON:(.*?)\}\}", lambda m: icon(m.group(1)), body)
     return title, body.strip()
 
 def img_uri(rel):

@@ -1,5 +1,5 @@
 <!-- title: 재현 안 되는 버그 — UI 힙손상 -->
-<!-- 출처: 원본_스크롤판.html heap 장(증상·추적 6단계·Q&A), CLAUDE.md 「UI 손상 통보」, fix/260526_설정다이얼로그_TypeError_재현불가.md -->
+<!-- 출처: 원본_스크롤판.html heap 장(증상·추적 6단계·Q&A), CLAUDE.md 「UI 손상 통보」, fix/260526_설정다이얼로그_TypeError_재현불가.md, docs/screenshots/telegram/ui_crash.jpg -->
 <div class="dg">
 <p class="gist">4~5일마다 화면 프로그램만 조용히 고장 났다. 원인을 모르니 관측 장치부터 달고, 용의자를 하나씩 빼는 실험으로 「Python 3.14 환경」을 지목했다.</p>
 <div class="hf" style="gap:0">
@@ -21,7 +21,10 @@
  <div class="nd ok">⑥ 85일 무재발<small>3.13 환경이 없으면 자동으로 다시 만들고, 기동 점검 줄에 버전을 표시</small></div>
 </div>
 <div class="body" style="grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:start">
- {{FIG0}}
- <div class="note"><b>Python 3.14의 버그인가?</b> — 모른다. 확인한 것은 「3.14 실행 환경에서만 재발했다」까지다. 메커니즘은 밝히지 못했다. 전에는 4~5일마다 났으니 85일은 그 주기의 17~20배다.</div>
+ <div style="display:flex;flex-direction:column;gap:20px">
+  {{FIG0}}
+  <div class="note"><b>Python 3.14의 버그인가?</b> — 모른다. 확인한 것은 「3.14 실행 환경에서만 재발했다」까지다. 메커니즘은 밝히지 못했다. 전에는 4~5일마다 났으니 85일은 그 주기의 17~20배다.</div>
+ </div>
+ <figure><img src="{{IMG:docs/screenshots/telegram/ui_crash.jpg}}" alt="08-11 실제로 받은 텔레그램: [SYSTEM] UI 프로세스 손상 감지" style="max-height:270px;width:auto"><figcaption>② 그날(08-11) Watchdog이 대신 보낸 실제 알림</figcaption></figure>
 </div>
 </div>

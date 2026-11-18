@@ -26,6 +26,20 @@ document.addEventListener('keydown',e=>{
   else if(k==='End'){ e.preventDefault(); show(pages.length-1); }
   else if(k==='f'||k==='F'){ try{ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen(); }catch(err){} }
 });
+// 마우스 휠: 한 칸(큰 값)이면 기다리지 않고 바로 한 쪽. 터치패드(작은 값이 여러 번)는 모아서 120이 차면 한 쪽.
+// AROS 발표 자료(AROS_Reverse_Eng_260803/docs/발표준비/쪽만들기/runtime.js)와 같은 방식 — 처음엔 0.25초 쉼 + 0.6초 잠금을 뒀다가 「늦게 반응」해서 바꿈(2026-11-19)
+const WHEEL_SUM=120; let wheelAcc=0, wheelLast=0;
+addEventListener('wheel',e=>{
+  if(e.ctrlKey) return;                       // Ctrl+휠 = 브라우저 확대는 그대로
+  e.preventDefault();
+  const d=Math.abs(e.deltaY)>=Math.abs(e.deltaX)?e.deltaY:e.deltaX;
+  const now=Date.now(); if(now-wheelLast>200) wheelAcc=0; wheelLast=now;
+  if(e.deltaMode>0 || Math.abs(d)>=50){ wheelAcc=0; show(cur+(d>0?1:-1)); return; }
+  wheelAcc+=d;
+  if(Math.abs(wheelAcc)>=WHEEL_SUM){ show(cur+(wheelAcc>0?1:-1)); wheelAcc=0; }
+},{passive:false});
+// 주소창의 #p7만 바꿔도 그 쪽으로
+addEventListener('hashchange',()=>{ const h=location.hash.match(/^#p(\d+)$/); if(h && +h[1]-1!==cur) show(+h[1]-1); });
 addEventListener('resize',scaleStage);
 scaleStage();
 const m=location.hash.match(/^#p(\d+)$/);
@@ -33,4 +47,4 @@ show(m?parseInt(m[1],10)-1:0);
 // 웹 글꼴이 늦게 들어오면 현재 쪽을 다시 잰다
 try{ document.fonts.ready.then(()=>{ pages.forEach(p=>{ delete p.dataset.fitted; const c=p.querySelector('.content'); if(c) c.style.zoom=''; }); guard(pages[cur]); }); }catch(e){}
 pages.forEach((p,i)=>{ const n=p.querySelector('.n'); if(n) n.textContent=(i+1)+' / '+pages.length; });
-pages[0].querySelector('.hint').textContent='→ 다음 · ← 이전 · F 전체화면';
+pages[0].querySelector('.hint').textContent='→ · 휠 다음 · ← 이전 · F 전체화면';

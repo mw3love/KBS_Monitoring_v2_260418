@@ -1,25 +1,25 @@
-<!-- title: 멈춰도 되살리는 구조 — 셋이 서로 감시 -->
-<!-- 숫자 출처: CLAUDE.md 아키텍처 · 원본 arch 장(heartbeat 5초 갱신 · 메인 루프 20초 · Watchdog 10초 · UI 2초/30초 · 재spawn 간격) -->
+<!-- title: 멈춰도 되살리는 구조 — Watchdog이 둘을 지킨다 -->
+<!-- 숫자 출처: CLAUDE.md 아키텍처 · 원본 arch 장(heartbeat 5초 갱신 · 메인 루프 20초 · Watchdog 10초 · UI 2초/30초 · 재spawn 간격)
+     UI는 운영 중 Watchdog을 감시하지 않는다(main.py는 종료 때 join 타임아웃만 확인) — 그래서 「서로 감시」라고 쓰지 않음(2026-11-19) -->
 <div class="dg">
-<p class="gist">v1은 감시 반복이 조용히 멈춰도(freeze) 아무도 몰랐다. v2는 프로그램을 셋으로 나눠 서로 살아 있는지 확인한다.</p>
+<p class="gist">v1은 감시 반복이 조용히 멈춰도(freeze) 아무도 몰랐다. v2는 프로그램을 셋으로 나누고, Watchdog이 나머지 둘이 살아 있는지 확인한다.</p>
 <div class="body" style="grid-template-columns:780px minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto">
- <svg viewBox="0 0 780 470" style="width:100%;height:auto;font-family:var(--sans)" role="img" aria-label="Watchdog이 UI와 Detection의 생존 신호를 보고, Detection이 멈추면 다시 띄운다">
+ <svg viewBox="0 0 780 470" style="width:100%;height:auto;font-family:var(--sans)" role="img" aria-label="Watchdog이 UI의 생존 시각과 Detection의 heartbeat를 확인하고, Detection이 멈추면 강제 종료 후 다시 띄운다">
   <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8A8077"/></marker></defs>
   <g text-anchor="middle" fill="#1F1B17">
-   <rect x="230" y="4" width="320" height="120" rx="16" fill="#F5E8E2" stroke="#E7CFC4" stroke-width="3"/><text x="390" y="50" font-size="30" font-weight="700">Watchdog · 감시견</text><text x="390" y="84" font-size="21" fill="#6E655C">멈춘 프로그램을 다시 띄움</text><text x="390" y="110" font-size="21" fill="#6E655C">[SYSTEM] 알림 직접 발송</text>
-   <rect x="4" y="330" width="300" height="130" rx="16" fill="#fff" stroke="#DDD5C9" stroke-width="3"/><text x="154" y="376" font-size="30" font-weight="700">UI · 화면</text><text x="154" y="410" font-size="21" fill="#6E655C">화면 · 경보음 · 확인 버튼</text><text x="154" y="436" font-size="21" fill="#6E655C">2초마다 생존 시각 기록</text>
-   <rect x="476" y="330" width="300" height="130" rx="16" fill="#fff" stroke="#DDD5C9" stroke-width="3"/><text x="626" y="376" font-size="30" font-weight="700">Detection · 감시</text><text x="626" y="410" font-size="21" fill="#6E655C">캡처 · 판정 · 녹화 · [DETECT] 알림</text><text x="626" y="436" font-size="21" fill="#6E655C">5초마다 heartbeat 기록</text>
+   <rect x="210" y="4" width="360" height="120" rx="16" fill="#F5E8E2" stroke="#E7CFC4" stroke-width="3"/><g color="#B5402A">{{ICON:shield@236,22,38}}</g><text x="412" y="50" font-size="30" font-weight="700">Watchdog · 감시견</text><text x="390" y="84" font-size="21" fill="#6E655C">멈춘 프로그램을 다시 띄움</text><text x="390" y="110" font-size="21" fill="#6E655C">[SYSTEM] 알림 직접 발송</text>
+   <rect x="4" y="330" width="300" height="130" rx="16" fill="#fff" stroke="#DDD5C9" stroke-width="3"/><g color="#B5402A">{{ICON:monitor@62,348,36}}</g><text x="170" y="376" font-size="30" font-weight="700">UI · 화면</text><text x="154" y="410" font-size="21" fill="#6E655C">화면 · 경보음 · 확인 버튼</text><text x="154" y="436" font-size="21" fill="#6E655C">2초마다 생존 시각 기록</text>
+   <rect x="476" y="330" width="300" height="130" rx="16" fill="#fff" stroke="#DDD5C9" stroke-width="3"/><g color="#B5402A">{{ICON:search@496,348,36}}</g><text x="646" y="376" font-size="30" font-weight="700">Detection · 감시</text><text x="626" y="410" font-size="19" fill="#6E655C">캡처 · 판정 · 녹화 · [DETECT] 알림</text><text x="626" y="436" font-size="21" fill="#6E655C">5초마다 heartbeat 기록</text>
   </g>
   <g stroke="#8A8077" stroke-width="4" fill="none" marker-end="url(#ah2)">
-   <path d="M150 326L290 128"/>
-   <path d="M560 326L450 128"/>
-   <path d="M520 128L640 326" stroke="#B5402A" stroke-dasharray="12 8"/>
+   <path d="M290 128L150 326"/>
+   <path d="M480 128L612 326"/>
    <path d="M472 395H310"/>
   </g>
   <g font-size="21" fill="#3F3832">
    <text x="40" y="215">생존 시각 확인</text><text x="40" y="242">(30초 묵으면 알림)</text>
-   <text x="380" y="215" text-anchor="middle">heartbeat 확인</text><text x="380" y="242" text-anchor="middle">(10초 안 바뀌면)</text>
-   <text x="608" y="215" fill="#B5402A" font-weight="700">강제 종료 →</text><text x="608" y="242" fill="#B5402A" font-weight="700">새로 띄움</text>
+   <text x="586" y="186">heartbeat 확인</text><text x="586" y="213">(10초 안 바뀌면)</text>
+   <text x="600" y="250" fill="#B5402A" font-weight="700">→ 강제 종료</text><text x="618" y="277" fill="#B5402A" font-weight="700">새로 띄움</text>
    <text x="391" y="385" text-anchor="middle">화면 · 경보</text>
    <text x="391" y="425" text-anchor="middle" font-size="19" fill="#6E655C">(공유 메모리)</text>
   </g>

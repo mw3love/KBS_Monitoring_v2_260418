@@ -149,6 +149,13 @@ dl.terms dt { font-weight: 600; color: var(--ink); padding-right: 22px; }
 .th { flex: none; display: block; width: 160px; height: 90px; border-radius: 6px; }
 
 /* 카드·숫자 타일 */
+/* 선 아이콘({{ICON:…}}): 상자 맨 앞이면 제목 위에, .al(빨간 상자) 안에선 흰색 */
+.ico { width: 44px; height: 44px; flex: none; color: var(--accent); }
+.nd > .ico:first-child { display: block; margin-bottom: 6px; }
+.nd.al .ico { color: #fff; }
+.nd.row { display: flex; align-items: center; gap: 18px; }
+.nd.row > .ico { margin: 0; }
+.chip .ico { width: 30px; height: 30px; vertical-align: -6px; margin-right: 8px; }
 .cards { display: grid; gap: 24px; }
 .card { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 6px; }
 .card .ic { width: 52px; height: 52px; color: var(--accent); }
