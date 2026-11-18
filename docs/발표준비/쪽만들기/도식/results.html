@@ -1,0 +1,25 @@
+<!-- title: 검증 — 90일 실운영 숫자 -->
+<!-- 숫자 출처: docs/성과_근거.md (원본 results 장과 같음). 숫자를 바꾸면 성과_근거.md부터 -->
+<div class="dg">
+<p class="gist">숫자는 모두 전주총국 감시PC의 실제 로그에서 셌다. 가동률은 일부러 불리하게 계산했다.</p>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px">
+ <div class="tile"><div class="big">90일</div><div class="lb">연속 운영 기록</div><small>2026-08-07 ~ 11-05 (실제 운영은 늦어도 5월부터)</small></div>
+ <div class="tile"><div class="big">99.89%</div><div class="lb">가동률 하한</div><small>기록이 15분 넘게 빈 8구간(약 147분)을 전부 「멈춤」으로 침 — 대부분 새 버전 배포 재시작</small></div>
+ <div class="tile"><div class="big">41건</div><div class="lb">알린 이상</div><small>블랙 27 · 스틸 6 · 임베디드 2 · 레벨미터 1 · 무신호 5 — 대부분 모니터링 · 전송 장비 쪽. 이 기간 실제 방송사고는 없었다</small></div>
+ <div class="tile"><div class="big">5 / 5</div><div class="lb">캡처 무신호 자동 복구</div><small>모두 1~3초</small></div>
+ <div class="tile"><div class="big">3회</div><div class="lb">감시 자동 재기동</div><small>모두 사람 손 없이 1초 안. 그중 2번은 시계 점프 오판이었고 고쳤다</small></div>
+ <div class="tile"><div class="big">0원</div><div class="lb">추가 비용</div><small>기존 감시PC · 캡처보드 + 무료 공개 도구. 메모리 누수 없음(41 · 44일 연속 130~300 MB)</small></div>
+</div>
+<div>
+ <h4>확산 — 다른 국도 같은 장비에 바꿔 끼우면 된다</h4>
+ <div class="hf">
+  <div class="nd src">v1이 이미 배포된 곳<small>춘천 · 제주 · 대구 · 대전 · 부산 · 광주 · 송신인프라부 등</small></div>
+  <div class="ar" style="margin-left:14px;--aw:44px"></div>
+  <div class="nd"><code>실행.bat</code> 한 번<small>Python 3.13 · 부품 · ffmpeg 자동 설치</small></div>
+  <div class="ar" style="margin-left:14px;--aw:44px"></div>
+  <div class="nd">설정 파일 백업 · 복원<small>국마다 다른 건 감지영역과 정파 시각뿐</small></div>
+  <div class="ar" style="margin-left:14px;--aw:44px"></div>
+  <div class="nd ok">운영 시작<small>자동 테스트 107개 통과</small></div>
+ </div>
+</div>
+</div>

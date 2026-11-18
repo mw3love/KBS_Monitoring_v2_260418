@@ -1,0 +1,40 @@
+<!-- title: 소리 — 보는 레벨미터, 듣는 임베디드 -->
+<!-- 숫자 출처: config/default_config.json audio_hsv_* · audio_pixel_ratio 5 · audio_level_duration 60 · embedded_silence_threshold −50 · embedded_silence_duration 60 · 복구 2초(detector.py) -->
+<!-- 두 감지는 서로 독립: 레벨미터는 A 감지영역마다, 임베디드는 멀티뷰어 출력 신호에 실린 오디오 1개(보통 1TV ON-AIR 선택, 2026-11-18 사용자 확인) -->
+<div class="dg">
+<p class="gist">소리는 서로 독립된 두 가지로 본다. 각각 「소리 없음」이 60초 이어지면 따로 경보가 울린다.</p>
+<div style="display:grid;grid-template-columns:190px repeat(4,minmax(0,1fr) auto) minmax(0,1.15fr);row-gap:30px;align-items:center">
+ <div><b style="font-size:30px">A</b> 레벨미터<small style="display:block;font-size:21px;color:var(--muted)">화면 속 막대를 본다</small></div>
+ <div class="nd src">A 감지영역<small>초록 막대 · 채널마다</small></div>
+ <div class="ar" style="margin-left:12px;--aw:30px"></div>
+ <div class="nd">초록색만 남김<small>HSV H 40–95 · S 80–255 · V 60–255</small></div>
+ <div class="ar" style="margin-left:12px;--aw:30px"></div>
+ <div class="nd">초록 픽셀 비율<small>최근 5번 평균</small></div>
+ <div class="ar" style="margin-left:12px;--aw:30px"></div>
+ <div class="nd q">5% 미만?</div>
+ <div class="ar" style="margin-left:12px;--aw:80px;margin-right:22px"><span>60초</span></div>
+ <div class="nd al">레벨미터 경보<small>그 채널만 · 정상 2초면 복구</small></div>
+
+ <div><b style="font-size:30px">EA</b> 임베디드<small style="display:block;font-size:21px;color:var(--muted)">실제 소리를 듣는다</small></div>
+ <div class="nd src">멀티뷰어 출력 소리<small>1조 · 보통 1TV ON-AIR</small></div>
+ <div class="ar" style="margin-left:12px;--aw:30px"></div>
+ <div class="nd">크기 계산<small>RMS(평균 크기) → dBFS(0이 최대)</small></div>
+ <div class="ar" style="margin-left:12px;--aw:30px"></div>
+ <div class="nd">L · R 평균</div>
+ <div class="ar" style="margin-left:12px;--aw:30px"></div>
+ <div class="nd q">−50 dBFS 이하?</div>
+ <div class="ar" style="margin-left:12px;--aw:80px;margin-right:22px"><span>60초</span></div>
+ <div class="nd al">임베디드 경보<small>1개 · 정상 2초면 복구</small></div>
+</div>
+<div class="body" style="grid-template-columns:auto auto minmax(0,1fr);align-items:start">
+ <figure><img src="{{IMG:docs/발표덱_KBS_미창기/fig/fig_hsv_ctx.png}}" alt="실제 운영 화면에서 A1 레벨미터 감지영역 위치" style="height:300px;width:auto"><figcaption>실제 화면의 A1 — 초록 막대 위 사각형</figcaption></figure>
+ <div style="width:165px">{{FIG0}}</div>
+ <div style="display:grid;grid-template-columns:150px 1fr 1fr;font-size:23px;line-height:1.4;border-top:2px solid var(--line)">
+  <b style="padding:10px 0;border-bottom:2px solid var(--line)"></b><b style="padding:10px 12px;border-bottom:2px solid var(--line)">A 레벨미터</b><b style="padding:10px 12px;border-bottom:2px solid var(--line)">EA 임베디드</b>
+  <span style="padding:10px 0;border-bottom:2px solid var(--line);color:var(--muted)">보는 것</span><span style="padding:10px 12px;border-bottom:2px solid var(--line)">화면에 그려진 초록 막대</span><span style="padding:10px 12px;border-bottom:2px solid var(--line)">실제 소리 데이터</span>
+  <span style="padding:10px 0;border-bottom:2px solid var(--line);color:var(--muted)">몇 개</span><span style="padding:10px 12px;border-bottom:2px solid var(--line)">감지영역마다(여러 채널)</span><span style="padding:10px 12px;border-bottom:2px solid var(--line)">1개(멀티뷰어 출력의 소리)</span>
+  <span style="padding:10px 0;border-bottom:2px solid var(--line);color:var(--muted)">강점</span><span style="padding:10px 12px;border-bottom:2px solid var(--line)">16채널을 한 번에</span><span style="padding:10px 12px;border-bottom:2px solid var(--line)">크기를 정확히(dBFS)</span>
+  <span style="padding:10px 0;border-bottom:2px solid var(--line);color:var(--muted)">한계</span><span style="padding:10px 12px;border-bottom:2px solid var(--line)">미터 색 · 배치가 바뀌면 다시 맞춤</span><span style="padding:10px 12px;border-bottom:2px solid var(--line)">선택된 한 채널만</span>
+ </div>
+</div>
+</div>

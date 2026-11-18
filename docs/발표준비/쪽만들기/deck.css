@@ -97,3 +97,76 @@ dl.terms dt { font-weight: 600; color: var(--ink); padding-right: 22px; }
   .sup h3 { break-after: avoid; }
   .pf .hint { visibility: hidden; }
 }
+
+/* ── 도식 쪽(2026-11-18): 원리는 순서도로. 글은 상자 안 짧은 말과 숫자만, 자세한 글은 보조 쪽 ── */
+:root { --ok-bg: #E8F1E9; --ok-line: #A9CBB0; --ok-ink: #2B6638; --alarm: #B5402A; --arrow: #8A8077; --mid-line: #E4C579; }
+.dg { height: 100%; display: flex; flex-direction: column; gap: 26px; font-size: 27px; line-height: 1.38; color: var(--ink); }
+.dg > .gist { margin: 0; flex: none; font-size: 33px; }
+.dg .body { flex: 1 1 auto; min-height: 0; display: grid; column-gap: 56px; row-gap: 24px; }
+.dg h4 { margin: 0 0 12px; font-size: 26px; color: var(--accent); letter-spacing: .02em; }
+.dg figure { margin: 0; }
+.dg figure img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; }
+.dg figcaption { font-size: 20px; line-height: 1.4; color: var(--muted); margin-top: 6px; }
+.dg .note { font-size: 24px; line-height: 1.45; color: var(--body); background: var(--note); border-radius: 12px; padding: 14px 22px; }
+.dg .note b { color: var(--note-ink); }
+.dg .warnbox { font-size: 24px; line-height: 1.45; color: var(--body); background: var(--warn); border-radius: 12px; padding: 14px 22px; }
+.dg .warnbox b { color: var(--warn-ink); }
+.chip { display: inline-block; background: var(--note); color: var(--note-ink); border-radius: 999px; padding: 2px 16px; font-size: 22px; font-weight: 600; white-space: nowrap; }
+
+/* 상자 */
+.nd { box-sizing: border-box; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 20px; font-weight: 600; }
+.nd small { display: block; font-size: 22px; line-height: 1.35; color: var(--muted); font-weight: 400; margin-top: 3px; }
+.nd.src { background: var(--accent-soft); border-color: #E7CFC4; }
+.nd.q { border: 3px solid var(--ink); padding-left: 68px; position: relative; }
+.nd.q::before { content: "?"; position: absolute; left: 16px; top: 13px; width: 36px; height: 36px; border-radius: 50%; background: var(--ink); color: var(--paper); font: 700 24px/36px var(--sans); text-align: center; }
+.nd.ok { background: var(--ok-bg); border-color: var(--ok-line); color: var(--ok-ink); }
+.nd.ok small { color: var(--ok-ink); }
+.nd.mid { background: var(--warn); border-color: var(--mid-line); color: var(--warn-ink); }
+.nd.mid small { color: var(--warn-ink); }
+.nd.al { background: var(--alarm); border-color: var(--alarm); color: #fff; }
+.nd.al small { color: #FBE4DD; }
+
+/* 화살표: .dn 아래로, .ar 오른쪽으로. 안의 span은 화살표 위 말(예·아니오·시간) */
+.dn { position: relative; justify-self: center; width: 4px; height: 40px; background: var(--arrow); margin: 0 0 14px; }
+.dn::after { content: ""; position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); border: 11px solid transparent; border-top: 14px solid var(--arrow); border-bottom: 0; }
+.dn > span { position: absolute; left: 20px; top: 50%; transform: translateY(-40%); font-size: 22px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.ar { position: relative; flex: none; align-self: center; width: var(--aw, 60px); height: 4px; background: var(--arrow); margin-right: 14px; }
+.ar::after { content: ""; position: absolute; right: -14px; top: 50%; transform: translateY(-50%); border: 11px solid transparent; border-left: 14px solid var(--arrow); border-right: 0; }
+.ar > span { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); font-size: 22px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+
+/* 세로 순서도: 줄기(예)는 아래로, 가지(아니오)는 오른쪽 결과로 */
+.vf { display: grid; grid-template-columns: var(--stem, 560px) var(--br, 150px) minmax(0, 1fr); align-items: center; align-content: start; }
+.vf > .nd, .vf > .dn, .vf > .rowc { grid-column: 1; }
+.vf > .ar { grid-column: 2; width: auto; justify-self: stretch; margin: 0 16px 0 10px; }
+.vf > .out { grid-column: 3; display: flex; align-items: center; gap: 16px; }
+.vf > .out .nd { flex: 1 1 auto; }
+.rowc { display: flex; align-items: stretch; }
+.rowc > .nd { flex: 1 1 0; }
+
+/* 가로 흐름 */
+.hf { display: flex; align-items: stretch; }
+.hf > .nd { flex: 1 1 0; min-width: 0; }
+.th { flex: none; display: block; width: 160px; height: 90px; border-radius: 6px; }
+
+/* 카드·숫자 타일 */
+.cards { display: grid; gap: 24px; }
+.card { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 6px; }
+.card .ic { width: 52px; height: 52px; color: var(--accent); }
+.card h4 { margin: 4px 0 0; font-size: 29px; color: var(--ink); letter-spacing: 0; }
+.card p { margin: 0; font-size: 23px; line-height: 1.45; color: var(--body); }
+.card .ref { margin-top: auto; padding-top: 6px; font-size: 20px; color: var(--muted); }
+.tile { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 16px 24px; }
+.tile .big { font: 700 64px/1.1 var(--sans); color: var(--accent); }
+.tile .lb { font-size: 26px; font-weight: 600; color: var(--ink); }
+.tile small { display: block; font-size: 21px; line-height: 1.4; color: var(--muted); margin-top: 4px; }
+
+/* 1초 띠(시간축) */
+.tl { display: grid; grid-template-columns: 150px repeat(16, minmax(0, 1fr)); gap: 4px; align-items: center; font-size: 21px; color: var(--muted); }
+.tl i { display: block; height: 46px; border-radius: 4px; background: #E9E4DC; }
+.tl i.b { background: #1F1B17; }
+.tl i.on { background: var(--alarm); }
+.tl .lb { font-weight: 600; color: var(--ink); font-size: 22px; }
+
+/* Q&A 쪽: 카드가 크니 글도 크게 */
+.cards.qa .card h4 { font-size: 31px; }
+.cards.qa .card p { font-size: 27px; line-height: 1.5; }

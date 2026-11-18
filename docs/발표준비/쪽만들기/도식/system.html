@@ -1,0 +1,24 @@
+<!-- title: 시스템 구성 — 멀티뷰어 한 화면이 입력 -->
+<div class="dg">
+<p class="gist">채널마다 장비를 달지 않는다. 16채널이 다 나오는 멀티뷰어 화면 한 장 위에 사각형(감지영역)을 그려 센서처럼 쓴다.</p>
+<div class="hf">
+ <div class="nd src">방송 신호<small>1TV · 2TV · UHD 등<br>SDI 케이블(방송용 영상 케이블)</small></div>
+ <div class="ar" style="margin-left:14px;--aw:44px"></div>
+ <div class="nd">멀티뷰어<small>16채널을 한 화면에 + 채널 옆 소리 막대(레벨미터)</small></div>
+ <div class="ar" style="margin-left:14px;--aw:44px"></div>
+ <div class="nd">캡처보드<small>화면(1920×1080)과 소리를 PC 데이터로</small></div>
+ <div class="ar" style="margin-left:14px;--aw:44px"></div>
+ <div class="nd">감시PC<small>KBS Monitoring이 0.2초마다 검사</small></div>
+ <div class="ar" style="margin-left:14px;--aw:44px"></div>
+ <div class="nd al">알림<small>경보음 · 화면, 텔레그램, MP4 녹화</small></div>
+</div>
+<div class="body" style="grid-template-columns:auto minmax(0,1fr);align-items:start">
+ <div style="width:560px">{{FIG0}}</div>
+ <div style="display:flex;flex-direction:column;gap:16px">
+  <h4 style="margin:0">감지영역은 세 종류 — 무엇을 보나</h4>
+  <div class="hf" style="align-items:center"><span class="chip" style="flex:0 0 90px;text-align:center;font-size:26px">V</span><div class="ar" style="--aw:40px;margin:0 26px 0 14px"></div><div class="nd">영상 감지영역<small>화면의 채널 영상 → 블랙 · 스틸 (3 · 4장)</small></div></div>
+  <div class="hf" style="align-items:center"><span class="chip" style="flex:0 0 90px;text-align:center;font-size:26px">A</span><div class="ar" style="--aw:40px;margin:0 26px 0 14px"></div><div class="nd">레벨미터 감지영역<small>멀티뷰어의 초록 소리 막대 → 채널마다 소리 있음/없음 (5장)</small></div></div>
+  <div class="hf" style="align-items:center"><span class="chip" style="flex:0 0 90px;text-align:center;font-size:26px">EA</span><div class="ar" style="--aw:40px;margin:0 26px 0 14px"></div><div class="nd">임베디드 오디오<small>멀티뷰어 출력에 실린 소리 1조(보통 1TV ON-AIR) → 무음 (5장)</small></div></div>
+ </div>
+</div>
+</div>

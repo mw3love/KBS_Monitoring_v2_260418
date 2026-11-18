@@ -1,0 +1,25 @@
+<!-- title: 스틸 — 25칸이 모두 멈춰야 스틸 -->
+<!-- 숫자 출처: config/default_config.json still_threshold 4 · still_changed_ratio 10% · still_duration 120초 · still_reset_frames 3 -->
+<div class="dg">
+<p class="gist">앞 화면과 지금 화면을 픽셀마다 빼면, 움직인 곳만 남는다. 25칸 어디에도 움직임이 없을 때만 「정지 화면」으로 본다.</p>
+<div class="body" style="grid-template-rows:auto auto">
+ <div style="display:flex;align-items:center;justify-content:center;gap:26px">
+  <figure><svg width="400" height="225" viewBox="0 0 400 225" role="img" aria-label="앞 화면: 앵커가 입을 다물고 있음"><rect width="400" height="225" fill="#3D5672"/><rect x="0" y="160" width="400" height="65" fill="#6B4B3A"/><rect x="150" y="128" width="100" height="70" rx="18" fill="#2B2B35"/><circle cx="200" cy="100" r="36" fill="#E7C2A0"/><rect x="186" y="114" width="28" height="4" rx="2" fill="#8A3B2E"/><rect x="20" y="186" width="210" height="22" fill="#D97757"/><rect x="28" y="192" width="150" height="10" fill="#fff"/></svg><figcaption>앞 화면 (0.2초 전)</figcaption></figure>
+  <b style="font-size:60px;color:var(--muted)">−</b>
+  <figure><svg width="400" height="225" viewBox="0 0 400 225" role="img" aria-label="지금 화면: 앵커가 입을 벌림"><rect width="400" height="225" fill="#3D5672"/><rect x="0" y="160" width="400" height="65" fill="#6B4B3A"/><rect x="150" y="128" width="100" height="70" rx="18" fill="#2B2B35"/><circle cx="200" cy="100" r="36" fill="#E7C2A0"/><ellipse cx="200" cy="116" rx="12" ry="8" fill="#8A3B2E"/><rect x="20" y="186" width="210" height="22" fill="#D97757"/><rect x="28" y="192" width="150" height="10" fill="#fff"/></svg><figcaption>지금 화면</figcaption></figure>
+  <b style="font-size:60px;color:var(--muted)">=</b>
+  <figure><svg width="400" height="225" viewBox="0 0 400 225" role="img" aria-label="차이: 입 부분만 하얗게 남음"><rect width="400" height="225" fill="#111"/><ellipse cx="200" cy="116" rx="13" ry="8" fill="#fff"/><path d="M80 0V225M160 0V225M240 0V225M320 0V225M0 45H400M0 90H400M0 135H400M0 180H400" stroke="#555" stroke-width="1.5"/><rect x="161.5" y="91.5" width="77" height="42" fill="none" stroke="#5FC27A" stroke-width="4"/></svg><figcaption>차이가 4보다 큰 픽셀만 하얗게 · <b style="color:var(--ok-ink)">초록 칸</b>만 움직임</figcaption></figure>
+ </div>
+ <div style="display:grid;grid-template-columns:1fr auto 1.25fr auto 0.8fr auto 1fr;grid-template-rows:auto auto;align-items:center">
+  <div class="nd src">바뀐 픽셀 찾기<small>앞 화면과의 차이 &gt; 4</small></div>
+  <div class="ar" style="margin-left:14px"></div>
+  <div class="nd q">25칸 모두 바뀐 픽셀 10% 미만인가?</div>
+  <div class="ar" style="--aw:56px;margin-left:14px"><span>예</span></div>
+  <div class="nd mid">정지 화면</div>
+  <div class="ar" style="--aw:110px;margin-left:14px;margin-right:24px"><span>120초 연속</span></div>
+  <div class="nd al">경보<small>정상 화면 3번 연속이면 복구</small></div>
+  <div style="grid-column:3;display:flex;flex-direction:column;align-items:center"><div class="dn" style="margin-top:6px"><span>아니오</span></div><div class="nd ok" style="align-self:stretch">정상<small>한 칸이라도 움직임 (앵커 입 · 자막)</small></div></div>
+  <div class="note" style="grid-column:5/8;align-self:end;margin-left:30px"><b>한 번 튄 값은 무시</b><br>정상 화면이 3번 연속 나와야 120초 타이머를 0으로 되돌린다(경보 중이면 복구).</div>
+ </div>
+</div>
+</div>

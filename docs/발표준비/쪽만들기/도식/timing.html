@@ -1,0 +1,40 @@
+<!-- title: 시간으로 판정 · 정파 상태기계 -->
+<!-- 띠 그림은 옛 덱 slides/timing.html과 같은 예시: 2~7초 블랙 → 7초 경보, 8초 정상 한 번, 12·13초 정상 → 14초 복구 -->
+<div class="dg">
+<p class="gist">0.2초마다의 판정은 경계에서 흔들린다. 그래서 「얼마나 오래 이어졌나」로 경보를 켜고 끈다. 새벽 정파는 세 상태를 오가는 상태기계로 다룬다.</p>
+<div class="body" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+ <div style="display:flex;flex-direction:column;gap:18px">
+  <h4 style="margin:0">블랙 예시 — 1칸 = 1초</h4>
+  <div class="tl">
+   <span class="lb">매 순간 판정</span><i></i><i></i><i class="b"></i><i class="b"></i><i class="b"></i><i class="b"></i><i class="b"></i><i class="b"></i><i></i><i class="b"></i><i class="b"></i><i class="b"></i><i></i><i></i><i></i><i></i>
+   <span class="lb">경보 상태</span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i>
+   <span></span><span>0</span><span></span><span></span><span></span><span></span><span>5</span><span></span><span></span><span></span><span></span><span>10</span><span></span><span></span><span></span><span></span><span>15초</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;font-size:25px">
+   <div><b style="color:var(--alarm)">2 → 7초</b> 블랙이 5초 이어져 경보가 켜진다.</div>
+   <div><b>8초</b> 정상 화면이 한 번 끼어도 경보는 그대로.</div>
+   <div><b style="color:var(--ok-ink)">12 → 14초</b> 정상이 2초 연속이라 복구. 텔레그램에 「지속 N초」.</div>
+  </div>
+  <div class="note"><b>히스테리시스</b> = 켜는 조건(5초)과 끄는 조건(정상 2초 연속)을 다르게 두는 것. 경보가 켜졌다 꺼졌다 반복하지 않게 한다.<br><span class="chip" style="margin-top:8px">방송 비유: 절체기의 자동 복귀 지연</span></div>
+ </div>
+ <div style="display:flex;flex-direction:column;gap:16px">
+  <h4 style="margin:0">정파 상태기계 — 채널 그룹마다 1초에 한 번</h4>
+  <svg viewBox="0 0 820 270" style="width:100%;height:auto;font-family:var(--sans)" role="img" aria-label="IDLE에서 00:30에 PREPARATION, 120초 스틸이면 SIGNOFF, 04:30 이후 움직임 30초 또는 05:00에 IDLE">
+   <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8A8077"/></marker></defs>
+   <g font-size="26" font-weight="700" fill="#1F1B17" text-anchor="middle">
+    <rect x="2" y="40" width="200" height="100" rx="14" fill="#fff" stroke="#DDD5C9" stroke-width="3"/><text x="102" y="84">IDLE</text><text x="102" y="118" font-size="21" font-weight="400" fill="#6E655C">평상시</text>
+    <rect x="310" y="40" width="200" height="100" rx="14" fill="#FFF6E0" stroke="#E4C579" stroke-width="3"/><text x="410" y="84" font-size="23">PREPARATION</text><text x="410" y="118" font-size="21" font-weight="400" fill="#8A5A00">정파 준비</text>
+    <rect x="618" y="40" width="200" height="100" rx="14" fill="#EEF3F8" stroke="#9DB6CF" stroke-width="3"/><text x="718" y="84">SIGNOFF</text><text x="718" y="118" font-size="21" font-weight="400" fill="#2F5F8F">정파 중 · 알림 끔</text>
+   </g>
+   <g stroke="#8A8077" stroke-width="4" fill="none" marker-end="url(#ah)"><path d="M204 100H306"/><path d="M512 100H614"/><path d="M718 142V200H102V146"/></g>
+   <g font-size="20" fill="#3F3832" text-anchor="middle">
+    <text x="256" y="60">00:30</text><text x="256" y="84" font-weight="700" fill="#A44E33">[시간]</text>
+    <text x="564" y="60">스틸 120초</text><text x="564" y="84" font-weight="700" fill="#A44E33">[감지]</text>
+    <text x="410" y="232">04:30 이후 움직임 30초 <tspan font-weight="700" fill="#A44E33">[감지]</tspan>  또는  05:00 <tspan font-weight="700" fill="#A44E33">[시간]</tspan></text>
+   </g>
+  </svg>
+  {{FIG0}}
+  <div class="warnbox"><b>들어갈 땐 화면을 보고, 나올 땐 시간 상한</b><br>정파 시작은 실측 00:40~03:50으로 들쭉날쭉하다. 시각만 보고 들어가면 정상 방송의 경보까지 꺼진다(비싼 실수). 늦게 알아채면 헛알림 몇 개(싼 실수).</div>
+ </div>
+</div>
+</div>

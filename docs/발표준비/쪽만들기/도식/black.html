@@ -1,0 +1,28 @@
+<!-- title: 블랙 — 세 질문에 모두 「예」여야 블랙 -->
+<!-- 숫자 출처: config/default_config.json black_* (5 · 98% · 92% · 0.2% · 5초 · 복구 2초), detector.py 5×5 -->
+<div class="dg" style="gap:18px">
+<p class="gist">화면 픽셀은 밝기 0(검정)~255(흰색)의 숫자다. 세 질문을 모두 통과해야 블랙 후보가 되고, 그 상태가 5초 이어져야 경보가 울린다.</p>
+<div class="body" style="grid-template-columns:minmax(0,1fr) 480px">
+ <div class="vf" style="--stem:520px;--br:130px">
+  <div class="nd src">감지영역 화면<small>0.2초마다 한 장씩 검사</small></div>
+  <div class="dn"></div>
+  <div class="nd q">밝기 5 미만 픽셀이 98% 이상인가?<small>① 전체가 어두운가</small></div>
+  <div class="ar"><span>아니오</span></div>
+  <div class="out"><div class="nd ok">정상<small>보통 방송 화면</small></div></div>
+  <div class="dn"><span>예</span></div>
+  <div class="nd q">25칸 모두 92% 이상 어두운가?<small>② 블록 가드 — 밝은 칸 하나가 취소</small></div>
+  <div class="ar"><span>아니오</span></div>
+  <div class="out"><svg class="th" viewBox="0 0 160 90" role="img" aria-label="로고만 남은 검은 화면"><rect width="160" height="90" fill="#111"/><path d="M32 0V90M64 0V90M96 0V90M128 0V90M0 18H160M0 36H160M0 54H160M0 72H160" stroke="#444" stroke-width="1"/><rect x="129.5" y="1.5" width="29" height="15" fill="none" stroke="#5FC27A" stroke-width="3"/><text x="144" y="13" text-anchor="middle" font-size="10" font-weight="700" fill="#eee">KBS</text></svg><div class="nd ok">정상<small>로고만 뜬 의도된 검은 화면</small></div></div>
+  <div class="dn"><span>예</span></div>
+  <div class="nd q">앞 화면과 바뀐 픽셀이 0.2% 미만인가?<small>③ 모션 억제 — 움직이면 취소</small></div>
+  <div class="ar"><span>아니오</span></div>
+  <div class="out"><svg class="th" viewBox="0 0 160 90" role="img" aria-label="검은 바탕에 흐르는 자막"><rect width="160" height="90" fill="#111"/><rect x="34" y="62" width="104" height="10" rx="2" fill="#ddd"/><path d="M28 67H12M17 62l-5 5 5 5" stroke="#5FC27A" stroke-width="3" fill="none"/></svg><div class="nd ok">정상<small>검은 바탕에 자막이 흐름</small></div></div>
+  <div class="dn"><span>예</span></div>
+  <div class="rowc" style="grid-column:1/-1"><div class="nd mid" style="flex:0 0 520px">블랙 후보<small>세 질문 모두 「예」</small></div><div class="ar" style="--aw:96px;margin-left:10px;margin-right:24px"><span>5초 연속</span></div><div class="nd al">경보 — 경보음 · 화면 깜빡임 · 텔레그램<small>정상 화면이 2초 연속이면 복구</small></div></div>
+ </div>
+ <div style="display:flex;flex-direction:column;gap:22px">
+  {{FIG0}}
+  <div class="note"><b>왜 25칸으로 나누나</b><br>전체 평균만 보면 작은 로고나 앵커의 입 움직임이 숫자에 묻힌다. 칸으로 나누면 그 칸 하나가 「정상」을 증명한다.<br>이 검사는 경보를 <b>취소만</b> 하고 새로 만들지는 않는다. 그래서 헛경보는 줄고 새 헛경보는 생기지 않는다.</div>
+ </div>
+</div>
+</div>
