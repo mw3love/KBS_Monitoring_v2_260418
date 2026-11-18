@@ -170,20 +170,22 @@ Detection Process  (PySide6 임포트 없음)
 
 ## 설치
 
-처음 설치하는 PC는 아래 순서대로 합니다. 비개발자용 안내는 `★ KBS Monitoring v2 설치 안내.txt`.
+새 PC든 기존 PC든 **`실행.bat`** 더블클릭 하나면 됩니다(인터넷 필요). 비개발자용 안내는 `★ KBS Monitoring v2 설치 안내.txt`.
 
-1. **`python313_전환.bat`** 더블클릭 — Python 3.13이 없으면 winget으로 설치하고, 전용 환경(`.venv313`)을 만들어
-   `requirements.txt`의 고정 버전 패키지를 설치합니다.
-2. **`install_ffmpeg.bat`** 더블클릭 — 녹화 영상에 소리를 합성할 ffmpeg 설치. 없으면 소리 없는 MP4로 녹화(에러 아님).
-3. **`실행.bat`** 더블클릭.
+- `.venv313`이 없거나 `requirements.txt`가 지난 설치 때(`.venv313/requirements.installed.txt`)와 다르면, `실행.bat`이
+  먼저 `python313_전환.ps1 -Auto`를 돌립니다: Python 3.13(winget) → `.venv313` → 고정 버전 패키지 → ffmpeg(winget, 실패해도 진행).
+  첫 설치는 5~10분. 그다음 평소처럼 프로그램을 켭니다.
+- 설치가 실패해도 감시는 멈추지 않습니다 — `logs/stderr_debug.txt`에 NOTICE를 남기고 있는 파이썬으로 켜며,
+  기동 점검에 `✗ 부품 누락: …`·Python 버전 경고가 뜹니다. 다음 실행 때 다시 설치를 시도합니다.
+- 폴더는 짧은 경로(예: `C:\KBS_Monitoring`)에 두세요. 경로가 길면 PySide6 설치가 윈도우 경로 길이 제한(260자)에 걸려 실패합니다.
+- 수동 도구: `python313_전환.bat`(`.venv313`을 지우고 새로 만듦) · `install_ffmpeg.bat`(ffmpeg만 설치).
 
 > ⚠ **Python 3.14로 돌리지 마세요.** 3.14 계열에서 장기 가동 시 화면 프로세스가 손상되는 사고가 6번 있었습니다
-> (`fix/260526_설정다이얼로그_TypeError_재현불가.md`). `.venv313`은 gitignore 대상이라 **새로 clone할 때마다 1번을 다시**
-> 해야 합니다. 없으면 `실행.bat`이 콘솔과 `logs/stderr_debug.txt`에 NOTICE를 남기고 기본 Python으로 실행합니다.
-> 기동 후 화면 로그의 `기동 점검: ✓ Python 3.13.x`를 확인하세요.
+> (`fix/260526_설정다이얼로그_TypeError_재현불가.md`). 기동 후 화면 로그의 `기동 점검: ✓ Python 3.13.x · ✓ 부품`을 확인하세요.
 
 > 새로 clone하면 `config/kbs_config.json`(운영 설정)이 없어 **감지영역 0개 · 텔레그램 OFF**로 뜹니다(정상).
-> `저장/불러오기` 탭에서 백업을 불러온 뒤 **재기동**해야 `[SYSTEM]` 텔레그램까지 나갑니다(`CLAUDE.md` "신규 빌드 배포 시 함정").
+> `저장/불러오기` 탭에서 백업을 불러오면 「지금 다시 켤까요?」 창이 뜹니다 — **다시 켜야** `[SYSTEM]` 텔레그램까지 나갑니다
+> (`CLAUDE.md` "신규 빌드 배포 시 함정").
 
 ### 패키지 (requirements.txt, 버전 고정)
 

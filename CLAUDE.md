@@ -258,8 +258,9 @@ if __name__ == '__main__':
 - ⚠ **`.venv313/`(Round 2, Python 3.13 다운그레이드용 venv)도 gitignore 대상이라 새 clone에 안 따라온다.**
   `실행.bat`은 이게 없으면 시스템 기본 Python(3.14)으로 폴백한다 — 이 폴백이 조용했던 게 2026-08-07 재배포 →
   2026-08-11 UI 힙손상 **6차 재발**의 직접 원인이었다(`fix/260526_설정다이얼로그_TypeError_재현불가.md` §14).
-  신규 clone 후 **반드시 `python313_전환.bat`을 재실행**해 `.venv313`을 재생성할 것. 지금은 폴백 시
-  `실행.bat`이 콘솔과 `logs/stderr_debug.txt`에 NOTICE를 남기니, 재배포 후엔 그날 UI 로그의
+  2026-11-18부터 `실행.bat`이 `.venv313`이 없거나 `requirements.txt`가 설치 도장(`.venv313/requirements.installed.txt`)과
+  다르면 `python313_전환.ps1 -Auto`를 먼저 돌려 자동 재생성한다(인터넷 필요 · 실패해도 폴백 실행 + 기동 점검
+  `✗ 부품 누락`). 설치가 실패하면 폴백 시 `실행.bat`이 콘솔과 `logs/stderr_debug.txt`에 NOTICE를 남기니, 재배포 후엔 그날 UI 로그의
   `EXPERIMENT: ... python=` 배너가 `3.13.x`인지 눈으로 확인할 것 — 이게 최종 안전장치다.
 - ⚠ **이 PC는 다른 프로젝트 작업(Claude Code 등)과 python.exe 프로세스 공간을 공유한다.** 다른 세션이
   자기 프로젝트 정리용으로 `taskkill /IM python.exe`처럼 **이름 기준(PID 미지정)** 명령을 쓰면 KBS의

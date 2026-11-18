@@ -104,9 +104,16 @@ def _load_telegram_cfg() -> dict:
     return {}
 
 
+# requirements.txt 패키지의 import 이름 (순서 동일). 한쪽만 바꾸면
+# tests/test_startup_check.py가 개수 불일치로 잡는다.
+_REQUIRED_MODULES = ("PySide6", "cv2", "numpy", "sounddevice",
+                     "psutil", "GPUtil", "pycaw", "requests")
+
+
 def _startup_self_check() -> tuple:
     """기동 시 배포 함정 자가점검 (CLAUDE.md "신규 빌드 배포 시 함정", 종합점검 P2).
     반환: (요약 한 줄, 문제 있음 여부)."""
+    import importlib.util
     import shutil
     items, bad = [], False
 
@@ -116,6 +123,21 @@ def _startup_self_check() -> tuple:
     else:
         items.append(f"⚠ Python {ver} (운영 기준 3.13 — 3.14는 UI 힙손상 원인, python313_전환.bat 확인)")
         bad = True
+
+    # 부품(패키지) 누락 — 새 PC에서 설치가 덜 되면 psutil 실패가 「UI 손상」으로
+    # 오인되던 것을 여기서 바로 보여 준다(2026-11-18).
+    missing = []
+    for mod in _REQUIRED_MODULES:
+        try:
+            if importlib.util.find_spec(mod) is None:
+                missing.append(mod)
+        except Exception:
+            missing.append(mod)
+    if missing:
+        items.append(f"✗ 부품 누락: {', '.join(missing)} (인터넷 연결 후 실행.bat 다시 켜기)")
+        bad = True
+    else:
+        items.append("✓ 부품")
 
     cfg = None
     try:
