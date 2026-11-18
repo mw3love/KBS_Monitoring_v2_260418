@@ -1,0 +1,35 @@
+<section id="results">
+<p class="eyebrow">검증</p>
+<h2>전주총국 감시PC, 90일 실운영 로그로 센 숫자</h2>
+<div class="kpis">
+<div class="kpi"><p class="kpi-num">90일</p><p class="kpi-label">로그로 확인한 연속 운영<br>2026-08-07 ~ 11-05</p></div>
+<div class="kpi"><p class="kpi-num">99.89%</p><p class="kpi-label">가동률 하한 (재시작 포함, 보수적)</p></div>
+<div class="kpi"><p class="kpi-num">5 / 5</p><p class="kpi-label">캡처 무신호 자동 복구, 1~3 s</p></div>
+<div class="kpi"><p class="kpi-num">0원</p><p class="kpi-label">추가 예산 — 기존 장비 + 오픈소스</p></div>
+</div>
+<div class="row grow">
+<div class="col grow">
+<p class="lane-label">어떻게 셌나</p>
+<table class="tb">
+<tr class="head"><th style="width:26%">항목</th><th>방법 · 결과</th></tr>
+<tr><td>가동률</td><td>Detection의 10분 HEALTH 스냅샷 간격이 15분 넘는 8구간(약 147분)을 전부 정지로 계산</td></tr>
+<tr><td>자동 재기동</td><td>3회, 모두 1초 안에 사람 손 없이 (2회는 시계 점프 오판 → 수정)</td></tr>
+<tr><td>메모리</td><td>UI 41일·44일 연속 가동 RSS 130~300 MB 안에서 등락, 증가 추세 없음</td></tr>
+<tr><td>알린 이상</td><td>블랙 27 · 스틸 6 · 임베디드 2 · 레벨미터 1 · 무신호 5 — 대부분 장비 쪽 이상 (실제 방송사고 없음)</td></tr>
+</table>
+</div>
+<div class="col" style="width:560px;">
+<p class="lane-label">확산</p>
+<div class="box" style="margin-bottom:16px;"><p class="s">v1이 춘천·제주·대구·대전·부산·광주·송신인프라부 등에 배포 → <b>같은 장비에 v2로 교체</b></p></div>
+<div class="box" style="margin-bottom:16px;"><p class="s"><span class="mono">실행.bat</span> 한 번 → Python 3.13·부품·ffmpeg 자동 설치</p></div>
+<div class="box"><p class="s">국별 차이는 ROI·정파 시각뿐 → JSON 백업·복원 · 자동 테스트 107개</p></div>
+</div>
+</div>
+<aside>[약 1분]
+- 숫자는 전부 감시PC 로그에서 셌다. 실제 운영은 늦어도 5월부터, 로그가 남은 90일.
+- 가동률은 일부러 불리하게: 10분마다 남는 HEALTH 줄 간격이 15분 넘는 곳을 전부 정지로 침. 대부분 새 버전 배포 재시작(운영 중 10번 교체).
+- 자동 재기동 3번 중 2번은 시계 점프 오판(앞 장 ②)이었고 고쳤다.
+- 정직하게: 이 기간 실제 방송사고는 없었다. 알린 건 대부분 모니터링·전송 장비 쪽 이상. 새벽 2시 39분 노고 1UHD 스틸처럼 사람이 안 보는 시간에 알리고 녹화를 남겼다.
+- 확산: v1이 7곳에 배포된 이력 → 같은 감시PC·캡처보드에 v2로 바꿔 끼우면 됨. 설치는 실행.bat 한 번.
+- 마무리 후 AROS로 넘김.</aside>
+</section>

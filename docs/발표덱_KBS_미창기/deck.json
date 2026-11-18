@@ -1,0 +1,21 @@
+{
+  "v": 5,
+  "createdOnFiles": {"v": 1, "at": "2026-11-18T11:00:00Z"},
+  "lists": "css",
+  "format": {"v": 1, "shared": ["project/deck.css"]},
+  "title": "KBS Monitoring 발표 (미창기)",
+  "cover": "cover",
+  "order": ["cover", "system", "pipeline", "video", "audio", "timing", "arch", "incidents", "heap", "results", "ap-rec", "bk-main", "bk-set"],
+  "sections": {
+    "s1": {"description": "v1에서 v2로, 그리고 시스템 구성", "start": "cover"},
+    "s2": {"description": "200 ms 파이프라인과 판정 알고리즘(영상·오디오·시간축)", "start": "pipeline"},
+    "s3": {"description": "3-프로세스 격리와 운영 중 장애에서 배운 것", "start": "arch"},
+    "s4": {"description": "90일 실운영 검증과 확산", "start": "results"},
+    "s5": {"description": "부록: 자동 녹화 A/V 동기, 화면 캡처", "start": "ap-rec"}
+  },
+  "faces": {
+    "ibm-plex-sans-kr": {"family": "IBM Plex Sans KR", "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap"},
+    "noto-sans-kr": {"family": "Noto Sans KR", "href": "https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap"}
+  },
+  "designSystems": []
+}

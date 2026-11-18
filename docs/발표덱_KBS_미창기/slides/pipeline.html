@@ -1,0 +1,36 @@
+<section id="pipeline">
+<p class="eyebrow">처리 파이프라인</p>
+<h2>200 ms 한 주기 — Detection 프로세스 안에서 일어나는 일</h2>
+<p class="lane-label">캡처 스레드 · VideoCaptureWorker</p>
+<div class="flow" style="margin-bottom:28px;">
+<div class="step"><p class="step-name">cap.read()</p><p class="s">DirectShow, 최신 1장</p></div>
+<div class="arrow">→</div>
+<div class="step key"><p class="step-name">SharedMemory 쓰기</p><p class="s"><span class="mono">kbs_frame_v2</span> 6.2 MB · seqlock<br>(seq 홀수 = 쓰는 중, 짝수 = 안정)</p></div>
+<div class="arrow">→</div>
+<div class="step"><p class="step-name">UI가 33 ms마다 읽음</p><p class="s">seq_no 바뀌면 <span class="mono">.copy()</span> 후 표시</p></div>
+</div>
+<p class="lane-label">메인 루프 · 200 ms</p>
+<div class="flow" style="margin-bottom:28px;">
+<div class="step"><p class="step-name">heartbeat.touch()</p><p class="s">살아 있음 표시</p></div>
+<div class="arrow">→</div>
+<div class="step"><p class="step-name">read_frame()</p><p class="s">scale_factor &lt; 1이면 <span class="mono">INTER_AREA</span> 축소</p></div>
+<div class="arrow">→</div>
+<div class="step key"><p class="step-name">ROI별 판정</p><p class="s">블랙 · 스틸 (영상)<br>HSV 레벨미터</p></div>
+<div class="arrow">→</div>
+<div class="step key"><p class="step-name">상태기계</p><p class="s">지속 시간 누적 · 복구 히스테리시스 · 정파 억제</p></div>
+<div class="arrow">→</div>
+<div class="step"><p class="step-name">이벤트</p><p class="s">AlarmTrigger / Resolve → <span class="mono">result_queue</span></p></div>
+<div class="arrow">→</div>
+<div class="step"><p class="step-name">sleep(남은 시간)</p><p class="s">주기 지터를 DIAG 로그로</p></div>
+</div>
+<div class="row">
+<div class="box grow"><p class="tag">오디오 스레드 · AudioMonitorWorker</p><p class="s">sounddevice PCM → L/R RMS → dBFS → 임베디드 무음 판정 · 레벨을 <span class="mono">kbs_state_v2</span>로 UI에 전달</p></div>
+<div class="box grow"><p class="tag">AutoRecorder · TelegramWorker</p><p class="s">프레임·PCM을 링버퍼에 상시 적재 → 경보 시 MP4 / 별도 큐에서 사진+문구 발송 (판정 루프를 막지 않음)</p></div>
+</div>
+<aside>[약 1분]
+- Detection 프로세스 안에 스레드 셋 + 메인 루프.
+- 캡처 스레드는 계속 최신 프레임을 공유메모리에 씀. 락 대신 seqlock: 쓰기 전 seq를 홀수로, 다 쓰면 짝수로. 읽는 쪽은 읽기 전후 seq가 같고 짝수면 온전한 프레임. 1프레임 지연은 허용.
+- 메인 루프는 200 ms 주기: 맨 앞에서 heartbeat를 찍고(멈추면 감시자가 앎), 프레임을 읽어 ROI별 판정 → 상태기계 → 이벤트 → 남은 시간만큼 sleep. 목표 주기와 실제 경과 차이(지터)를 누적해 로그로 남김.
+- 느린 일(HTTP 발송, MP4 인코딩)은 전부 별도 스레드/큐로 빼서 판정 주기를 막지 않음.
+- 오디오는 별도 스레드가 PCM을 받아 RMS를 계산, 레벨 값은 고빈도라 큐가 아니라 공유메모리(kbs_state_v2)로 UI에 넘김.</aside>
+</section>

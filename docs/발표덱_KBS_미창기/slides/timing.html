@@ -1,0 +1,41 @@
+<section id="timing">
+<p class="eyebrow">시간축 판정 · 정파 상태기계</p>
+<h2>순간값이 아니라 「상태」로 판단한다</h2>
+<div class="row grow">
+<div class="col" style="width:760px;">
+<p class="lane-label">블랙 예시 — 1칸 = 1 s</p>
+<div class="tl-row"><p class="tl-label">프레임 판정</p><div class="tl grow"><div class="cell"></div><div class="cell"></div><div class="cell b"></div><div class="cell b"></div><div class="cell b"></div><div class="cell b"></div><div class="cell b"></div><div class="cell b"></div><div class="cell"></div><div class="cell b"></div><div class="cell b"></div><div class="cell b"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div></div>
+<div class="tl-row"><p class="tl-label">경보 상태</p><div class="tl grow"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell on"></div><div class="cell on"></div><div class="cell on"></div><div class="cell on"></div><div class="cell on"></div><div class="cell on"></div><div class="cell on"></div><div class="cell"></div><div class="cell"></div></div></div>
+<div class="tl-axis"><p>0</p><p>5</p><p>10</p><p>15 s</p></div>
+<table class="tb" style="margin-top:28px;">
+<tr class="head"><th>시점</th><th>무슨 일</th></tr>
+<tr><td>2 → 7 s</td><td>블랙 5 s 연속 → 경보</td></tr>
+<tr><td>8 s</td><td>정상 1프레임 — 경보 유지 (복구는 2 s 연속 필요)</td></tr>
+<tr><td>12 → 14 s</td><td>정상 2 s 연속 → 복구, 텔레그램 「지속 N s」</td></tr>
+</table>
+<p class="s" style="margin-top:16px;">경계값에서 경보가 켜졌다 꺼졌다 반복(플래핑)하지 않게 하는 히스테리시스</p>
+</div>
+<div class="col grow">
+<p class="lane-label">정파 FSM (그룹별 · 1 s 틱)</p>
+<div class="fsm">
+<div class="st" style="left:0px; top:20px;"><p class="st-name">IDLE</p><p class="st-sub">평상시</p></div>
+<div class="st" style="left:580px; top:20px;"><p class="st-name">PREPARATION</p><p class="st-sub">스틸 경보 억제</p></div>
+<div class="st" style="left:290px; top:260px;"><p class="st-name">SIGNOFF</p><p class="st-sub">지정 ROI 알림 억제</p></div>
+<x-connector class="edge" x1="250" y1="75" x2="580" y2="75" head="end"></x-connector>
+<x-connector class="edge" x1="705" y1="130" x2="540" y2="290" head="end"></x-connector>
+<x-connector class="edge" x1="290" y1="290" x2="125" y2="130" head="end"></x-connector>
+<p class="edge-label" style="left:280px; top:0px; width:280px; text-align:center;">00:30 도달 <b>[시간]</b></p>
+<p class="edge-label" style="left:640px; top:170px; width:220px;">진입 ROI 스틸<br>≥ 120 s <b>[감지]</b></p>
+<p class="edge-label" style="left:0px; top:170px; width:220px; text-align:right;">04:30~ 비스틸 30 s <b>[감지]</b><br>또는 05:00 <b>[시간]</b></p>
+</div>
+<img class="fig" style="width:820px; height:175px;" src="/_blob/6bc84812d614747f1dacdd23cb32380e" alt="실제 기록창: 00:30 정파준비 시작 [시간], 01:06 정파모드 돌입 [감지], 04:45 정파모드 해제 [감지]">
+<p class="cap">진입은 감지만, 해제는 시간 상한 — 오진입(진짜 사고를 새벽 내내 묵살)이 미진입(헛알림 몇 개)보다 비싸다</p>
+</div>
+</div>
+<aside>[약 1분 10초]
+- 프레임 단위 판정은 경계에서 흔들린다. 그래서 '지속 시간'과 '복구 히스테리시스'로 상태를 만든다. 예시: 블랙이 5초 이어져야 경보, 중간에 정상 1프레임이 끼어도 유지, 정상이 2초 이어져야 복구.
+- 정파 FSM: KBS 정파 시작 시각은 실측 00:40~03:50으로 불규칙, 해제는 04:30 이후로 거의 고정(실측 2TV 04:45 / 1TV 04:50).
+- 예전엔 시간이 되면 강제로 정파 모드에 넣었는데, 실제 정파가 늦으면 그동안 정상 방송의 경보를 묵살했다(오진입). 오류 비대칭: 오진입은 실사고 묵살, 미진입은 헛알림 몇 개. 그래서 진입은 감지 단독, 해제는 시간 상한.
+- 진입 기준 120초: 60초일 때 5/18 새벽 정상 화면이 60초 스틸로 잡혀 01:02에 잘못 진입한 사례 → 120초로.
+- 아래 그림이 실제 기록: 00:30 준비[시간] → 01:06 정파[감지] → 04:45 해제[감지].</aside>
+</section>

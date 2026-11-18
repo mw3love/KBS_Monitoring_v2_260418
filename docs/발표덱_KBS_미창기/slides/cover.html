@@ -1,0 +1,22 @@
+<section id="cover" data-transition="fade">
+<div class="cover-row">
+<div class="cover-text">
+<p class="eyebrow">2026 미디어창의기술전 · KBS 전주총국 기술국</p>
+<h1>KBS Monitoring v2</h1>
+<p class="lede">16채널 방송 무인 감시 —<br>OpenCV 규칙 기반 판정 · 3-프로세스 격리 · 자가 복구</p>
+<table class="tb">
+<tr class="head"><th style="width:22%"> </th><th style="width:36%">v1 (KBS Peacock 1.6)</th><th>v2</th></tr>
+<tr><td>구조</td><td>단일 프로세스 (UI + 감지 스레드)</td><td>UI · Detection · Watchdog 3개</td></tr>
+<tr><td>장기 운영</td><td>감지 루프 freeze</td><td>heartbeat 감시 → 자동 재spawn</td></tr>
+<tr><td>장애 통보</td><td>장애 난 프로세스가 직접</td><td>다른 프로세스가 대리 발송</td></tr>
+</table>
+<p class="who">김민우 · 김대현 · 박인근</p>
+</div>
+<img class="fig" style="width:700px; height:556px;" src="/_blob/f4d442b669125c5f2d799335594cb276" alt="KBS Monitoring v2 운영 화면: 상단바, 16분할 화면과 감지영역 사각형, 아래 기록창">
+</div>
+<aside>[약 50초]
+- 인사. 출품작 중 방송 신호 감시 부분.
+- 오른쪽 = 전주총국 감시PC의 실제 운영 화면(v2.8.21, 2026-11-05).
+- 출발점: v1은 UI와 감지가 한 프로세스라, 장기 운영 중 감지 루프가 freeze되는 문제가 있었다. 원인을 하나로 특정하기보다 구조로 격리하는 쪽을 택해 v2를 다시 썼다(2026-04-18 시작).
+- 오늘 순서: 시스템 구성 → 판정 알고리즘(영상·오디오·시간축) → 프로세스 격리 → 운영 중 겪은 장애 → 90일 검증.</aside>
+</section>

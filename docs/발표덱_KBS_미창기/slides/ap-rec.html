@@ -1,0 +1,23 @@
+<section id="ap-rec">
+<p class="eyebrow">부록 · 자동 녹화</p>
+<h2>링버퍼 → MP4, 그리고 A/V 동기 맞추기</h2>
+<div class="flow" style="margin-bottom:32px;">
+<div class="step"><p class="step-name">링버퍼 상시 적재</p><p class="s">영상 JPEG 프레임(개수 기준) + PCM(샘플 수 기준), 사고 전 10 s</p></div>
+<div class="arrow">→</div>
+<div class="step key"><p class="step-name">시작점 정렬</p><p class="s">두 버퍼가 덮는 시간이 달라 늦은 쪽에 맞춰 자름 (안 하면 파일 머리가 무음)</p></div>
+<div class="arrow">→</div>
+<div class="step key"><p class="step-name">실효 fps 보정</p><p class="s">프레임 타임스탬프로 실효 fps 측정 → <span class="mono">ffmpeg -itsscale</span> (재인코딩 없음)</p></div>
+<div class="arrow">→</div>
+<div class="step"><p class="step-name">MP4</p><p class="s">사고 후 10 s까지 · 추가 경보면 연장 · 30일 보관</p></div>
+</div>
+<table class="tb">
+<tr class="head"><th style="width:30%">문제</th><th>측정 · 결과</th></tr>
+<tr><td>영상이 점점 빨라짐</td><td>설정 fps보다 실효 fps가 낮아 약 6.5% 차이 (20 s당 1.3 s 어긋남) → 실효 fps로 되돌림. 계수 0.5~4.0 밖이면 보정 안 함</td></tr>
+<tr><td>파일 앞부분 무음</td><td>2026-09-22 수정 후 실제 경보 녹화본의 첫 1 s 평균 음량 −33 ~ −37 dB (무음이면 −90 dB 안팎)</td></tr>
+<tr><td>ffmpeg 없음</td><td>영상만 MP4로 폴백 (에러 아님)</td></tr>
+</table>
+<aside>질문 대비용 부록.
+- 영상 버퍼는 프레임 개수, 오디오 버퍼는 샘플 수로 크기가 정해져 덮는 시간이 다름 → 시작점을 늦은 쪽에 맞춤.
+- 영상 push 실효 fps가 출력 fps보다 낮아 그대로 묶으면 영상이 빨리 재생됨(실측 6.5%). 실효 fps를 재서 -itsscale로 타임스케일만 바꿈.
+- 측정: ffmpeg -t 1 -af volumedetect.</aside>
+</section>

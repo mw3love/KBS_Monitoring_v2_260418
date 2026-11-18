@@ -1,0 +1,24 @@
+<section id="heap">
+<p class="eyebrow">재현 안 되는 버그 추적</p>
+<h2>UI 힙손상 6회 → 제거 실험 → 85일 재발 0회</h2>
+<div class="box" style="margin-bottom:28px;"><p class="t"><b>증상</b> — 장기 가동 4~5일째, UI 프로세스에서 순수 파이썬 클래스의 <span class="mono">__init__</span> 호출이 전부 <span class="mono">TypeError</span>. 창은 정상처럼 보이지만 설정창·경보음·조작이 모두 먹통. <b>재현 불가.</b></p></div>
+<div class="trace">
+<div class="tr-step fail"><p class="tr-when">1~3차 · 05-26~</p><p class="tr-what">관측 장치 설치 — faulthandler, 손상 순간 심층 덤프, 10분 HEALTH 스냅샷(RSS·threads·handles)</p></div>
+<div class="tr-step fail"><p class="tr-when">4차</p><p class="tr-what">손상된 UI는 <span class="mono">requests</span>도 실패 → flag 파일 + Watchdog 대리 통보 (42시간 방치 → 10분 안에)</p></div>
+<div class="tr-step fail"><p class="tr-when">Round 1 · 5차</p><p class="tr-what">용의자 3개 제거: GPU 조회(호출마다 프로세스 생성) · 조회 주기 · 화면 버퍼 → 그래도 재발 = 무죄</p></div>
+<div class="tr-step ok"><p class="tr-when">Round 2</p><p class="tr-what">Python 3.14 → 3.13 → 13일 무사고</p></div>
+<div class="tr-step fail"><p class="tr-when">6차 · 08-11</p><p class="tr-what">재배포 때 3.13 환경이 조용히 빠져 3.14로 폴백된 상태에서 재발 → 결론 재확증</p></div>
+<div class="tr-step ok"><p class="tr-when">이후 85일</p><p class="tr-what">재발 0회 · 3.13 환경 없으면 자동 재생성 · 기동 점검에 버전 표시</p></div>
+</div>
+<div class="row" style="margin-top:28px; align-items:center;">
+<img class="fig" style="width:892px; height:82px;" src="/_blob/9311f0f99000bb01bdf4c85fa4e30029" alt="실제 기록창의 기동 점검 줄: Python 3.13.14, 감지영역 V8/A6, ffmpeg, 디스크 여유 534GB 모두 확인 표시">
+<p class="s grow">메커니즘은 미규명. 제거 실험으로 <b>3.14 실행 환경</b>을 지목했고, 3.13 고정으로 통제하고 있다.</p>
+</div>
+<aside>[약 1분]
+- 가장 오래 쫓은 버그. 4~5일마다 UI만 조용히 고장: 클래스 인스턴스를 새로 못 만듦. 창은 멀쩡해 보여서 더 위험.
+- 재현이 안 되니 관측부터: faulthandler, 손상 순간 인터프리터 프로브·스택 덤프, 10분 주기 RSS/스레드/핸들.
+- 4차에서 중요한 발견: 손상된 UI는 텔레그램(requests)조차 못 보냄. 손상 상태에서도 되는 건 파일 쓰기뿐 → UI는 flag 파일만 쓰고 Watchdog이 대신 통보. 42시간 방치되던 게 10분 안 통보로.
+- 그다음 제거 실험: 용의자를 하나씩 끄고 재발하면 무죄. Round 1 셋 다 무죄, Round 2 인터프리터 3.14→3.13에서 무사고.
+- 6차는 의도치 않은 대조군: 재배포 때 3.13 venv가 gitignore라 빠져 3.14로 폴백 → 재발. 이후 85일 0회.
+- 정직하게: 원인 메커니즘은 모른다. '3.14 환경에서만 재발'을 실험으로 좁혔고 그 환경을 배제해 통제 중. 지금은 3.13 환경이 없으면 자동 설치하고, 기동 점검 줄에 버전이 찍힌다(아래 그림).</aside>
+</section>

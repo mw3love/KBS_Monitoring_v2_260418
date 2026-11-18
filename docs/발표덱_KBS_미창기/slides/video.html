@@ -1,0 +1,36 @@
+<section id="video">
+<p class="eyebrow">영상 판정 — 블랙 · 스틸</p>
+<h2>전역 비율이 아니라 5×5 블록으로 본다</h2>
+<div class="row grow">
+<div class="col" style="width:620px;">
+<img class="fig" style="width:620px; height:317px;" src="/_blob/b6f4bac2999307794ffa1952f4aff8d3" alt="V5 2TV ON-AIR 감지영역에 5×5 블록 격자를 겹친 실제 운영 화면">
+<p class="cap">V5 (2TV ON-AIR) 감지영역 · 5×5 블록</p>
+<div class="insight">
+<p class="box-title">왜 블록인가</p>
+<p class="s">넓은 ROI에서 전역 비율은 작은 로고·작은 움직임을 희석한다. 그래서 두 판정 모두 <b>블록 하나의 반대 증거</b>로 「정상」 쪽에 서도록 했다 — 오탐은 줄고, 새 오탐은 만들지 않는다(단조 억제).</p>
+</div>
+</div>
+<div class="col grow">
+<p class="lane-label">블랙 — 알림 5 s · 복구 2 s</p>
+<table class="tb" style="margin-bottom:28px;">
+<tr class="head"><th style="width:8%">#</th><th>연산</th><th style="width:28%">기준</th></tr>
+<tr><td>1</td><td><span class="mono">gray = mean(B,G,R)</span>, 어두운 픽셀 비율</td><td>gray &lt; 5 가 ≥ 98%</td></tr>
+<tr><td>2</td><td>블록 가드: 25블록 각각의 어두운 비율</td><td>모두 ≥ 92% (로고 한 칸이면 취소)</td></tr>
+<tr><td>3</td><td>모션 억제: 직전 프레임 대비 변화 픽셀</td><td>≥ 0.2% 면 취소 (흐르는 자막)</td></tr>
+</table>
+<p class="lane-label">스틸 — 알림 120 s</p>
+<table class="tb">
+<tr class="head"><th style="width:8%">#</th><th>연산</th><th style="width:28%">기준</th></tr>
+<tr><td>1</td><td>프레임 차분 <span class="mono">|I(t) − I(t−1)| &gt; 4</span> (BGR 채널별) → 변화 마스크</td><td>—</td></tr>
+<tr><td>2</td><td>25블록 각각의 변화 픽셀 비율</td><td>모두 &lt; 10% 면 정지 프레임</td></tr>
+<tr><td>3</td><td>정상 프레임이 연속으로 나오면 타이머 리셋</td><td>3 프레임 (순간 잡음 무시)</td></tr>
+</table>
+</div>
+</div>
+<aside>[약 1분 10초]
+- 블랙: 그레이(채널 평균) 기준 밝기 5 미만 픽셀이 98% 이상이면 1차 후보. 여기서 끝내면 '로고만 남은 의도된 검은 화면'을 블랙으로 잡는다 — 넓은 ROI에선 로고 몇 % 가 98% 기준에 묻힘. 그래서 5×5로 나눠 모든 블록이 92% 이상 어두워야 인정. 로고 있는 칸 하나가 블랙을 취소.
+- 또 흐르는 자막이 있는 검은 화면은 직전 프레임 대비 변화 픽셀이 0.2% 이상이면 취소.
+- 스틸: 프레임 차분 마스크를 만들고 25블록 모두 변화 10% 미만이어야 정지. 전역 변화율로 보면 앵커 입만 움직이는 화면도 '거의 정지'로 보일 수 있는데, 블록 단위면 그 블록 하나가 정상을 증명.
+- 두 판정이 대칭: '블록 하나의 반대 증거면 정상'. 억제만 하고 새 경보를 만들지 않는 방향.
+- 시간: 블랙 5초, 스틸 120초 지속 시 경보(기본·운영값). 스틸은 정상 프레임 3연속이면 타이머 리셋.</aside>
+</section>

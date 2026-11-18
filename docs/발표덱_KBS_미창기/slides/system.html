@@ -1,0 +1,38 @@
+<section id="system">
+<p class="eyebrow">시스템 구성</p>
+<h2>멀티뷰어 한 화면이 입력, 감지영역(ROI)이 센서</h2>
+<div class="flow" style="margin-bottom:36px;">
+<div class="step"><p class="step-name">방송 신호</p><p class="s">1TV · 2TV · UHD 등<br>SDI 신호</p></div>
+<div class="arrow">→</div>
+<div class="step"><p class="step-name">멀티뷰어</p><p class="s">16분할 화면 +<br>오디오 레벨미터 표시</p></div>
+<div class="arrow">→</div>
+<div class="step"><p class="step-name">캡처보드</p><p class="s">1920×1080 영상<br>+ 임베디드 오디오</p></div>
+<div class="arrow">→</div>
+<div class="step key"><p class="step-name">감시PC</p><p class="s">KBS Monitoring v2<br>Python 3.13</p></div>
+<div class="arrow">→</div>
+<div class="step"><p class="step-name">출력</p><p class="s">화면·경보음 · Telegram Bot API · MP4</p></div>
+</div>
+<div class="row grow">
+<div class="col" style="width:720px;">
+<img class="fig" style="width:720px; height:550px;" src="/_blob/f97935fc02fba2d0f25b1412a1b9d425" alt="1TV ON-AIR 타일 확대: 빨간 사각형 V1 영상 감지영역과, 왼쪽 레벨미터 위의 주황 사각형 A1 오디오 감지영역">
+<p class="cap">실제 운영 화면 확대 — V1(영상 ROI) · A1(레벨미터 ROI)</p>
+</div>
+<div class="col grow">
+<table class="tb">
+<tr class="head"><th style="width:30%">항목</th><th>값</th></tr>
+<tr><td>영상 입력</td><td><span class="mono">cv2.VideoCapture(port, CAP_DSHOW)</span><br>1920×1080 · <span class="mono">BUFFERSIZE=1</span> (최신 프레임만)</td></tr>
+<tr><td>오디오 입력</td><td>캡처보드 오디오 장치 · sounddevice (int16 PCM)</td></tr>
+<tr><td>감지영역 (전주)</td><td>영상 V×8 · 레벨미터 A×6 · 임베디드 EA×1</td></tr>
+<tr><td>판정 주기</td><td><b>200 ms</b> (100 / 200 / 500 / 1000 ms 선택)</td></tr>
+<tr><td>스택</td><td>PySide6 · OpenCV · NumPy · sounddevice · ffmpeg · psutil · requests</td></tr>
+</table>
+<p class="t" style="margin-top:20px;">채널마다 디코더·디임베더를 두지 않고, <span class="hi">멀티뷰어 출력 한 장</span>을 잘라 16채널을 동시에 본다.</p>
+</div>
+</div>
+<aside>[약 1분]
+- 신호 흐름: 방송 신호 → 멀티뷰어(16분할 + 레벨미터) → 캡처보드 → 감시PC → 화면/경보음, 텔레그램, MP4.
+- 핵심 발상: 채널별 장비를 늘리지 않고 멀티뷰어 출력 한 장을 입력으로 씀. 그 위에 사람이 사각형(ROI)을 그려 센서처럼 쓴다.
+- 왼쪽 그림: 빨간 사각형 V1 = 1TV ON-AIR 영상 ROI, 왼쪽 레벨미터 위 주황 사각형 A1 = 같은 채널 오디오 레벨미터 ROI.
+- 캡처는 DirectShow 백엔드, 버퍼 1장 → 늘 최신 프레임으로 판정(지연 누적 방지).
+- 오디오는 캡처보드 오디오 장치(윈도우에선 '마이크'로 취급)에서 PCM으로 받음.</aside>
+</section>
