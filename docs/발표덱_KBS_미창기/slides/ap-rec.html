@@ -1,23 +1,25 @@
 <section id="ap-rec">
 <p class="eyebrow">부록 · 자동 녹화</p>
-<h2>링버퍼 → MP4, 그리고 A/V 동기 맞추기</h2>
+<h2>사고 앞뒤 10초를 MP4로, 소리와 영상을 맞춰서</h2>
+<p class="gist">사고 전 10초와 뒤 10초를 자동으로 MP4에 담는다. 소리와 영상이 어긋나지 않게 시작점과 속도 두 가지를 맞췄다.</p>
 <div class="flow" style="margin-bottom:32px;">
-<div class="step"><p class="step-name">링버퍼 상시 적재</p><p class="s">영상 JPEG 프레임(개수 기준) + PCM(샘플 수 기준), 사고 전 10 s</p></div>
+<div class="step"><p class="step-name">링버퍼 상시 보관</p><p class="s">사고 전 10초 영상 + 소리를 늘 들고 있음</p></div>
 <div class="arrow">→</div>
-<div class="step key"><p class="step-name">시작점 정렬</p><p class="s">두 버퍼가 덮는 시간이 달라 늦은 쪽에 맞춰 자름 (안 하면 파일 머리가 무음)</p></div>
+<div class="step key"><p class="step-name">시작점 맞추기</p><p class="s">영상·소리 버퍼가 덮는 시간이 달라 늦은 쪽에 맞춤</p></div>
 <div class="arrow">→</div>
-<div class="step key"><p class="step-name">실효 fps 보정</p><p class="s">프레임 타임스탬프로 실효 fps 측정 → <span class="mono">ffmpeg -itsscale</span> (재인코딩 없음)</p></div>
+<div class="step key"><p class="step-name">속도 보정</p><p class="s">실제로 담긴 속도(실효 fps)로 재생 속도만 맞춤 — 재인코딩 없음</p></div>
 <div class="arrow">→</div>
-<div class="step"><p class="step-name">MP4</p><p class="s">사고 후 10 s까지 · 추가 경보면 연장 · 30일 보관</p></div>
+<div class="step"><p class="step-name">MP4</p><p class="s">사고 후 10초까지 · 경보 이어지면 연장 · 30일 보관</p></div>
 </div>
 <table class="tb">
-<tr class="head"><th style="width:30%">문제</th><th>측정 · 결과</th></tr>
-<tr><td>영상이 점점 빨라짐</td><td>설정 fps보다 실효 fps가 낮아 약 6.5% 차이 (20 s당 1.3 s 어긋남) → 실효 fps로 되돌림. 계수 0.5~4.0 밖이면 보정 안 함</td></tr>
-<tr><td>파일 앞부분 무음</td><td>2026-09-22 수정 후 실제 경보 녹화본의 첫 1 s 평균 음량 −33 ~ −37 dB (무음이면 −90 dB 안팎)</td></tr>
-<tr><td>ffmpeg 없음</td><td>영상만 MP4로 폴백 (에러 아님)</td></tr>
+<tr class="head"><th style="width:28%">문제</th><th>원인 · 결과</th></tr>
+<tr><td>영상이 점점 빨라짐</td><td>실제로 담긴 속도가 설정보다 약 6.5% 낮음 (20초에 1.3초 어긋남) → 실제 속도로 보정</td></tr>
+<tr><td>파일 앞부분 무음</td><td>시작점 맞춘 뒤(09-22) 실제 녹화본 첫 1초 음량 −33 ~ −37 dB (무음이면 −90 dB 안팎)</td></tr>
+<tr><td>ffmpeg 없음</td><td>영상만 MP4로 저장 (에러 아님)</td></tr>
 </table>
+<div class="terms"><p class="term">링버퍼 = <b>리플레이 서버의 프리롤</b></p></div>
 <aside>질문 대비용 부록.
-- 영상 버퍼는 프레임 개수, 오디오 버퍼는 샘플 수로 크기가 정해져 덮는 시간이 다름 → 시작점을 늦은 쪽에 맞춤.
-- 영상 push 실효 fps가 출력 fps보다 낮아 그대로 묶으면 영상이 빨리 재생됨(실측 6.5%). 실효 fps를 재서 -itsscale로 타임스케일만 바꿈.
-- 측정: ffmpeg -t 1 -af volumedetect.</aside>
+- 영상 버퍼는 프레임 개수, 소리 버퍼는 샘플 수로 크기가 정해져 덮는 시간이 다름 → 늦은 쪽에 맞춰 앞을 자름.
+- 실제 담긴 속도가 설정보다 낮아 그대로 묶으면 영상이 빨리 재생됨(실측 6.5%). 실제 속도를 재서 ffmpeg -itsscale로 시간 눈금만 바꿈.
+- 측정: ffmpeg volumedetect.</aside>
 </section>

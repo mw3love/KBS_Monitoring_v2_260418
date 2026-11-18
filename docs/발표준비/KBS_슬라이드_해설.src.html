@@ -1,0 +1,711 @@
+<title>KBS 발표 슬라이드 해설</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 레이아웃: 한 단 읽기 문서. 장마다 「그림 → 요지 → 풀이 → 질문 → 쉽게 바꾼다면」 같은 순서 */
+:root {
+  --paper: #FBFAF7; --ink: #1F1B17; --body: #3F3832; --muted: #6E655C;
+  --accent: #A44E33; --accent-soft: #F5E8E2; --card: #FFFFFF; --line: #DDD5C9;
+  --note: #EEF3F8; --note-ink: #2F5F8F; --warn: #FFF6E0; --warn-ink: #8A5A00;
+  --sans: "IBM Plex Sans KR", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --mono: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #1B1916; --ink: #F1ECE6; --body: #D6CEC5; --muted: #A1978C;
+  --accent: #E08A6C; --accent-soft: #3A2620; --card: #24211D; --line: #3D3832;
+  --note: #1E2A36; --note-ink: #9CC2E8; --warn: #33290F; --warn-ink: #F0C66B; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #1B1916; --ink: #F1ECE6; --body: #D6CEC5; --muted: #A1978C;
+  --accent: #E08A6C; --accent-soft: #3A2620; --card: #24211D; --line: #3D3832;
+  --note: #1E2A36; --note-ink: #9CC2E8; --warn: #33290F; --warn-ink: #F0C66B; color-scheme: dark }
+
+body { background: var(--paper); color: var(--body); font: 17px/1.75 var(--sans); word-break: keep-all; }
+.wrap { max-width: 860px; margin: 0 auto; padding-block: 48px 96px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { color: var(--ink); text-wrap: balance; line-height: 1.35; }
+h1 { font-size: 34px; margin: 0 0 8px; }
+h2 { font-size: 26px; margin: 0; }
+h3 { font-size: 18px; margin: 32px 0 10px; }
+p { margin: 0 0 12px; }
+code, .m { font-family: var(--mono); font-size: .9em; background: var(--accent-soft); color: var(--ink); padding: 1px 5px; border-radius: 4px; }
+b { color: var(--ink); }
+.lead { font-size: 18px; color: var(--muted); margin-bottom: 28px; }
+.eyebrow { font-size: 13px; letter-spacing: .08em; color: var(--accent); font-weight: 600; margin: 0 0 6px; }
+
+.how { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px; margin-bottom: 28px; }
+.how ul { margin: 6px 0 0; padding-left: 20px; }
+.how li { margin-bottom: 4px; }
+
+.tbl-wrap { overflow-x: auto; margin: 8px 0 20px; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; background: var(--card); }
+th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { background: var(--accent-soft); color: var(--ink); font-weight: 600; white-space: nowrap; }
+td.stars { white-space: nowrap; color: var(--accent); font-variant-numeric: tabular-nums; }
+td a { color: var(--accent); }
+
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 40px; }
+nav.toc a { font-size: 14px; color: var(--ink); text-decoration: none; border: 1px solid var(--line); background: var(--card); padding: 4px 10px; border-radius: 999px; }
+nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+
+section.slide { border-top: 3px solid var(--accent); padding-top: 28px; margin-top: 56px; }
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 16px; }
+.no { font: 600 15px var(--mono); color: var(--accent); }
+.chip { font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 10px; white-space: nowrap; }
+.chip.d { color: var(--accent); border-color: var(--accent); }
+figure { margin: 0 0 18px; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; }
+figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.gist { font-size: 19px; font-weight: 600; color: var(--ink); border-left: 4px solid var(--accent); padding: 4px 0 4px 14px; margin: 18px 0; }
+
+dl.terms { margin: 0; display: grid; grid-template-columns: minmax(130px, 210px) minmax(0, 1fr); border-top: 1px solid var(--line); }
+dl.terms dt, dl.terms dd { margin: 0; padding: 9px 0; border-bottom: 1px solid var(--line); }
+dl.terms dt { font-weight: 600; color: var(--ink); padding-right: 14px; }
+@media (max-width: 560px) { dl.terms { grid-template-columns: minmax(0, 1fr); } dl.terms dt { border-bottom: 0; padding-bottom: 0; } }
+
+.box { border-radius: 8px; padding: 14px 18px; margin: 16px 0; }
+.box p:last-child, .box ul:last-child { margin-bottom: 0; }
+.analogy { background: var(--note); color: var(--body); }
+.analogy > b:first-child, .analogy .lbl { color: var(--note-ink); }
+.adjust { background: var(--warn); }
+.adjust .lbl { color: var(--warn-ink); font-weight: 700; }
+.adjust ul { margin: 6px 0 0; padding-left: 20px; }
+.lbl { font-weight: 700; }
+
+ol.steps { padding-left: 22px; margin: 0 0 12px; }
+ol.steps li { margin-bottom: 6px; }
+.qa { margin: 0; }
+.qa .q { font-weight: 600; color: var(--ink); margin: 14px 0 4px; }
+.qa .a { margin: 0 0 4px; padding-left: 16px; border-left: 2px solid var(--line); }
+.guess { color: var(--muted); font-size: .92em; }
+.extra { background: var(--card); border: 1px dashed var(--line); }
+.foot { margin-top: 64px; font-size: 14px; color: var(--muted); }
+
+@media print {
+  body { background: #fff; font-size: 11pt; }
+  nav.toc { display: none; }
+  section.slide { break-before: page; margin-top: 0; }
+  .box, figure, .qa .a { break-inside: avoid; }
+}
+</style>
+
+<div class="wrap">
+<p class="eyebrow">2026 미디어창의기술전 · KBS Monitoring v2 발표 준비</p>
+<h1>KBS 발표 슬라이드 해설</h1>
+<p class="lead">발표 덱 13장(본편 10장 + 부록 3장)을 한 장씩 풀어 쓴 공부용 문서. 슬라이드에 나온 낱말의 뜻, 그 뒤에 있는 원리, 심사위원이 물을 만한 것, 그리고 쉽게 바꾼다면 무엇을 뺄지까지 적었다.</p>
+
+<div class="how">
+<b>읽는 법</b>
+<ul>
+<li>장마다 같은 순서다: <b>슬라이드 그림 → 한 줄 요지 → 이 장이 말하는 것 → 낱말 풀이 → 비유 → 나올 만한 질문 → 쉽게 만든다면</b>.</li>
+<li>「쉽게 만든다면」은 제안일 뿐 아직 덱에 반영하지 않았다. 읽고 나서 어느 장을 얼마나 쉽게 할지 정하면 그대로 고친다.</li>
+<li><span class="guess">회색 글씨 「추정:」</span>은 코드나 문서로 확인하지 못한 설명이다. 발표에서 단정하지 말 것.</li>
+<li>어려움 ★은 「기술 비전공자가 처음 읽을 때」 기준이다. ★★★이 가장 어렵다.</li>
+</ul>
+</div>
+
+<h3 style="margin-top:0">난이도 지도 — 어디부터 손볼까</h3>
+<div class="tbl-wrap"><table>
+<tr><th>장</th><th>어려움</th><th>가장 걸리는 말</th><th>쉽게 할 때 첫 후보</th></tr>
+<tr><td><a href="#cover">1 표지</a></td><td class="stars">★★☆</td><td>프로세스·스레드, 재spawn</td><td>표의 낱말을 일상어로</td></tr>
+<tr><td><a href="#system">2 시스템 구성</a></td><td class="stars">★★☆</td><td>CAP_DSHOW, BUFFERSIZE, int16 PCM</td><td>표를 3줄로, 코드 이름은 메모로</td></tr>
+<tr><td><a href="#pipeline">3 파이프라인</a></td><td class="stars">★★★</td><td>seqlock, INTER_AREA, 지터</td><td>메인 루프 6칸 → 4칸</td></tr>
+<tr><td><a href="#video">4 블랙·스틸</a></td><td class="stars">★★★</td><td>프레임 차분, 단조 억제, 숫자 7개</td><td>표 2개 → 그림 + 기준 3줄</td></tr>
+<tr><td><a href="#audio">5 오디오</a></td><td class="stars">★★☆</td><td>HSV, inRange, RMS, dBFS</td><td>수식 줄 빼기</td></tr>
+<tr><td><a href="#timing">6 시간축·정파</a></td><td class="stars">★★☆</td><td>FSM, 히스테리시스, 오류 비대칭</td><td>거의 그대로 — 그림이 이미 쉬움</td></tr>
+<tr><td><a href="#arch">7 프로세스 격리</a></td><td class="stars">★★★</td><td>spawn, 재주입, 백오프</td><td>표 7줄 → 4줄</td></tr>
+<tr><td><a href="#incidents">8 장애 3건</a></td><td class="stars">★★☆</td><td>monotonic, ReadTimeout, 비멱등</td><td>「교훈」 칸을 쉬운 말로</td></tr>
+<tr><td><a href="#heap">9 힙손상</a></td><td class="stars">★★☆</td><td>힙, __init__, faulthandler</td><td>1~3차 칸의 장치 이름 빼기</td></tr>
+<tr><td><a href="#results">10 검증</a></td><td class="stars">★☆☆</td><td>HEALTH 스냅샷, RSS</td><td>그대로</td></tr>
+<tr><td><a href="#ap-rec">11 부록 녹화</a></td><td class="stars">★★★</td><td>실효 fps, -itsscale</td><td>부록이라 그대로 둬도 됨</td></tr>
+<tr><td><a href="#bk-main">12 부록 화면</a></td><td class="stars">★☆☆</td><td>—</td><td>그대로</td></tr>
+<tr><td><a href="#bk-set">13 부록 설정</a></td><td class="stars">★☆☆</td><td>—</td><td>그대로</td></tr>
+</table></div>
+
+<nav class="toc" aria-label="장 바로가기">
+<a href="#cover">1 표지</a><a href="#system">2 구성</a><a href="#pipeline">3 파이프라인</a><a href="#video">4 블랙·스틸</a><a href="#audio">5 오디오</a><a href="#timing">6 시간축</a><a href="#arch">7 격리</a><a href="#incidents">8 장애</a><a href="#heap">9 힙손상</a><a href="#results">10 검증</a><a href="#ap-rec">부록 녹화</a><a href="#bk-main">부록 화면</a><a href="#bk-set">부록 설정</a>
+</nav>
+
+<!-- ───────────── 1 cover ───────────── -->
+<section class="slide" id="cover">
+<div class="head"><span class="no">01</span><h2>표지 — v1에서 v2로</h2><span class="chip d">어려움 ★★☆</span><span class="chip">약 50초</span></div>
+<figure><img src="{{IMG:cover}}" alt="표지 슬라이드: 제목, v1과 v2 비교표, 오른쪽에 운영 화면"></figure>
+<p class="gist">옛 버전(v1)은 프로그램 하나가 모든 일을 해서, 오래 켜 두면 감시가 멈췄다. 새 버전(v2)은 프로그램을 셋으로 나눠 서로 살아 있는지 확인하게 했다.</p>
+
+<h3>이 장이 말하는 것</h3>
+<p>KBS Monitoring은 방송 16채널을 사람 대신 지켜보다가, 화면이 까맣게 되거나(블랙) 멈추거나(스틸) 소리가 끊기면 경보를 울리고 텔레그램으로 알려 주는 프로그램이다. 판정은 AI 학습이 아니라 사람이 정한 숫자 기준(예: 밝기 5 미만)으로 한다. 이것을 「규칙 기반」이라고 부른다.</p>
+<p>v1(옛 이름 KBS Peacock 1.6)은 화면 그리기와 감시를 한 프로그램 안에서 했다. 그런데 며칠씩 켜 두면 감시하는 반복 작업이 조용히 멈추는 일(freeze)이 생겼다. 원인을 하나로 찾기 어려웠기 때문에, v2는 「원인이 무엇이든 멈추면 다른 쪽이 알아채고 되살리는 구조」로 다시 만들었다(2026-04-18 시작).</p>
+<p>표의 세 줄이 그 차이를 요약한다.</p>
+<ul>
+<li><b>구조</b>: 한 프로그램 → 세 프로그램(UI·Detection·Watchdog).</li>
+<li><b>장기 운영</b>: 멈추면 끝 → heartbeat(생존 신호)로 멈춤을 알아채고 자동으로 다시 띄움.</li>
+<li><b>장애 통보</b>: 고장 난 쪽이 직접 알림(고장 났으니 못 보낼 수 있음) → 멀쩡한 쪽이 대신 알림.</li>
+</ul>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>프로세스 (process)</dt><dd>컴퓨터에서 따로따로 돌아가는 프로그램 하나. 저마다 자기 메모리를 쓴다. 그래서 하나가 망가져도 다른 프로세스에는 번지지 않는다.</dd>
+<dt>스레드 (thread)</dt><dd>한 프로세스 안에서 동시에 일하는 일꾼. 같은 메모리를 함께 쓴다. 그래서 일꾼 하나가 꼬이면 프로세스 전체가 같이 꼬일 수 있다. v1의 「감지 스레드」가 이 경우.</dd>
+<dt>UI</dt><dd>User Interface. 사람이 보는 화면과 버튼.</dd>
+<dt>Detection</dt><dd>실제로 영상·소리를 검사하는 프로세스.</dd>
+<dt>Watchdog</dt><dd>「감시견」. Detection이 살아 있는지 지켜보다가 죽으면 다시 띄우는 프로세스.</dd>
+<dt>감지 루프 freeze</dt><dd>0.2초마다 도는 검사 반복이 멈춘 상태. 창은 멀쩡히 떠 있어서 사람은 모른다. 이게 가장 위험하다.</dd>
+<dt>heartbeat</dt><dd>「심장 박동」. 프로그램이 주기적으로 파일에 지금 시각을 적어 「나 살아 있어」를 알리는 것.</dd>
+<dt>재spawn</dt><dd>spawn은 새 프로세스를 띄우는 것. 재spawn은 죽은 프로세스를 새로 다시 띄우는 것.</dd>
+<dt>OpenCV</dt><dd>영상 처리용 무료 공개(오픈소스) 도구 모음. 화면을 숫자 배열로 다룬다.</dd>
+</dl>
+
+<div class="box analogy"><b>비유:</b> v1은 혼자 야간 근무하는 감시원이다. 졸아도 아무도 모른다. v2는 세 사람이다. 모니터를 보는 감시원(Detection), 상황판을 관리하는 사람(UI), 그리고 10초마다 감시원이 깨어 있는지 확인하는 반장(Watchdog). 감시원이 졸면 반장이 바로 교대시키고, 상황실에 직접 연락한다.</div>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. freeze 원인을 고치지 않고 왜 구조를 바꿨나?</p>
+<p class="a">원인이 하나로 특정되지 않았다. 며칠 운영해야 나타나서 재현도 어려웠다. 그래서 「어떤 이유로 멈추든 알아채고 되살린다」를 목표로 잡았다. 실제로 v2 운영 중 원인이 다른 장애(캡처보드, 시계 점프, 힙손상)가 여러 번 있었는데, 구조 덕분에 감시는 계속됐다.</p>
+<p class="q">Q. AI(딥러닝)를 쓰지 않은 이유는?</p>
+<p class="a">찾는 사고가 블랙·정지·무음처럼 숫자로 분명히 정의되는 것들이다. 규칙 기반은 왜 경보가 났는지 설명할 수 있고, 학습 데이터나 GPU가 필요 없다. <span class="guess">추정: 심사에서 이 질문이 나오면 「설명 가능성」과 「기존 PC로 충분」 두 가지로 답하면 된다.</span></p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>표의 「단일 프로세스 (UI + 감지 스레드)」 → 「프로그램 하나가 화면과 감시를 같이 처리」.</li>
+<li>「heartbeat 감시 → 자동 재spawn」 → 「살아 있는지 10초마다 확인, 멈추면 자동 재시작」.</li>
+<li>부제의 「3-프로세스 격리」는 그대로 두고, 말로 「셋으로 나눴다」를 덧붙인다.</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 2 system ───────────── -->
+<section class="slide" id="system">
+<div class="head"><span class="no">02</span><h2>시스템 구성 — 멀티뷰어 한 화면이 입력</h2><span class="chip d">어려움 ★★☆</span><span class="chip">약 1분</span></div>
+<figure><img src="{{IMG:system}}" alt="시스템 구성 슬라이드: 신호 흐름 5칸, 운영 화면 확대, 입력 사양표"></figure>
+<p class="gist">채널마다 장비를 따로 붙이지 않는다. 16채널이 다 나오는 멀티뷰어 화면 한 장을 PC로 받아, 그 위에 사각형(감지영역)을 그려 센서처럼 쓴다.</p>
+
+<h3>이 장이 말하는 것</h3>
+<p>신호는 왼쪽에서 오른쪽으로 흐른다.</p>
+<ol class="steps">
+<li><b>방송 신호</b>(1TV·2TV·UHD 등)가 SDI 케이블로 들어온다.</li>
+<li><b>멀티뷰어</b>가 16채널을 바둑판처럼 한 화면에 모으고, 채널 옆에 소리 크기 막대(레벨미터)도 그려 준다.</li>
+<li><b>캡처보드</b>가 그 화면(1920×1080)과 소리를 PC가 읽을 수 있는 데이터로 바꾼다.</li>
+<li><b>감시PC</b>의 KBS Monitoring이 0.2초마다 검사한다.</li>
+<li>이상하면 <b>화면 경보·경보음</b>, <b>텔레그램</b> 알림, 사고 앞뒤 <b>MP4 녹화</b>를 남긴다.</li>
+</ol>
+<p>왼쪽 아래 그림은 실제 운영 화면 확대다. 빨간 사각형 <b>V1</b>은 1TV ON-AIR 영상을 보는 감지영역, 레벨미터 위 주황 사각형 <b>A1</b>은 같은 채널의 소리 막대를 보는 감지영역이다.</p>
+<p>핵심 발상은 마지막 문장이다. 보통은 채널마다 디코더(신호를 영상으로 푸는 장비)와 디임베더(신호 속 소리를 꺼내는 장비)를 둬야 하는데, 이미 있는 멀티뷰어 출력을 그대로 쓰니 장비가 하나도 늘지 않는다.</p>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>SDI</dt><dd>방송국에서 쓰는 표준 디지털 영상 신호(케이블). 영상과 소리가 한 선에 같이 들어간다.</dd>
+<dt>멀티뷰어</dt><dd>여러 채널을 한 모니터에 나눠 보여 주는 장비.</dd>
+<dt>캡처보드</dt><dd>영상 신호를 PC로 받아들이는 장치. PC 입장에서는 웹캠처럼 보인다.</dd>
+<dt>임베디드 오디오</dt><dd>SDI 영상 신호 안에 섞여(embedded) 들어가는 소리.</dd>
+<dt>감지영역 (ROI)</dt><dd>Region of Interest. 화면에서 검사할 부분만 사각형으로 지정한 것. V는 영상, A는 레벨미터, EA는 임베디드 오디오.</dd>
+<dt><code>cv2.VideoCapture(port, CAP_DSHOW)</code></dt><dd>OpenCV로 캡처 장치를 여는 명령. <code>CAP_DSHOW</code>는 윈도우의 DirectShow라는 방식으로 연다는 뜻.</dd>
+<dt><code>BUFFERSIZE=1</code></dt><dd>장치가 쌓아 두는 화면을 1장으로 제한. 여러 장 쌓이면 몇 초 전 화면을 검사하게 되어 늦게 알아챈다. 1장이면 늘 가장 최신 화면.</dd>
+<dt>sounddevice · int16 PCM</dt><dd>sounddevice는 파이썬에서 소리 입력을 받는 도구. PCM은 압축하지 않은 소리 데이터, int16은 그 값을 −32768~32767 정수로 나타낸다는 뜻.</dd>
+<dt>판정 주기 200 ms</dt><dd>0.2초마다 한 번 검사. 1초에 5번. 설정에서 0.1·0.2·0.5·1초 중 고를 수 있다.</dd>
+<dt>스택</dt><dd>사용한 도구 묶음. PySide6(화면), OpenCV(영상), NumPy(숫자 계산), sounddevice(소리), ffmpeg(영상 파일 만들기), psutil(프로세스 상태 조회), requests(인터넷 요청 — 텔레그램 발송).</dd>
+<dt>Telegram Bot API</dt><dd>텔레그램 봇이 메시지를 보내는 인터넷 창구. 주소로 요청을 보내면 메시지가 간다.</dd>
+</dl>
+
+<div class="box analogy"><b>비유:</b> CCTV 16대마다 경보기를 다는 대신, 관제실 모니터 벽을 카메라 한 대로 찍어 두고 화면의 칸마다 「여기를 봐」 스티커를 붙인 것. 스티커 하나하나가 센서다.</div>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. 멀티뷰어 화면은 축소된 영상인데 정확도가 괜찮나?</p>
+<p class="a">찾는 사고가 블랙·정지·무음처럼 화면 전체에 드러나는 큰 사고라 축소에 강하다. 반대로 미세한 화질 열화(블록 노이즈 등)는 이 방식의 대상이 아니다. 한계로 인정하면 된다.</p>
+<p class="q">Q. 멀티뷰어나 캡처보드가 고장 나면?</p>
+<p class="a">캡처 신호가 끊기면 화면 전체가 「검정 + 직전과 똑같은 프레임」이 된다. 이를 따로 알아채 캡처 장치만 다시 연다(8장 ①). <span class="guess">추정: 멀티뷰어 출력이 멈춰 그림이 얼어붙으면 모든 채널이 스틸로 잡혀 경보가 날 것이다. 실제로 겪은 기록은 확인 못 함.</span></p>
+<p class="q">Q. 왜 디임베더 대신 레벨미터 그림을 읽나?</p>
+<p class="a">캡처보드로 들어오는 실제 소리는 1조(L/R)뿐이다. 나머지 채널의 소리 유무는 멀티뷰어가 그려 주는 미터를 영상으로 읽어서 판단한다(5장).</p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>오른쪽 표를 「입력: 1920×1080 화면 + 소리」, 「감지영역: 영상 8 · 레벨미터 6 · 소리 1」, 「검사: 1초에 5번」 3줄로 줄인다.</li>
+<li><code>cv2.VideoCapture</code>, <code>BUFFERSIZE</code>, int16 같은 코드 이름은 발표 메모로 옮긴다(질문 나오면 답).</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 3 pipeline ───────────── -->
+<section class="slide" id="pipeline">
+<div class="head"><span class="no">03</span><h2>처리 파이프라인 — 0.2초 한 바퀴</h2><span class="chip d">어려움 ★★★</span><span class="chip">약 1분</span></div>
+<figure><img src="{{IMG:pipeline}}" alt="파이프라인 슬라이드: 캡처 스레드, 메인 루프 6단계, 오디오·녹화·알림 스레드"></figure>
+<p class="gist">감시 프로그램(Detection) 안에서 여러 일꾼이 나눠 일한다. 느린 일(인터넷 발송, 영상 파일 만들기)은 따로 빼서, 검사는 늘 0.2초 박자를 지킨다.</p>
+
+<h3>이 장이 말하는 것</h3>
+<p><b>윗줄 — 캡처 일꾼.</b> 캡처보드에서 최신 화면을 계속 읽어(<code>cap.read()</code>) 공유 메모리에 쓴다. UI는 0.033초마다 그 메모리를 보고 새 그림이면 복사해서 화면에 그린다.</p>
+<p><b>가운데 줄 — 메인 루프(0.2초마다 한 바퀴).</b></p>
+<ol class="steps">
+<li><code>heartbeat.touch()</code>: 「한 바퀴 시작했다」 표시. 이게 멈추면 감시자가 안다(7장).</li>
+<li><code>read_frame()</code>: 공유 메모리에서 화면을 가져온다. 계산을 줄이려 축소 설정이 있으면 줄인다.</li>
+<li><b>감지영역별 판정</b>: 블랙·스틸(4장), 레벨미터(5장).</li>
+<li><b>상태기계</b>: 「몇 초째 이어졌나」를 세서 경보를 켤지 끌지 정한다(6장). 정파 중이면 억제.</li>
+<li><b>이벤트</b>: 경보 시작(AlarmTrigger)·해제(Resolve) 메시지를 UI로 보낸다.</li>
+<li><b>남은 시간만큼 쉼</b>: 이번 바퀴가 0.05초 걸렸으면 0.15초 쉰다. 박자가 얼마나 흔들렸는지(지터)는 진단 로그에 남긴다.</li>
+</ol>
+<p><b>아랫줄 — 다른 일꾼들.</b> 오디오 일꾼은 소리 크기를 재서 UI의 레벨 표시로 보낸다. 녹화 일꾼은 사고 전 10초를 늘 들고 있다가 경보 때 MP4로 만들고, 텔레그램 일꾼은 사진과 문구를 보낸다. 인터넷이 느려도 메인 루프는 기다리지 않는다.</p>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>공유 메모리 (SharedMemory)</dt><dd>두 프로세스가 함께 들여다보는 메모리 칸. 이름은 <code>kbs_frame_v2</code>, 크기 약 6.2 MB(1920×1080 화면 × 3색 = 6,220,800바이트 + 머리 정보 32바이트). 큰 그림을 매번 우편(큐)으로 복사해 보내는 것보다 훨씬 빠르다.</dd>
+<dt>seqlock</dt><dd>잠금장치 없이 「지금 쓰는 중인지」를 번호로 알리는 방법. 쓰기 시작할 때 번호(seq)를 홀수로, 다 쓰면 짝수로 올린다. 읽는 쪽은 읽기 전과 후의 번호가 같고 짝수일 때만 그 그림을 쓴다. 다르면 쓰는 도중에 읽은 것이라 버린다.</dd>
+<dt>찢어진 프레임 (torn frame)</dt><dd>위쪽은 새 그림, 아래쪽은 옛 그림처럼 섞인 화면. seqlock이 이걸 걸러낸다.</dd>
+<dt>seq_no · <code>.copy()</code></dt><dd>seq_no는 위의 번호. <code>.copy()</code>는 공유 메모리 내용을 내 메모리로 복사해 오는 것. 복사해 두면 공유 메모리가 바뀌거나 닫혀도 안전하다.</dd>
+<dt><code>scale_factor</code> · <code>INTER_AREA</code></dt><dd>화면을 얼마나 줄일지 비율, 그리고 줄일 때 주변 픽셀을 평균 내는 방법(축소에 알맞은 방식).</dd>
+<dt>상태기계</dt><dd>「정상」·「경보」 같은 상태를 기억하고, 규칙에 맞으면 다음 상태로 넘어가는 장치. 6장에서 자세히.</dd>
+<dt>히스테리시스</dt><dd>켜는 조건과 끄는 조건을 다르게 둬서 경보가 깜빡거리지 않게 하는 것. 6장.</dd>
+<dt>result_queue</dt><dd>Detection → UI 방향의 우편함(큐). 메시지를 차례로 넣고 꺼낸다.</dd>
+<dt>지터 (jitter)</dt><dd>박자가 정확히 0.2초가 아니라 들쭉날쭉한 정도.</dd>
+<dt>DIAG 로그</dt><dd>진단(diagnosis)용 기록.</dd>
+<dt>RMS · dBFS</dt><dd>소리 크기 재는 법. 5장에서 자세히.</dd>
+<dt>kbs_state_v2</dt><dd>상태용 작은 공유 메모리. 소리 레벨처럼 1초에 수십 번 바뀌는 값은 우편함 대신 여기에 적는다.</dd>
+<dt>링버퍼</dt><dd>꽉 차면 가장 오래된 것부터 덮어쓰는 동그란 저장소. 늘 「최근 10초」만 들고 있다.</dd>
+</dl>
+
+<div class="box analogy"><b>비유 (seqlock):</b> 교실 게시판에 공지를 새로 붙일 때 선생님이 번호판을 「7」(홀수 = 붙이는 중)로 돌리고, 다 붙이면 「8」로 돌린다. 학생은 읽기 전에 번호를 보고, 다 읽은 뒤 다시 본다. 둘 다 「8」이면 온전한 공지를 읽은 것이고, 그사이 번호가 바뀌었으면 다시 읽는다. 선생님은 학생을 기다리지 않는다.</div>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. 왜 잠금(lock)을 쓰지 않았나?</p>
+<p class="a">잠금을 쓰면 한쪽이 잠근 채 멈췄을 때 다른 쪽도 기다리다 같이 멈춘다. 예를 들어 화면(UI)이 멈추면 감시까지 멈출 수 있다. seqlock은 쓰는 쪽(감시)이 절대 기다리지 않는다. 대가는 읽는 쪽이 가끔 한 프레임을 버리는 것(1프레임 지연)인데, 화면 표시에는 문제없다.</p>
+<p class="q">Q. 0.2초 안에 일을 다 못 끝내면?</p>
+<p class="a">남은 시간이 없으니 쉬지 않고 바로 다음 바퀴를 돈다. 얼마나 늦었는지는 지터로 로그에 남아 나중에 확인할 수 있다.</p>
+<p class="q">Q. 왜 heartbeat를 루프 맨 앞에서 찍나?</p>
+<p class="a">「루프가 돌고 있다」를 증명하는 게 목적이라서다. 판정 중간 어디서 멈추든 다음 touch가 안 오니 20초 뒤 감시자가 알아챈다.</p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>메인 루프 6칸을 「살아 있음 표시 → 화면 읽기 → 판정 → 알리기」 4칸으로 합친다(상태기계는 판정에, sleep은 빼고 말로).</li>
+<li>seqlock 괄호 설명을 빼고, 「잠금 없이 번호로 온전한 그림만 읽음」 한 줄로.</li>
+<li><code>INTER_AREA</code>, <code>scale_factor</code>, DIAG는 슬라이드에서 빼도 된다(발표에서 거의 말하지 않음).</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 4 video ───────────── -->
+<section class="slide" id="video">
+<div class="head"><span class="no">04</span><h2>영상 판정 — 블랙과 스틸, 5×5 블록</h2><span class="chip d">어려움 ★★★</span><span class="chip">약 1분 10초</span></div>
+<figure><img src="{{IMG:video}}" alt="영상 판정 슬라이드: 5×5 격자를 겹친 2TV 화면, 블랙과 스틸 판정표"></figure>
+<p class="gist">감지영역 전체 평균만 보면 작은 로고나 작은 움직임이 묻혀 버린다. 그래서 25칸으로 나눠, 한 칸이라도 「정상」의 증거가 있으면 경보를 내지 않는다.</p>
+
+<h3>이 장이 말하는 것 — 블랙</h3>
+<p>화면 픽셀은 밝기 0(검정)~255(흰색)의 숫자다. 블랙 판정은 세 관문을 모두 통과해야 한다.</p>
+<ol class="steps">
+<li><b>전체가 어두운가</b>: 색 세 개(B·G·R)를 평균 내 밝기를 구하고, 밝기 5 미만인 픽셀이 98% 이상이면 1차 후보.</li>
+<li><b>모든 칸이 어두운가 (블록 가드)</b>: 25칸 각각이 92% 이상 어두워야 한다. 로고가 있는 칸 하나가 블랙을 취소한다. 「로고만 떠 있는 의도된 검은 화면」을 블랙으로 잘못 잡지 않으려는 장치다.</li>
+<li><b>움직임이 없는가 (모션 억제)</b>: 바로 앞 화면과 비교해 바뀐 픽셀이 0.2% 이상이면 취소. 검은 바탕에 자막이 흐르는 화면을 걸러낸다.</li>
+</ol>
+<p>이 상태가 <b>5초</b> 이어지면 경보, 정상이 <b>2초</b> 이어지면 복구.</p>
+
+<h3>이 장이 말하는 것 — 스틸</h3>
+<ol class="steps">
+<li><b>바뀐 픽셀 찾기 (프레임 차분)</b>: 지금 화면과 바로 앞 화면을 픽셀마다 빼서, 차이가 4보다 크면 「바뀐 픽셀」로 표시한다.</li>
+<li><b>모든 칸이 멈췄나</b>: 25칸 모두 바뀐 픽셀이 10% 미만일 때만 「정지 화면」.</li>
+<li><b>잠깐의 잡음 무시</b>: 정상 화면이 3번 연속 나와야 타이머를 0으로 되돌린다. 한 번 튄 값으로 리셋되지 않게.</li>
+</ol>
+<p>이 상태가 <b>120초</b> 이어지면 경보.</p>
+
+<h3>「왜 블록인가」 상자의 뜻</h3>
+<p>넓은 감지영역에서 전체 비율 하나로 보면, 화면의 몇 %를 차지하는 로고나 앵커의 입 움직임이 숫자에 거의 안 드러난다. 칸으로 나누면 그 움직임이 있는 칸 하나가 뚜렷하게 「정상」을 증명한다.</p>
+<p>「단조 억제」는 이 블록 검사가 경보를 <b>취소만</b> 하고 새로 만들지는 않는다는 뜻이다. 그래서 블록 검사를 넣어도 예전보다 경보가 늘어날 수는 없다. 헛경보는 줄고, 새 헛경보는 생기지 않는다.</p>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>픽셀 · 밝기 0~255</dt><dd>화면을 이루는 점 하나와 그 밝기 숫자.</dd>
+<dt><code>gray = mean(B,G,R)</code></dt><dd>파랑·초록·빨강 세 값의 평균을 밝기로 쓴다. (OpenCV는 색을 B·G·R 순서로 담는다.)</dd>
+<dt>프레임 차분 <code>|I(t) − I(t−1)|</code></dt><dd>지금 화면(t)과 바로 앞 화면(t−1)의 픽셀별 차이의 크기.</dd>
+<dt>변화 마스크</dt><dd>바뀐 픽셀만 흰색으로 칠한 지도.</dd>
+<dt>오탐 · 미탐</dt><dd>오탐은 사고가 아닌데 경보(헛경보), 미탐은 사고인데 못 잡음.</dd>
+<dt>단조 억제</dt><dd>한쪽 방향(억제)으로만 작용한다는 뜻. 위 설명 참고.</dd>
+</dl>
+
+<div class="box analogy"><b>비유:</b> 교실이 조용한지 판단할 때 교실 전체 소음 평균만 재면 한 구석의 속삭임을 놓친다. 25개 모둠별로 재서 한 모둠이라도 말하고 있으면 「조용하지 않음」으로 본다.</div>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. 전체는 98%인데 칸은 왜 92%로 더 느슨한가?</p>
+<p class="a"><span class="guess">추정: 한 칸은 면적이 작아서 잡음 몇 점에도 비율이 크게 흔들린다. 칸 기준을 98%로 두면 진짜 블랙도 칸 하나가 우연히 못 넘겨 취소될 수 있어 낮춘 것으로 보인다. 결정 기록을 확인하지 못했으니 단정하지 말 것.</span></p>
+<p class="q">Q. 스틸 기준이 왜 120초나 되나?</p>
+<p class="a">기본값이자 운영값이다. <span class="guess">추정: 방송에는 정지된 자막 카드·안내 화면이 꽤 길게 나오기도 해서, 짧게 잡으면 헛경보가 많아진다.</span></p>
+<p class="q">Q. 차이 4는 왜?</p>
+<p class="a"><span class="guess">추정: 압축·전송 과정의 작은 잡음(픽셀 값 1~3 정도의 흔들림)을 「변화」로 치지 않으려는 문턱이다.</span></p>
+<p class="q">Q. 화면이 서서히 어두워지는 페이드아웃은?</p>
+<p class="a">5초 넘게 완전한 검정이 이어지지 않으면 경보가 나지 않는다. 로고가 남아 있으면 블록 가드가 취소한다.</p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>오른쪽 표 두 개를 지우고 「블랙: 거의 다 까맣고, 25칸 모두 까맣고, 움직임 없음 → 5초」, 「스틸: 25칸 모두 거의 안 바뀜 → 120초」 두 줄로.</li>
+<li>숫자 7개(5·98·92·0.2·4·10·3) 중 발표에는 5초·120초만 남기고 나머지는 질문용으로.</li>
+<li>왼쪽 격자 그림과 「왜 블록인가」는 그대로 — 이 장의 핵심이고 그림으로 이미 쉽다.</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 5 audio ───────────── -->
+<section class="slide" id="audio">
+<div class="head"><span class="no">05</span><h2>오디오 판정 — 보는 레벨미터, 듣는 임베디드</h2><span class="chip d">어려움 ★★☆</span><span class="chip">약 1분</span></div>
+<figure><img src="{{IMG:audio}}" alt="오디오 판정 슬라이드: 레벨미터 원본과 초록 통과 마스크, 임베디드 측정 단계"></figure>
+<p class="gist">소리는 두 가지로 본다. 화면에 그려진 소리 막대의 초록색을 읽는 방법(채널 여러 개를 한 번에), 그리고 실제 소리 데이터의 크기를 재는 방법(정확하지만 1조).</p>
+
+<h3>이 장이 말하는 것 — 레벨미터(A)</h3>
+<ol class="steps">
+<li>감지영역의 색을 BGR에서 HSV로 바꾼다.</li>
+<li>초록 막대 색 범위(H 40–95 · S 80–255 · V 60–255)에 드는 픽셀만 남긴다. 왼쪽 그림의 연두색이 남은 픽셀이다.</li>
+<li>남은 픽셀 비율을 최근 5번 평균 낸다. 미터가 깜빡여도 흔들리지 않게.</li>
+<li>5% 이상이면 「소리 있음」. 5% 미만이 60초 이어지면 경보.</li>
+</ol>
+<p>그림의 A1은 실제 운영 화면에 같은 계산을 다시 해 본 결과로, 15.6%가 통과해 「소리 있음」이다.</p>
+
+<h3>이 장이 말하는 것 — 임베디드(EA)</h3>
+<ol class="steps">
+<li>캡처보드 소리를 정수(int16)로 받아 왼쪽(L)·오른쪽(R)으로 나누고 32768로 나눠 −1~1로 바꾼다.</li>
+<li>RMS로 크기를 구하고 <code>20·log10(RMS)</code>로 dBFS로 바꾼다. −60 아래는 −60으로 고정.</li>
+<li>L과 R의 평균이 −50 dBFS 이하로 60초 이어지면 경보. 정상 소리가 오면 바로 복구.</li>
+</ol>
+<p>아래 상자는 2026-10-27 사고 이야기다. 윈도우의 「마이크 액세스」가 꺼져 캡처보드 소리 장치를 못 열었는데, 그때는 「측정값 없음」으로 처리돼 경보가 안 울렸다. 8시간 동안 소리 감시가 멈춰 있었다. 지금은 장치 열기에 실패한 시간을 「무음」으로 쳐서 무음 경보가 울리고, 60초가 지나면 시스템 알림도 보낸다.</p>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>HSV</dt><dd>색을 H(색상: 무슨 색), S(채도: 얼마나 선명), V(명도: 얼마나 밝은)로 나타내는 방식. 「초록만 골라내기」가 BGR보다 훨씬 쉽다.</dd>
+<dt>H 40–95</dt><dd>OpenCV는 색상 360도를 반으로 줄여 0~179로 쓴다. 40–95는 실제 각도로 80~190도, 초록~청록 범위다.</dd>
+<dt><code>cvtColor</code> · <code>inRange</code></dt><dd>색 방식을 바꾸는 명령, 그리고 범위 안 픽셀만 흰색으로 남기는 명령.</dd>
+<dt>이동평균</dt><dd>최근 몇 개 값의 평균. 새 값이 오면 가장 오래된 값을 빼고 다시 평균.</dd>
+<dt>RMS</dt><dd>제곱평균제곱근. 소리 파형은 +와 −를 오가서 그냥 평균하면 0이 된다. 그래서 제곱해서 평균 내고 다시 루트를 씌워 「평균 크기」를 구한다.</dd>
+<dt>dBFS</dt><dd>디지털로 낼 수 있는 최대 크기를 0으로 둔 데시벨. 값은 늘 0 이하. −20 dBFS는 최대의 1/10, −50 dBFS는 약 0.3%.</dd>
+<dt>클립</dt><dd>범위를 넘는 값을 끝값으로 잘라 고정하는 것.</dd>
+<dt>마이크 권한</dt><dd>윈도우는 캡처보드 소리 입력도 「마이크」로 취급한다. 개인 정보 설정에서 마이크가 꺼지면 캡처보드 소리도 막힌다.</dd>
+</dl>
+
+<div class="box analogy"><b>비유:</b> 레벨미터 방식은 라디오 볼륨 표시등의 불빛만 보고 「소리가 나는구나」 아는 것, 임베디드 방식은 이어폰을 꽂아 직접 듣는 것이다. 불빛은 여러 대를 한눈에 볼 수 있지만 표시등이 바뀌면 다시 맞춰야 하고, 이어폰은 정확하지만 한 대만 들을 수 있다.</div>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. 레벨미터 방식의 한계는?</p>
+<p class="a">멀티뷰어가 그린 미터의 색과 위치에 기댄다. 멀티뷰어 설정(미터 색·배치)이 바뀌면 HSV 범위와 감지영역을 다시 맞춰야 한다. 또 「소리가 있다/없다」만 알지 잡음·찌그러짐 같은 소리 품질은 모른다.</p>
+<p class="q">Q. 무음 기준 −50 dBFS의 근거는?</p>
+<p class="a">기능 문서의 기본값이다(설정 범위 −60~0). <span class="guess">왜 −50인지 결정 기록은 찾지 못함 — 확인 필요. 「조용한 장면의 배경음보다는 낮고, 완전 무음(−60 근처)보다는 높게 잡았다」 정도로 답하되 단정하지 말 것.</span></p>
+<p class="q">Q. 왜 60초나 기다리나?</p>
+<p class="a"><span class="guess">추정: 방송에는 의도된 짧은 무음(장면 전환, 침묵 연출)이 있어서 짧게 잡으면 헛경보가 많다.</span></p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>왼쪽 칸의 <code>cvtColor</code> · <code>inRange</code> 숫자 줄을 「초록 막대 색만 골라 비율을 셈」 한 줄로.</li>
+<li>오른쪽 칸의 <code>÷ 32768</code>, <code>20·log10</code>을 빼고 「실제 소리 크기를 dB로 측정 → −50 dB 이하 60초면 경보」 한 줄로.</li>
+<li>10-27 사고 상자는 남긴다 — 이야기가 있어 기억에 남는다.</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 6 timing ───────────── -->
+<section class="slide" id="timing">
+<div class="head"><span class="no">06</span><h2>시간축 판정 · 정파 상태기계</h2><span class="chip d">어려움 ★★☆</span><span class="chip">약 1분 10초</span></div>
+<figure><img src="{{IMG:timing}}" alt="시간축 슬라이드: 블랙 예시 타임라인, 정파 상태기계 그림, 실제 기록창"></figure>
+<p class="gist">0.2초마다의 판정은 경계에서 흔들린다. 그래서 「얼마나 오래 이어졌나」로 경보를 정한다. 새벽 정파는 세 가지 상태를 오가는 상태기계로 다룬다.</p>
+
+<h3>이 장이 말하는 것 — 왼쪽 블랙 예시</h3>
+<p>한 칸이 1초다. 윗줄은 매 순간의 판정(검정 = 블랙), 아랫줄은 실제 경보 상태다.</p>
+<ul>
+<li><b>2→7초</b>: 블랙이 5초 이어져 경보가 켜진다.</li>
+<li><b>8초</b>: 정상 화면이 한 번 끼었지만 경보는 그대로. 복구는 정상이 2초 연속이어야 한다.</li>
+<li><b>12→14초</b>: 정상이 2초 이어져 복구. 텔레그램에 「지속 N초」가 간다.</li>
+</ul>
+<p>켜는 조건(5초)과 끄는 조건(2초 연속)을 다르게 두는 것을 <b>히스테리시스</b>라고 한다. 경계값 근처에서 경보가 켜졌다 꺼졌다를 반복(<b>플래핑</b>)하는 걸 막는다.</p>
+
+<h3>이 장이 말하는 것 — 오른쪽 정파 상태기계</h3>
+<p>정파는 새벽에 송출을 멈추는 것이다. 이때 화면은 정지나 검정이라, 그냥 두면 경보가 밤새 울린다. 그래서 채널 그룹마다 1초에 한 번 상태를 검사한다.</p>
+<ol class="steps">
+<li><b>IDLE(평상시)</b> → 00:30이 되면 <b>[시간]</b> <b>PREPARATION(정파 준비)</b>으로. 이때부터 정파를 「기다리며」 지정된 진입 감지영역을 지켜본다.</li>
+<li><b>PREPARATION</b> → 진입 감지영역이 120초 넘게 스틸이면 <b>[감지]</b> <b>SIGNOFF(정파 중)</b>로. 지정된 감지영역의 알림을 끈다.</li>
+<li><b>SIGNOFF</b> → 04:30 이후 30초 넘게 움직임이 이어지면 <b>[감지]</b>, 또는 05:00이 되면 <b>[시간]</b> IDLE로 돌아간다.</li>
+</ol>
+<p>오른쪽 아래 그림은 실제 기록이다: 00:30 준비 [시간] → 01:06 정파 [감지] → 04:45 해제 [감지].</p>
+
+<h3>왜 「진입은 감지만, 해제는 시간 상한」인가</h3>
+<p>KBS 정파 시작 시각은 실측으로 00:40~03:50까지 들쭉날쭉하다. 해제는 04:45~04:50 정도로 거의 일정하다.</p>
+<p>예전에는 정해진 시각이 되면 강제로 정파 모드에 넣었다. 그런데 그날 정파가 늦으면, 그 사이 정상 방송의 경보까지 꺼 버렸다. 이것이 <b>오진입</b>이다. 반대로 정파를 늦게 알아채는 <b>미진입</b>은 헛알림 몇 개로 끝난다. 두 실수의 대가가 다르다(<b>오류 비대칭</b>). 그래서 들어갈 때는 반드시 화면을 보고, 나올 때는 05:00이라는 시간 상한을 둬서 정파 상태에 갇히는 일을 막았다.</p>
+<p>진입 기준 120초에도 사연이 있다. 60초였을 때, 2026-05-18 새벽 정상 화면이 우연히 60초 멈춰 있어 01:02에 잘못 정파로 들어갔다. 그래서 120초로 늘렸다.</p>
+
+<div class="box extra"><b>슬라이드에 없는 세부 (질문 대비)</b>
+<p>2026-06-08부터 「조기 복귀」가 들어갔다. 해제 준비 시각(04:30) 전에 정파 중인 화면이 움직이기 시작하면, IDLE이 아니라 PREPARATION으로 즉시 돌아간다. 오진입을 빨리 풀되, 진짜 정파라면 다시 스틸로 들어올 수 있게 「재무장」하는 것이다(출처: <code>docs_signoff_운영.md</code>).</p></div>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>상태기계 (FSM)</dt><dd>Finite State Machine. 정해진 몇 개 상태 중 하나에 있고, 조건이 맞으면 다음 상태로 넘어가는 규칙 묶음.</dd>
+<dt>틱 (tick)</dt><dd>상태를 검사하는 한 번. 여기서는 1초마다.</dd>
+<dt>[시간] · [감지]</dt><dd>시각이 되어 넘어감 · 화면을 보고 넘어감. 기록창에도 이 표시가 그대로 찍힌다.</dd>
+<dt>플래핑</dt><dd>경보가 켜졌다 꺼졌다를 빠르게 반복하는 것.</dd>
+<dt>히스테리시스</dt><dd>켜는 조건과 끄는 조건을 다르게 두는 것.</dd>
+<dt>오류 비대칭</dt><dd>두 종류의 실수 중 하나가 훨씬 비싼 상황. 비싼 실수를 피하는 쪽으로 설계한다.</dd>
+</dl>
+
+<div class="box analogy"><b>비유:</b> 상태기계는 신호등이다. 초록·노랑·빨강 중 하나에만 있고, 정해진 조건에서만 다음 색으로 바뀐다. 히스테리시스는 에어컨이 26도에 켜지고 24도에 꺼지는 것과 같다. 25도 하나로 켜고 끄면 쉬지 않고 켜졌다 꺼졌다 한다.</div>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. 정파 중에 진짜 사고가 나면?</p>
+<p class="a">SIGNOFF는 「지정된」 감지영역의 알림만 끈다. 정파와 무관한 채널은 계속 감시한다. 정파 대상 채널의 사고는 정파 중이라 의미가 없다.</p>
+<p class="q">Q. 시간표만으로 하면 더 간단하지 않나?</p>
+<p class="a">정파 시작이 3시간 넘게 들쭉날쭉해서, 시간표만 쓰면 오진입(정상 방송 경보 묵살)이 생긴다. 그게 가장 비싼 실수라 감지를 택했다.</p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>그림이 이미 쉬워서 크게 손볼 곳은 없다.</li>
+<li>왼쪽 표 「시점 / 무슨 일」 3줄은 말로 설명하고 지워도 된다(타임라인 그림만으로 충분).</li>
+<li>아래 문장 「오진입(진짜 사고를 새벽 내내 묵살)이 미진입(헛알림 몇 개)보다 비싸다」는 꼭 남긴다 — 심사위원이 좋아할 설계 판단이다.</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 7 arch ───────────── -->
+<section class="slide" id="arch">
+<div class="head"><span class="no">07</span><h2>프로세스 격리 — 셋이 서로 감시</h2><span class="chip d">어려움 ★★★</span><span class="chip">약 1분 10초</span></div>
+<figure><img src="{{IMG:arch}}" alt="프로세스 격리 슬라이드: 왼쪽 세 프로세스와 IPC 상자, 오른쪽 장애별 감지·대응 표"></figure>
+<p class="gist">세 프로그램이 서로 살아 있는지 확인한다. 오른쪽 표는 「어떤 고장을, 누가, 무엇을 보고, 몇 초 안에 알아채서, 어떻게 하는지」를 한눈에 보여 준다.</p>
+
+<h3>이 장이 말하는 것 — 왼쪽 상자</h3>
+<ul>
+<li><b>main = UI</b>: 화면, 경보음, 경보 확인(ACK) 버튼. 공유 메모리와 우편함을 처음 만들고 소유한다. 2초마다 자기 생존 시각을 파일(<code>ui_heartbeat.dat</code>)에 적는다.</li>
+<li><b>Watchdog</b>: Detection을 띄우고, 지켜보고, 죽으면 다시 띄운다. 시스템 알림(<code>[SYSTEM]</code>)을 텔레그램으로 직접 보낸다.</li>
+<li><b>Detection</b>: 캡처·판정·녹화·감지 알림(<code>[DETECT]</code>). 5초마다 <code>heartbeat.dat</code>를 갱신한다. 화면 라이브러리(PySide6)는 아예 불러오지 않는다.</li>
+<li><b>IPC</b>: 프로세스끼리 주고받는 통로. 큰 그림은 공유 메모리, 메시지는 우편함(큐). 우편함은 넣을 때 기다리지 않고(<code>put_nowait</code>), 가득 차면 가장 오래된 것을 버리고 넣는다. 그래서 어떤 경우에도 감시가 막히지 않는다.</li>
+</ul>
+
+<h3>이 장이 말하는 것 — 오른쪽 표, 한 줄씩</h3>
+<ol class="steps">
+<li><b>Detection이 멈추거나 죽음</b>: Watchdog이 heartbeat 파일이 10초 동안 안 바뀐 걸 보고 강제 종료 후 새로 띄운다. 새 Detection이 준비되면 UI가 지금 상태(감시 ON/OFF, 음량, 정파 상태, 감지영역)를 다시 알려 준다(재주입).</li>
+<li><b>프로세스는 살아 있는데 메인 루프만 멈춤</b>: Detection 안의 heartbeat 기록 일꾼은 따로 돌아서, 그냥 두면 계속 「살아 있음」을 적는다. 그래서 메인 루프가 20초 넘게 touch를 안 하면 기록 일꾼이 일부러 기록을 멈춘다. 그러면 1번처럼 Watchdog이 잡는다. 이때 어디서 멈췄는지 스택 덤프도 남긴다. <b>v1의 freeze가 바로 이런 모양이었다.</b></li>
+<li><b>계속 죽음 (반복 크래시)</b>: 뜬 지 60초 안에 또 죽으면 다시 띄우는 간격을 5→10→20초…(최대 5분)로 늘리고, 알림도 요약해서 보낸다. 알림 폭주를 막는다.</li>
+<li><b>UI 화면이 멈춤</b>: UI가 2초마다 적는 시각이 30초 동안 안 바뀌면 Watchdog이 「UI 응답 없음」을 보낸다.</li>
+<li><b>UI 힙손상</b>: 살아 있지만 고장 난 UI는 알림도 못 보낸다. 그래서 파일 하나만 적고, Watchdog이 대신 보낸다(9장).</li>
+<li><b>UI가 꺼짐</b>: Watchdog이 10초마다 UI의 프로세스 번호가 살아 있는지 본다. 없으면 Detection을 정리하고 알린 뒤 자기도 끝낸다.</li>
+<li><b>캡처 무신호</b>: Detection이 화면 전체가 8초 동안 「검정 + 똑같음」인 걸 보고 캡처 장치만 다시 연다(최대 3회, 8장 ①).</li>
+</ol>
+<p>마지막 줄: Detection을 새로 띄워도 공유 메모리·우편함은 main이 처음 만든 그대로 쓴다. 그래서 UI 화면은 끊김 없이 이어진다.</p>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>multiprocessing (spawn)</dt><dd>파이썬에서 프로세스를 여러 개 띄우는 기능. spawn 방식은 깨끗한 새 파이썬을 처음부터 시작시킨다(윈도우 기본).</dd>
+<dt>이벤트 루프</dt><dd>화면 프로그램이 클릭·그리기 같은 일을 차례로 처리하는 반복. 멈추면 창이 「응답 없음」이 된다.</dd>
+<dt>ACK</dt><dd>acknowledge. 「경보 확인함」 버튼. 누르면 같은 경보음이 멈춘다.</dd>
+<dt>kill</dt><dd>프로세스를 강제로 끝내는 것.</dd>
+<dt>재주입</dt><dd>새로 뜬 Detection에게 UI가 들고 있던 현재 상태를 다시 넣어 주는 것.</dd>
+<dt>지수 백오프</dt><dd>실패할 때마다 다시 시도하는 간격을 두 배씩 늘리는 방법.</dd>
+<dt>pid</dt><dd>process id. 윈도우가 프로세스마다 붙이는 번호.</dd>
+<dt>스택 덤프</dt><dd>멈춘 순간 각 일꾼이 코드 어디를 실행하고 있었는지 적은 기록. 원인 찾기용.</dd>
+<dt>IPC</dt><dd>Inter-Process Communication. 프로세스 사이 통신.</dd>
+</dl>
+
+<div class="box analogy"><b>비유:</b> heartbeat 두 겹 구조는 이렇다. 감시원(메인 루프)이 매 바퀴 출석부에 서명하고, 비서(기록 일꾼)가 5초마다 출석부를 반장(Watchdog)에게 보여 준다. 감시원이 20초 넘게 서명을 안 하면 비서는 출석부 보여 주기를 멈춘다. 반장은 10초간 새 출석부가 안 오면 감시원을 교대시킨다. 비서만 깨어 있고 감시원이 졸고 있는 상황도 이렇게 잡힌다.</div>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. 왜 스레드가 아니라 프로세스로 나눴나?</p>
+<p class="a">프로세스는 메모리를 따로 쓴다. 한쪽 메모리가 망가져도 다른 쪽으로 번지지 않는다. 실제 예: UI에서 힙손상이 6번 났지만 감시(Detection)는 그동안 멀쩡히 돌았다(9장).</p>
+<p class="q">Q. Watchdog이 죽으면 누가 알리나?</p>
+<p class="a">프로그램을 끌 때 main이 Watchdog 종료를 확인하지 못하면 Detection을 정리하고 텔레그램을 직접 보낸다. <span class="guess">운영 중 Watchdog만 갑자기 죽는 경우를 main이 실시간으로 감시하는지는 확인 필요. 단정하지 말 것.</span></p>
+<p class="q">Q. 우편함이 가득 차서 메시지를 버리면 경보를 놓치지 않나?</p>
+<p class="a">가득 차는 건 UI가 오래 못 읽는 비정상 상황이다. 그때도 감시와 텔레그램 발송은 Detection 쪽에서 계속된다. 「감시가 막히는 것」보다 「화면 메시지 일부를 잃는 것」이 덜 비싸다는 선택이다.</p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>표 7줄을 「감시 멈춤 → 10초 안에 재시작」, 「화면 멈춤 → 30초 안에 알림」, 「화면 고장 → 다른 프로세스가 대신 알림」, 「캡처 끊김 → 8초 안에 장치만 다시 열기」 4줄로.</li>
+<li>IPC 상자는 빼고 말로 한 줄.</li>
+<li>왼쪽 세 상자에서 파일 이름(<code>ui_heartbeat.dat</code> 등)을 빼고 「2초마다 생존 기록」처럼.</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 8 incidents ───────────── -->
+<section class="slide" id="incidents">
+<div class="head"><span class="no">08</span><h2>운영에서 배운 것 — 장애 3건</h2><span class="chip d">어려움 ★★☆</span><span class="chip">약 1분 10초</span></div>
+<figure><img src="{{IMG:incidents}}" alt="장애 3건 슬라이드: 증상, 원인, 대응, 교훈 표"></figure>
+<p class="gist">세 장애 모두 「에러가 났다」가 아니었다. 「정상처럼 보이는 값」이 문제였다.</p>
+
+<h3>① 캡처 신호를 잃었는데 전 채널이 블랙으로 굳음 (2026-05-31 현장 보고)</h3>
+<p>보통 장치가 고장 나면 읽기 명령이 「실패(ret=False)」를 돌려준다. 그래서 「실패하면 다시 연결」 로직을 넣어 뒀다. 그런데 이 캡처보드는 신호를 잃어도 「성공」을 돌려주면서 새까만 화면을 계속 줬다. 다시 연결하는 로직이 영영 실행되지 않았다.</p>
+<p>구별법: 진짜 방송 검정은 미세한 잡음 때문에 화면마다 조금씩 다르다. 무신호 검정은 완전히 똑같은 화면이 반복된다. 그래서 화면 전체가 8초 동안 「검정 + 직전과 똑같음」이면 캡처 장치만 다시 연다(프로그램 전체를 재시작하지 않음). 10월에 5번 일어났고, 모두 1~3초 만에 복구됐다.</p>
+<p><b>교훈</b>: 장치가 「성공」이라고 해도 믿지 말고 내용을 본다.</p>
+
+<h3>② 멀쩡한 Detection을 강제로 죽임 (09-15, 10-27)</h3>
+<p>예전 Watchdog은 「파일에 적힌 시각」과 「지금 시각」을 빼서 10초가 넘으면 멈췄다고 봤다. 이 PC 시계는 하루 3.5초씩 느려지고 매일 밤 인터넷 시각에 맞춰진다. 맞추기가 며칠 실패하면 한 번에 8초쯤 앞으로 뛴다. 그 순간 「10초 넘음」으로 계산돼 멀쩡한 감시를 죽였다.</p>
+<p>지금은 파일 값이 「바뀌었는지」만 보고, 경과 시간은 Watchdog 자신의 <code>time.monotonic()</code>(시각 맞추기의 영향을 받지 않는 시계)으로 잰다.</p>
+<p><b>교훈</b>: 「얼마나 지났나」는 벽시계가 아니라 스톱워치로 잰다.</p>
+
+<h3>③ 텔레그램이 3번 감 (10-07)</h3>
+<p>사진을 보내고 답을 40초 기다리다 시간 초과(ReadTimeout)가 나면 「실패」로 보고 다시 보냈다. 그런데 사진은 이미 도착해 있었다. 그래서 같은 메시지가 세 번 갔다.</p>
+<p>지금은 둘을 구분한다. 「답을 기다리다 시간 초과」는 상대가 받았을 수도 있으니 다시 보내지 않는다. 「보내는 도중 끊김(write timeout)」은 상대가 못 받은 게 확실하니 사진 없이 문구만 다시 보낸다.</p>
+<p><b>교훈</b>: 두 번 하면 두 번 결과가 나는 요청(비멱등)은 「상대가 받았나」를 기준으로 재시도한다.</p>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt><code>ret=False</code></dt><dd>OpenCV <code>read()</code>가 돌려주는 성공 여부. 여기서는 무신호인데도 True였다.</dd>
+<dt><code>time.time</code> (벽시계)</dt><dd>현재 날짜·시각. 시간 동기화 때 앞뒤로 뛸 수 있다.</dd>
+<dt><code>time.monotonic</code></dt><dd>컴퓨터가 켜진 뒤 흐른 시간만 세는 시계. 절대 뒤로 가거나 튀지 않는다.</dd>
+<dt>ReadTimeout</dt><dd>요청은 보냈고, 답을 기다리다 시간이 다 된 것. 상대가 받았는지 알 수 없다.</dd>
+<dt>write timeout</dt><dd>요청을 보내는 도중 시간이 다 된 것. 상대가 받지 못했다.</dd>
+<dt>멱등 · 비멱등</dt><dd>멱등은 여러 번 해도 한 번 한 것과 결과가 같은 요청(예: 「불을 켠 상태로 만들기」). 비멱등은 할 때마다 결과가 쌓이는 요청(예: 「메시지 보내기」).</dd>
+</dl>
+
+<div class="box analogy"><b>비유:</b> ③은 택배와 같다. 「배송 완료 문자를 못 받았다」고 같은 물건을 또 보내면 상대는 두 개를 받는다. 「트럭이 출발도 못 했다」가 확실할 때만 다시 보내야 한다.</div>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. 정파 중 진짜 검정 화면을 무신호로 착각하지 않나?</p>
+<p class="a">정파 중이나 사람이 감지영역을 편집하는 중에는 재오픈을 보류한다. 또 「화면 전체」가 「완전히 똑같아야」 해서 진짜 방송과 구별된다.</p>
+<p class="q">Q. 시계 문제는 윈도우 설정으로 고치면 되지 않나?</p>
+<p class="a">시계는 언제든 바뀔 수 있다(동기화, 사람이 수정, 서머타임 등). 경과 시간 측정은 시계에 기대지 않는 게 원칙적 해결이다.</p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>표의 「교훈」 칸을 비유로: 「성공 신호보다 내용을 본다」, 「경과 시간은 스톱워치로」, 「택배는 출발 못 한 것만 다시 보낸다」.</li>
+<li><code>ret=False</code>, <code>time.time</code>, <code>time.monotonic()</code>은 남겨도 된다 — 기술 심사위원에게는 오히려 반가운 정확한 이름이다.</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 9 heap ───────────── -->
+<section class="slide" id="heap">
+<div class="head"><span class="no">09</span><h2>재현 안 되는 버그 — UI 힙손상</h2><span class="chip d">어려움 ★★☆</span><span class="chip">약 1분</span></div>
+<figure><img src="{{IMG:heap}}" alt="힙손상 추적 슬라이드: 증상 상자, 6단계 추적 과정, 기동 점검 기록"></figure>
+<p class="gist">4~5일마다 화면 프로그램만 조용히 고장 났다. 원인을 모르니 먼저 관측 장치를 달고, 용의자를 하나씩 빼는 실험으로 「Python 3.14 환경」을 지목했다. 3.13으로 고정한 뒤 85일째 재발이 없다.</p>
+
+<h3>증상</h3>
+<p>오래 켜 두면 4~5일째에 UI 프로세스에서 <b>새 객체를 하나도 만들 수 없게</b> 됐다. 파이썬에서 객체를 만들 때 자동으로 실행되는 함수(<code>__init__</code>)가 전부 <code>TypeError</code>를 냈다. 창은 정상처럼 보이는데 설정창·경보음·버튼이 모두 먹통이었다. 가장 나쁜 점은 일부러 다시 일으킬 수 없었다는 것(재현 불가)이다.</p>
+
+<h3>추적 과정 (그림의 6칸)</h3>
+<ol class="steps">
+<li><b>1~3차(05-26~)</b>: 원인을 모르니 관측부터. 죽을 때 기록(faulthandler), 고장 순간의 심층 기록, 10분마다 메모리·일꾼 수·자원 수 기록(HEALTH).</li>
+<li><b>4차</b>: 중요한 발견. 고장 난 UI는 텔레그램도 못 보냈다(<code>requests</code>도 객체를 만들어야 해서). 고장 상태에서도 되는 건 파일 쓰기뿐. 그래서 UI는 파일 하나만 적고 Watchdog이 대신 알린다. 42시간 동안 아무도 몰랐던 고장을 10분 안에 알게 됐다.</li>
+<li><b>Round 1·5차</b>: 용의자 3개(GPU 조회, 조회 주기, 화면 버퍼)를 꺼 봤다. 그래도 재발 → 셋 다 무죄.</li>
+<li><b>Round 2</b>: Python 3.14 → 3.13으로 내렸다. 13일 무사고.</li>
+<li><b>6차(08-11)</b>: 재배포 때 3.13 환경이 조용히 빠져 3.14로 돌아간 상태에서 재발. 뜻하지 않게 「3.14면 재발한다」를 다시 확인한 셈(대조군).</li>
+<li><b>이후 85일</b>: 재발 0회. 이제 3.13 환경이 없으면 자동으로 다시 만들고, 기동 점검 줄에 버전을 표시한다(아래 그림 「Python 3.13.14」).</li>
+</ol>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>힙 (heap)</dt><dd>프로그램이 실행 중에 객체를 만들 때 쓰는 메모리 공간. 힙손상은 그 공간의 관리 장부가 망가진 상태.</dd>
+<dt>객체 · <code>__init__</code></dt><dd>객체는 프로그램이 다루는 하나하나의 「물건」(창, 메시지, 숫자 묶음…). <code>__init__</code>은 객체를 만들 때 첫 준비를 하는 함수.</dd>
+<dt><code>TypeError</code></dt><dd>값의 종류(형식)가 맞지 않을 때 나는 오류. 여기서는 정상 코드에서 나서 「무언가 망가졌다」는 신호였다.</dd>
+<dt>faulthandler</dt><dd>파이썬이 치명적으로 죽을 때 어디서 죽었는지 파일로 남기는 기능.</dd>
+<dt>RSS · threads · handles</dt><dd>실제로 차지한 메모리 양 · 일꾼(스레드) 수 · 열어 둔 자원(파일·장치 등) 수.</dd>
+<dt>제거 실험</dt><dd>용의자를 하나씩 빼고 재발하는지 보는 방법. 빼도 재발하면 무죄.</dd>
+<dt>venv · 폴백</dt><dd>venv는 프로젝트 전용 파이썬 설치 폴더. 폴백은 원래 것이 없을 때 다른 것으로 대신 실행하는 것. 3.13 venv가 저장소에 안 올라가는 목록(gitignore)에 있어서 새로 받을 때 빠졌다.</dd>
+<dt>대조군</dt><dd>실험에서 조건을 바꾸지 않은 비교 집단. 6차가 우연히 그 역할을 했다.</dd>
+</dl>
+
+<div class="box analogy"><b>비유:</b> 어느 집 냉장고가 4~5일마다 고장 나는데 수리기사가 와 보면 멀쩡하다. 그래서 먼저 블랙박스를 단다(관측). 그다음 콘센트를 바꿔 보고, 위치를 바꿔 보고, 하나씩 빼 본다(제거 실험). 마지막으로 전기를 다른 회로로 옮기니 멈췄다. 그런데 누가 실수로 원래 회로에 다시 꽂자 또 고장 났다(대조군). 「왜」 그 회로가 문제인지는 아직 모르지만, 그 회로를 안 쓰면 고장이 안 난다는 건 확실해졌다.</div>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. 그럼 Python 3.14의 버그인가?</p>
+<p class="a">모른다. 확인한 것은 「3.14 실행 환경(인터프리터 + 그에 맞춰 설치된 부품 조합)에서만 재발했다」까지다. 메커니즘은 밝히지 못했다고 솔직히 말한다.</p>
+<p class="q">Q. 85일이면 충분한가?</p>
+<p class="a">전에는 4~5일마다 났으니, 85일은 그 주기의 17~20배다. 우연히 85일 동안 안 날 가능성은 매우 낮다. <span class="guess">추정: 통계적으로 엄밀히 계산하지는 않았다. 「주기의 17배 넘게 무재발」로 말하면 안전하다.</span></p>
+<p class="q">Q. 감시는 그동안 괜찮았나?</p>
+<p class="a">고장은 UI에만 났고, Detection은 별도 프로세스라 감시와 텔레그램은 계속됐다. 프로세스 격리(7장)의 실제 효과다.</p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>1~3차 칸의 「faulthandler, 심층 덤프, HEALTH(RSS·threads·handles)」 → 「고장 순간을 기록하는 장치 설치」.</li>
+<li>증상 상자의 <code>__init__</code>·<code>TypeError</code> → 「새 객체를 하나도 못 만듦」.</li>
+<li>추적 6칸의 흐름(관측 → 우회 → 제거 실험 → 확인)은 그대로 — 이 장의 재미가 거기 있다.</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 10 results ───────────── -->
+<section class="slide" id="results">
+<div class="head"><span class="no">10</span><h2>검증 — 90일 실운영 숫자</h2><span class="chip d">어려움 ★☆☆</span><span class="chip">약 1분</span></div>
+<figure><img src="{{IMG:results}}" alt="검증 슬라이드: 숫자 카드 4개, 측정 방법 표, 확산 상자 3개"></figure>
+<p class="gist">숫자는 모두 전주총국 감시PC의 실제 로그에서 셌다. 가동률은 일부러 불리하게 계산했다.</p>
+
+<h3>이 장이 말하는 것</h3>
+<ul>
+<li><b>90일</b>: 로그가 남아 있는 연속 운영 기간(2026-08-07~11-05). 실제 운영은 늦어도 5월부터였다.</li>
+<li><b>99.89%</b>: 가동률 하한. Detection이 10분마다 남기는 HEALTH 줄의 간격이 15분을 넘는 8구간(합계 약 147분)을 전부 「멈춤」으로 쳤다. 그 대부분은 새 버전 배포 재시작이었다. 계산: 90일 = 129,600분, 147 ÷ 129,600 ≈ 0.11%.</li>
+<li><b>5/5</b>: 캡처 무신호 자동 복구 5번 모두 성공, 1~3초.</li>
+<li><b>0원</b>: 기존 감시PC·캡처보드 + 무료 공개 도구.</li>
+<li><b>자동 재기동 3회</b>: 모두 1초 안에 사람 손 없이. 그중 2번은 시계 점프 오판(8장 ②)이었고 고쳤다.</li>
+<li><b>메모리</b>: UI가 41일·44일 연속으로 떠 있는 동안 130~300 MB 안에서 오르내렸고 계속 늘어나는 추세는 없었다(메모리 누수 없음).</li>
+<li><b>알린 이상</b>: 블랙 27 · 스틸 6 · 임베디드 2 · 레벨미터 1 · 무신호 5 = 41건. 대부분 모니터링·전송 장비 쪽 이상이었다. 이 기간 실제 방송사고는 없었다.</li>
+<li><b>확산</b>: v1이 춘천·제주·대구·대전·부산·광주·송신인프라부 등에 배포됐다. 같은 장비에 v2로 바꿔 끼우면 된다. 설치는 <code>실행.bat</code> 한 번(Python 3.13·부품·ffmpeg 자동 설치). 국마다 다른 건 감지영역과 정파 시각뿐이라 설정 파일 백업·복원으로 옮긴다. 자동 테스트 107개.</li>
+</ul>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>가동률 하한</dt><dd>「적어도 이만큼은 돌았다」는 최솟값. 애매한 구간을 전부 멈춤으로 쳐서 구했다.</dd>
+<dt>HEALTH 스냅샷</dt><dd>10분마다 메모리·일꾼 수·자원 수를 로그에 남기는 줄. 이 줄이 끊긴 구간 = 프로그램이 안 돌았던 구간.</dd>
+<dt>RSS</dt><dd>프로그램이 실제로 차지한 메모리 양.</dd>
+<dt>메모리 누수</dt><dd>쓴 메모리를 돌려주지 않아 시간이 갈수록 계속 늘어나는 것. 오래 켜 두는 프로그램의 대표적인 고장 원인.</dd>
+<dt>자동 테스트</dt><dd>코드를 고칠 때마다 기계가 자동으로 돌려 보는 검사. 107개.</dd>
+</dl>
+
+<h3>나올 만한 질문</h3>
+<div class="qa">
+<p class="q">Q. 실제 방송사고가 없었으면 효과를 어떻게 말하나?</p>
+<p class="a">사고를 「잡은」 실적 대신, 장비 쪽 이상 41건을 사람이 안 보는 시간(예: 새벽 2시 39분 노고 1UHD 스틸)에 알리고 녹화를 남긴 실적, 그리고 90일 동안 감시가 멈추지 않은 실적을 말한다. 감시 시스템의 첫째 가치는 「멈추지 않는 것」이다.</p>
+<p class="q">Q. 0원에 인건비는?</p>
+<p class="a">개발은 업무 중 직접 했고, 하드웨어·소프트웨어 구매비가 0원이라는 뜻이다.</p>
+</div>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul>
+<li>이미 쉬운 편이라 그대로 둬도 된다.</li>
+<li>표의 「가동률」 칸은 「불리하게 계산: 기록이 끊긴 147분을 전부 멈춤으로」처럼 짧게 해도 된다.</li>
+</ul></div>
+</section>
+
+<!-- ───────────── 11 ap-rec ───────────── -->
+<section class="slide" id="ap-rec">
+<div class="head"><span class="no">부록 1</span><h2>자동 녹화 — 링버퍼에서 MP4까지</h2><span class="chip d">어려움 ★★★</span><span class="chip">질문 나올 때만</span></div>
+<figure><img src="{{IMG:ap-rec}}" alt="자동 녹화 부록 슬라이드: 녹화 4단계와 문제·측정 표"></figure>
+<p class="gist">사고 앞 10초와 뒤 10초를 자동으로 MP4에 담는다. 영상과 소리가 어긋나지 않게 두 가지를 맞췄다.</p>
+
+<h3>이 장이 말하는 것</h3>
+<ol class="steps">
+<li><b>상시 적재</b>: 영상(JPEG 사진 묶음)과 소리(PCM)를 링버퍼에 늘 담아 둔다. 그래서 사고 「전」 10초도 남는다.</li>
+<li><b>시작점 맞추기</b>: 영상 버퍼는 「사진 몇 장」, 소리 버퍼는 「샘플 몇 개」로 크기가 정해져서, 두 버퍼가 덮는 시간이 다르다. 늦게 시작한 쪽에 맞춰 앞을 자른다. 안 그러면 파일 앞부분이 무음이 된다.</li>
+<li><b>속도 보정</b>: PC가 실제로 담은 사진 속도(실효 fps)가 설정값보다 약 6.5% 낮았다. 그대로 묶으면 영상이 빨리 재생돼 20초에 1.3초씩 어긋난다. 사진에 찍힌 시각으로 실제 속도를 재서, ffmpeg의 <code>-itsscale</code>로 재생 속도만 맞춘다(다시 인코딩하지 않아 빠르다).</li>
+<li><b>MP4 저장</b>: 사고 뒤 10초까지. 그사이 경보가 또 나면 연장. 30일 보관.</li>
+</ol>
+<p>검증: 2026-09-22 수정 뒤 실제 경보 녹화본의 첫 1초 평균 음량이 −33~−37 dB였다(무음이면 −90 dB 안팎). 앞부분 무음이 사라졌다. ffmpeg가 없으면 영상만 MP4로 저장한다.</p>
+
+<h3>낱말 풀이</h3>
+<dl class="terms">
+<dt>fps · 실효 fps</dt><dd>1초에 몇 장의 사진(프레임)인지. 실효 fps는 설정값이 아니라 실제로 담긴 속도.</dd>
+<dt>A/V 동기</dt><dd>Audio/Video. 소리와 영상의 시간을 맞추는 것(입 모양과 말소리가 맞게).</dd>
+<dt>ffmpeg · <code>-itsscale</code></dt><dd>ffmpeg는 영상·소리 파일을 다루는 무료 도구. <code>-itsscale</code>은 입력 영상의 시간 눈금을 늘이거나 줄이는 옵션.</dd>
+<dt>재인코딩</dt><dd>영상을 풀었다가 다시 압축하는 것. 느리고 화질이 조금 떨어진다. 여기서는 하지 않는다.</dd>
+<dt>volumedetect</dt><dd>ffmpeg로 소리의 평균·최대 크기를 재는 기능. 위 −33~−37 dB 측정에 썼다.</dd>
+</dl>
+
+<div class="box adjust"><span class="lbl">쉽게 만든다면</span>
+<ul><li>부록이라 질문이 나올 때만 보여 준다. 그대로 둬도 된다.</li></ul></div>
+</section>
+
+<!-- ───────────── 12 bk-main ───────────── -->
+<section class="slide" id="bk-main">
+<div class="head"><span class="no">부록 2</span><h2>운영 화면 한눈에</h2><span class="chip d">어려움 ★☆☆</span><span class="chip">원격 접속 실패 때만</span></div>
+<figure><img src="{{IMG:bk-main}}" alt="운영 화면 부록 슬라이드: 전체 화면 캡처와 상단바·16채널·기록창 설명"></figure>
+<p class="gist">원격 접속이 안 되거나 화면이 흐릴 때 대신 보여 줄 실제 화면(2026-11-05, v2.8.21).</p>
+<ul>
+<li><b>① 상단바</b>: 감시 ON/OFF, 소리 크기와 L/R 레벨, 감지영역 수, 정파까지 남은 시간.</li>
+<li><b>② 16채널 화면</b>: 빨간 사각형은 영상 감지영역(V), 옆 세로 막대 위 사각형은 레벨미터 감지영역(A).</li>
+<li><b>③ 기록창</b>: 기동 점검 결과와 정파 준비·진입·해제가 시각과 함께 남는다. 첫 줄 「기동 점검」은 Python 3.13.14 · 감지영역 V8/A6 · ffmpeg · 디스크 여유를 프로그램이 스스로 확인한 결과다.</li>
+</ul>
+</section>
+
+<!-- ───────────── 13 bk-set ───────────── -->
+<section class="slide" id="bk-set">
+<div class="head"><span class="no">부록 3</span><h2>설정 패널</h2><span class="chip d">어려움 ★☆☆</span><span class="chip">원격·노트북 모두 안 될 때만</span></div>
+<figure><img src="{{IMG:bk-set}}" alt="설정 패널 부록 슬라이드: 영상 감지영역 목록과 정파 설정 화면"></figure>
+<p class="gist">설정 화면 두 개를 캡처로 보여 준다.</p>
+<ul>
+<li><b>왼쪽 — 영상 감지영역</b>: 채널마다 사각형을 그리고 이름(1TV ON-AIR 등)을 붙인다. 전주는 8개.</li>
+<li><b>오른쪽 — 정파</b>: 그룹별로 정파 준비 시작(00:30), 해제(05:00), 해제 준비(04:30), 진입 기준(120초), 조기 해제 기준(30초), 적용 요일을 정한다. 6장의 상태기계가 이 값들로 움직인다.</li>
+<li>설정은 7개 탭: 영상설정(녹화 포함) · 비디오 영역 · 오디오 레벨미터 영역 · 감도 · 정파 · 알림 · 저장/불러오기.</li>
+</ul>
+<div class="box extra"><b>⚠ 시연 주의</b><p>설정창은 저장 버튼이 없고 값을 바꾸는 즉시 운영에 반영된다. 감시PC에서 설정 칸을 건드리지 말 것. 텔레그램 토큰 보기 버튼도 누르지 말 것.</p></div>
+</section>
+
+<p class="foot">출처: 발표 덱 원본 <code>docs/발표덱_KBS_미창기/</code>, 실적 숫자 <code>docs/성과_근거.md</code>, 정파 운영 <code>docs_signoff_운영.md</code>, 코드. 2026-11-18 작성.</p>
+</div>

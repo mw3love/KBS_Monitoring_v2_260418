@@ -1,32 +1,31 @@
 <section id="arch">
-<p class="eyebrow">프로세스 격리 · multiprocessing (spawn)</p>
+<p class="eyebrow">셋으로 나눈 구조</p>
 <h2>셋으로 나누고, 서로의 생존을 감시한다</h2>
+<p class="gist">세 프로그램(프로세스)이 서로 살아 있는지 확인한다. 고장마다 누가, 무엇을 보고, 몇 초 안에 알아채는지 정해 두었다.</p>
 <div class="row grow">
-<div class="col" style="width:600px; gap:14px;">
-<div class="box"><p class="box-title">main = UI</p><p class="s">PySide6 이벤트 루프 · 경보음 · ACK<br>SharedMemory·Queue 생성·소유<br><span class="mono">ui_heartbeat.dat</span> 2 s마다 기록</p></div>
-<div class="box key"><p class="box-title">Watchdog</p><p class="s">Detection spawn · 감시 · 재spawn<br><span class="mono">[SYSTEM]</span> 텔레그램 직접 발송</p></div>
-<div class="box"><p class="box-title">Detection</p><p class="s">캡처 · 판정 · 녹화 · <span class="mono">[DETECT]</span> 발송<br><span class="mono">heartbeat.dat</span> 5 s마다 · PySide6 import 금지</p></div>
-<div class="box"><p class="tag">IPC</p><p class="s">SharedMemory: 프레임 6.2 MB · 상태(음량·레벨)<br>Queue: result 200 · cmd 50 — <span class="mono">put_nowait</span>, 가득 차면 가장 오래된 것 버림</p></div>
+<div class="col" style="width:540px; gap:14px;">
+<div class="box"><p class="box-title">화면 (UI)</p><p class="s">화면 · 경보음 · 확인(ACK)<br>2초마다 생존 기록</p></div>
+<div class="box key"><p class="box-title">감시의 감시 (Watchdog)</p><p class="s">감시 프로그램을 띄우고, 지켜보고, 다시 띄움<br>시스템 알림을 직접 발송</p></div>
+<div class="box"><p class="box-title">감시 (Detection)</p><p class="s">캡처 · 판정 · 녹화 · 감지 알림<br>5초마다 생존 신호(heartbeat)</p></div>
+<div class="terms" style="margin-top:0;"><p class="term">Watchdog = <b>이중화 장비의 자동 절체 감시</b></p></div>
 </div>
 <div class="col grow">
 <table class="tb">
-<tr class="head"><th style="width:30%">장애</th><th style="width:33%">누가 · 무엇으로</th><th>대응</th></tr>
-<tr><td>Detection 정지·크래시</td><td>Watchdog · heartbeat 10 s 무변화</td><td>kill → 재spawn, UI가 런타임 상태 재주입</td></tr>
-<tr><td>Detection 메인 루프만 정지</td><td>내부 writer · 루프 20 s 무응답</td><td>heartbeat 갱신 중단 → 위와 같음 + 스택 덤프</td></tr>
-<tr><td>반복 크래시</td><td>Watchdog · 기동 60 s 안에 사망</td><td>재spawn 간격 5→10→20 s…(최대 5분), 알림 요약</td></tr>
-<tr><td>UI 이벤트 루프 정지</td><td>Watchdog · ui_heartbeat 30 s</td><td><span class="mono">[SYSTEM]</span> 「UI 응답 없음」</td></tr>
-<tr><td>UI 힙손상 (살아 있으나 객체 생성 불가)</td><td>UI · flag 파일만 기록</td><td>Watchdog이 대리 통보</td></tr>
-<tr><td>UI 프로세스 종료</td><td>Watchdog · pid 10 s 확인</td><td>Detection 정리 + 통보 후 종료</td></tr>
-<tr><td>캡처 무신호 (검은 정지 프레임)</td><td>Detection · 전체 화면 8 s</td><td>캡처 장치만 재오픈 (최대 3회)</td></tr>
+<tr class="head"><th style="width:30%">고장</th><th style="width:34%">누가 · 무엇을 보고</th><th>대응</th></tr>
+<tr><td>감시가 죽거나 멈춤</td><td>Watchdog · 생존 신호 10초 끊김</td><td>강제 종료 → 재시작, 화면이 설정을 다시 알려 줌(재주입)</td></tr>
+<tr><td>프로그램은 살았는데 검사만 멈춤</td><td>감시 내부 · 검사 20초 무응답</td><td>생존 신호를 일부러 끊음 → 위와 같음 <b>(v1 freeze가 이 모양)</b></td></tr>
+<tr><td>계속 죽음</td><td>Watchdog · 뜬 지 60초 안에 또 죽음</td><td>재시작 간격 5→10→20초… 최대 5분 (지수 백오프)</td></tr>
+<tr><td>화면 멈춤 · 고장</td><td>Watchdog · 화면 생존 기록 30초 / 고장 표시 파일</td><td>대신 텔레그램 발송</td></tr>
+<tr><td>캡처 끊김</td><td>감시 · 전체 화면 8초 「검정 + 똑같음」</td><td>캡처 장치만 다시 열기</td></tr>
 </table>
-<p class="s" style="margin-top:16px;">재spawn 때도 Queue·SharedMemory 핸들은 main이 만든 그대로 → UI는 끊김 없이 이어서 표시</p>
+<p class="s" style="margin-top:16px;">감시를 다시 띄워도 화면 쪽 통로는 그대로라 화면은 끊기지 않는다.</p>
 </div>
 </div>
 <aside>[약 1분 10초]
-- v1 문제의 답: 한 덩어리를 셋으로. 소유권 원칙 — main(UI)이 공유메모리·큐를 만들고 소유, Watchdog이 Detection을 띄우고 소유.
-- 표가 핵심: 각 장애를 누가 무엇으로 몇 초 안에 알아채는지.
-- Detection: 별도 writer 스레드가 5초마다 heartbeat 파일을 갱신. 단, 메인 루프가 20초 넘게 touch 안 하면 갱신을 멈춤 → '프로세스는 살아 있는데 루프만 멈춘' 경우도 잡힘. Watchdog은 10초 무변화면 kill·재spawn. 새 Detection은 설정 파일을 스스로 읽고 뜨고, DetectionReady를 보내면 UI가 감지 ON/음량/정파 상태/ROI를 다시 넣어 줌.
-- 반복 크래시는 지수 백오프(5→10→20초…최대 5분)로 알림 폭주 방지.
-- UI: 2초마다 시각을 파일에 쓰고, 30초 묵으면 Watchdog이 통보. 힙손상처럼 '살아 있는데 고장'인 경우 UI는 파일 하나만 쓰고 통보는 Watchdog이 대신(다음 다음 장).
-- 큐는 put_nowait + 가득 차면 하나 버리고 넣기 → 어떤 경우에도 판정 루프가 블로킹되지 않음.</aside>
+- v1 문제의 답: 한 덩어리를 셋으로. 프로세스는 메모리를 따로 써서 하나가 망가져도 안 번진다(장비를 랙 하나에 몰지 않고 전원을 분리한 것과 같음).
+- 표가 핵심: 고장마다 누가 무엇을 보고 몇 초 안에 알아채나.
+- 감시 프로그램 안의 기록 일꾼이 5초마다 생존 신호를 쓴다. 그런데 검사 반복이 20초 넘게 안 돌면 일부러 신호를 끊는다 → 「살았는데 검사만 멈춘」 경우도 잡힌다. v1 freeze가 바로 이런 모양.
+- Watchdog은 10초간 신호가 없으면 강제 종료하고 다시 띄운다. 새로 뜬 감시에게 화면이 지금 설정(감시 ON, 음량, 정파 상태, 감지영역)을 다시 알려 준다.
+- 계속 죽으면 재시작 간격을 두 배씩 늘려 알림 폭주를 막는다.
+- 화면이 고장 나면 화면은 파일 하나만 남기고 Watchdog이 대신 알린다(다다음 장).</aside>
 </section>

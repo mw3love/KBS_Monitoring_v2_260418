@@ -8,4 +8,7 @@
   - `6bc84812…` = `fig/fig_log.png` · `9311f0f9…` = `fig/fig_boot.png`
 - 그림 생성 스크립트: `fig/figs.py`, `fig/still_fig.py` (원본 녹화 경로는 스크립트 안 — 재실행 시 확인 필요)
 - 발표자 학습자료: `docs/발표준비/KBS_발표_학습자료.html`·`.pdf`
+- 슬라이드 해설(장별 요지·낱말·질문): https://claude.ai/artifact/Y9vrEzBrdNKCBidneEezk4 — 원본 `docs/발표준비/KBS_슬라이드_해설.src.html`(그림 자리 `{{IMG:…}}`)
+- 용어 고르기(설명/이름만/뺌, 2026-11-18 추천값 그대로 확정): https://claude.ai/artifact/5o53s7Q2CvfVvrBm46FQ7G — 원본 `docs/발표준비/KBS_발표_용어고르기.html`
+- 2026-11-18 덱을 해설 구성(제목 아래 요지 줄 + 고른 용어만 + 방송 비유 칩)으로 다시 씀. 청중은 방송기술 엔지니어(컴퓨터 비전공)
 - 옛 덱 `docs/발표덱_KBS/`(이전 계정 링크, 수정 불가)

@@ -1,15 +1,30 @@
 <section id="incidents">
 <p class="eyebrow">운영에서 배운 것</p>
-<h2>장애는 「예외」가 아니라 「정상처럼 보이는 값」으로 왔다</h2>
-<table class="tb" style="font-size:28px;">
-<tr class="head"><th style="width:20%">증상</th><th style="width:28%">원인</th><th style="width:30%">대응</th><th>교훈</th></tr>
-<tr><td><b>캡처 신호 상실</b> 시 전 채널 블랙 고착<br>(2026-05-31 현장 보고)</td><td>캡처보드가 오류(<span class="mono">ret=False</span>) 대신 <b>유효한 검은 프레임</b>을 계속 반환 → 재연결 로직이 안 걸림</td><td>전체 화면이 「검정 + 직전 프레임과 동일」(진짜 검정엔 미세 잡음)이 8 s → 캡처 장치만 재오픈. <b>10월 5회, 모두 1~3 s 복구</b></td><td>API의 성공 신호를 믿지 말고 내용을 본다</td></tr>
-<tr><td><b>멀쩡한 Detection이 kill</b><br>(09-15, 10-27)</td><td>heartbeat를 벽시계(<span class="mono">time.time</span>) 차로 판정 → Windows 시간 동기화가 시계를 <b>8 s</b> 앞당김</td><td>파일 값이 「바뀌었는지」만 보고, 경과는 Watchdog 자신의 <span class="mono">time.monotonic()</span>으로 측정</td><td>경과 시간은 monotonic clock으로</td></tr>
-<tr><td><b>텔레그램 3중 발송</b><br>(10-07)</td><td>응답 대기 <span class="mono">ReadTimeout</span>을 실패로 보고 재전송 — 요청은 이미 도착해 있었음</td><td><span class="mono">ReadTimeout</span>은 재전송 안 함 · 본문 전송 중 끊김(write timeout)만 사진 없이 재전송</td><td>비멱등 요청의 재시도는 「서버가 받았나」로 가른다</td></tr>
-</table>
+<h2>장애는 「정상처럼 보이는 값」으로 왔다</h2>
+<p class="gist">세 장애 모두 에러가 나지 않았다. 장치·시계·네트워크가 그럴듯한 값을 돌려줬고, 그 값을 믿은 게 문제였다.</p>
+<div class="row grow" style="gap:28px;">
+<div class="box grow">
+<p class="tag">① 캡처보드의 거짓 「성공」 · 05-31</p>
+<p class="s" style="margin:10px 0;">신호를 잃어도 읽기가 <span class="mono">ret=True</span>와 새까만 화면을 줌 → 재연결이 안 걸림</p>
+<p class="s"><b>고침</b> — 진짜 검정은 잡음으로 매번 조금 다르다. 화면 전체가 8초 「검정 + 완전히 똑같음」이면 캡처 장치만 다시 연다. 10월 5회, 1~3초 복구</p>
+<p class="lesson">성공 신호보다 내용을 본다</p>
+</div>
+<div class="box grow">
+<p class="tag">② 시계가 뛰어 멀쩡한 감시를 죽임 · 09-15, 10-27</p>
+<p class="s" style="margin:10px 0;">생존 신호를 PC 시계(<span class="mono">time.time</span>) 차로 판정 → 시간 동기화로 시계가 8초 뜀 → 「10초 끊김」 오판</p>
+<p class="s"><b>고침</b> — 값이 바뀌었는지만 보고, 경과는 <span class="mono">time.monotonic</span>(스톱워치)으로 잰다</p>
+<p class="lesson">경과 시간은 프리런 카운터로</p>
+</div>
+<div class="box grow">
+<p class="tag">③ 텔레그램 3중 발송 · 10-07</p>
+<p class="s" style="margin:10px 0;">사진 보낸 뒤 답장 대기 시간 초과(ReadTimeout)를 실패로 보고 재전송 — 이미 도착해 있었음</p>
+<p class="s"><b>고침</b> — 답장 대기 초과는 재전송 안 함. 보내다 끊긴 경우(write timeout)만 재전송</p>
+<p class="lesson">두 번 보내면 두 통 가는 요청(비멱등)은 「받았나」로 가른다</p>
+</div>
+</div>
 <aside>[약 1분 10초]
-- 세 건 모두 '에러가 났다'가 아니라 '정상처럼 보이는 값'이 문제였다.
-- ① 캡처보드: 신호를 잃어도 read()는 성공(True)하고 새까만 프레임을 준다. 그래서 '읽기 실패 시 재연결' 로직이 영영 안 걸림. 구분법: 진짜 방송 검정은 미세 잡음으로 프레임마다 조금씩 다르고, 무신호 검정은 완전히 같은 프레임 반복. 전체 화면이 8초간 '검정+동일'이면 장치만 다시 연다(프로세스 재시작 아님). 정파 중·편집 중엔 보류.
-- ② 이 PC 시계는 하루 3.5초씩 늦고 동기화가 며칠 실패하면 한 번에 8초쯤 뜀. 파일에 적힌 시각과 현재 시각을 빼던 방식이라 10초 기준을 넘겨 멀쩡한 감지를 죽임. 지금은 값의 변화만 보고 경과는 monotonic.
-- ③ 사진 업로드 응답을 40초 기다리다 timeout → 재전송 → 이미 간 메시지가 또 감. 응답 timeout은 '보냈는지 모름'이라 재전송 금지, 요청 본문이 덜 간 경우만 재전송.</aside>
+- 세 건 모두 「에러가 났다」가 아니라 「정상처럼 보이는 값」이 문제였다.
+- ① 캡처보드는 신호를 잃어도 읽기 「성공」과 새까만 화면을 준다. 진짜 방송 검정은 잡음 때문에 매번 조금 다르고, 무신호 검정은 완전히 같은 화면 반복. 전체가 8초간 그러면 장치만 다시 연다(프로그램 재시작 아님). 정파 중엔 보류.
+- ② 이 PC 시계는 하루 3.5초씩 느리고, 동기화가 며칠 실패하면 한 번에 8초쯤 뛴다. 시각끼리 빼던 방식이라 멀쩡한 감시를 죽였다. 지금은 스톱워치(monotonic)로 잰다 — 방송으로 치면 하우스 시계 대신 프리런 카운터.
+- ③ 답장 대기 초과는 「보냈는지 모름」이라 재전송하면 중복. 보내다 끊긴 것만 다시 보낸다. 택배로 치면 배송 완료 문자를 못 받았다고 또 보내면 두 개가 간다.</aside>
 </section>

@@ -1,0 +1,359 @@
+<title>발표 용어 고르기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 레이아웃: 장별 묶음 안에 용어 행. 행마다 오른쪽에 「설명 / 이름만 / 뺌」 3단 선택. 위에 집계·거르기 막대가 붙어 다님 */
+:root {
+  --paper: #FBFAF7; --ink: #1F1B17; --body: #3F3832; --muted: #6E655C;
+  --accent: #A44E33; --accent-soft: #F5E8E2; --card: #FFFFFF; --line: #DDD5C9;
+  --keep: #2F6B4F; --keep-soft: #E4F1EA; --name: #2F5F8F; --name-soft: #E5EEF7; --drop: #8A8077; --drop-soft: #EFEBE6;
+  --sans: "IBM Plex Sans KR", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --mono: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #1B1916; --ink: #F1ECE6; --body: #D6CEC5; --muted: #A1978C;
+  --accent: #E08A6C; --accent-soft: #3A2620; --card: #24211D; --line: #3D3832;
+  --keep: #7FC9A2; --keep-soft: #1E3328; --name: #9CC2E8; --name-soft: #1E2A36; --drop: #A1978C; --drop-soft: #2C2824; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #1B1916; --ink: #F1ECE6; --body: #D6CEC5; --muted: #A1978C;
+  --accent: #E08A6C; --accent-soft: #3A2620; --card: #24211D; --line: #3D3832;
+  --keep: #7FC9A2; --keep-soft: #1E3328; --name: #9CC2E8; --name-soft: #1E2A36; --drop: #A1978C; --drop-soft: #2C2824; color-scheme: dark }
+
+body { background: var(--paper); color: var(--body); font: 16px/1.65 var(--sans); word-break: keep-all; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 96px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2 { color: var(--ink); text-wrap: balance; line-height: 1.35; margin: 0; }
+h1 { font-size: 30px; margin-bottom: 8px; }
+h2 { font-size: 20px; }
+p { margin: 0 0 10px; }
+b { color: var(--ink); }
+.eyebrow { font-size: 13px; letter-spacing: .08em; color: var(--accent); font-weight: 600; margin: 0 0 6px; }
+.lead { color: var(--muted); max-width: 68ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 16px 0 0; font-size: 14px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--paper); border-bottom: 1px solid var(--line);
+  margin: 24px 0 8px; padding: 10px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.counts { display: flex; gap: 12px; font-size: 14px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.counts b { font-size: 16px; }
+.filters { display: flex; gap: 4px; flex-wrap: wrap; }
+.filters button, .tools button { font: 500 13px var(--sans); border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.tools { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.save { font-size: 13px; color: var(--muted); min-width: 7em; text-align: right; }
+button:focus-visible, input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+section.grp { margin-top: 36px; }
+.grp-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.grp-no { font: 600 14px var(--mono); color: var(--accent); }
+.grp-sum { font-size: 13px; color: var(--muted); }
+
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center;
+  background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+.row[data-c="explain"] { border-left-color: var(--keep); }
+.row[data-c="name"] { border-left-color: var(--name); }
+.row[data-c="drop"] { border-left-color: var(--drop); opacity: .78; }
+.row[data-c="drop"] .term { text-decoration: line-through; text-decoration-color: var(--drop); }
+.term { font-weight: 600; color: var(--ink); }
+.term code { font-family: var(--mono); font-size: .92em; }
+.mean { font-size: 14.5px; margin: 2px 0 0; }
+.sub { font-size: 13.5px; margin: 4px 0 0; color: var(--muted); }
+.sub .k { font-weight: 600; color: var(--body); }
+.rec { font-size: 12px; font-weight: 600; padding: 0 7px; border-radius: 999px; margin-left: 6px; white-space: nowrap; vertical-align: 2px; }
+.rec.explain { background: var(--keep-soft); color: var(--keep); }
+.rec.name { background: var(--name-soft); color: var(--name); }
+.rec.drop { background: var(--drop-soft); color: var(--drop); }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { font-size: 13.5px; padding: 6px 12px; cursor: pointer; color: var(--muted); background: var(--card); white-space: nowrap; }
+.seg label + input + label, .seg input + label ~ label { border-left: 1px solid var(--line); }
+.seg input:checked + label.explain { background: var(--keep); color: var(--paper); }
+.seg input:checked + label.name { background: var(--name); color: var(--paper); }
+.seg input:checked + label.drop { background: var(--drop); color: var(--paper); }
+@media (max-width: 640px) { .row { grid-template-columns: minmax(0, 1fr); } }
+
+.result { margin-top: 48px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.result pre { white-space: pre-wrap; font: 13.5px/1.6 var(--mono); margin: 10px 0 0; max-height: 360px; overflow: auto; color: var(--body); }
+.hidden-by-filter { display: none; }
+</style>
+
+<div class="wrap">
+<p class="eyebrow">KBS Monitoring v2 발표 준비 · 2026-11-19</p>
+<h1>발표 용어 고르기</h1>
+<p class="lead">슬라이드 해설에 나온 용어를 장별로 모았다. 용어마다 발표에서 어떻게 다룰지 하나를 고르면 된다. 처음에는 「방송기술 엔지니어(컴퓨터 비전공) 청중」을 기준으로 한 추천값이 골라져 있다. 고른 내용은 자동 저장되고, 저장된 결과를 보고 덱을 고친다.</p>
+<div class="legend">
+<span><i class="dot" style="background:var(--keep)"></i><b>설명</b> 슬라이드에 두고 뜻을 말로 풀어 줌</span>
+<span><i class="dot" style="background:var(--name)"></i><b>이름만</b> 청중이 이미 아는 말 — 쓰되 설명 안 함</span>
+<span><i class="dot" style="background:var(--drop)"></i><b>뺌</b> 슬라이드에서 지움 (질문 오면 답할 거리로만)</span>
+</div>
+
+<div class="bar" role="toolbar" aria-label="집계와 거르기">
+<div class="counts" id="counts"></div>
+<div class="filters" id="filters">
+<button type="button" data-f="all" aria-pressed="true">전체</button>
+<button type="button" data-f="explain" aria-pressed="false">설명</button>
+<button type="button" data-f="name" aria-pressed="false">이름만</button>
+<button type="button" data-f="drop" aria-pressed="false">뺌</button>
+<button type="button" data-f="changed" aria-pressed="false">추천과 다르게 고른 것</button>
+</div>
+<div class="tools">
+<button type="button" id="reset">추천값으로 되돌리기</button>
+<span class="save" id="save" aria-live="polite">불러오는 중…</span>
+</div>
+</div>
+
+<div id="list"></div>
+
+<div class="result">
+<h2>고른 결과</h2>
+<p class="sub">저장이 되지 않는 환경이면 아래 글을 복사해 채팅에 붙여 넣으면 된다.</p>
+<button type="button" id="copy" class="tools" style="font:500 13px var(--sans);border:1px solid var(--line);background:var(--card);color:var(--ink);padding:4px 10px;border-radius:999px;cursor:pointer;margin-left:0">결과 복사</button>
+<pre id="out"></pre>
+</div>
+</div>
+
+<script>
+// 추천: e=설명 n=이름만 d=뺌 · alt=뺄 때 대신 쓸 말 · bc=방송 쪽 비유
+const G = [
+ ["01", "표지 — v1에서 v2로", [
+  ["proc","프로세스","따로 도는 프로그램 하나. 메모리를 따로 써서 하나가 망가져도 안 번짐","e","","장비를 랙 하나에 몰지 않고 전원·섀시를 분리해 둔 것"],
+  ["thread","스레드","한 프로그램 안의 일꾼. 메모리를 같이 써서 꼬이면 다 같이 꼬임","d","「한 프로그램 안에서」",""],
+  ["ui","UI","사람이 보는 화면과 버튼","n","",""],
+  ["detection","Detection","영상·소리를 실제로 검사하는 프로그램","e","「감시 프로그램」",""],
+  ["watchdog","Watchdog","Detection이 살았는지 보다가 죽으면 다시 띄우는 프로그램","e","「감시의 감시」","이중화 장비의 자동 절체 감시부"],
+  ["freeze","감지 루프 freeze","검사 반복이 조용히 멈춘 상태. 창은 멀쩡해 보임","e","「감시가 조용히 멈춤」","화면은 나오는데 프레임싱크가 얼어 있는 상태"],
+  ["heartbeat","heartbeat","주기적으로 시각을 파일에 적어 「살아 있음」을 알리는 것","e","「생존 신호」","링크 감시용 keep-alive"],
+  ["respawn","재spawn","죽은 프로그램을 새로 다시 띄우는 것","d","「자동 재시작」",""],
+  ["opencv","OpenCV","영상 처리용 오픈소스 도구 모음","n","",""],
+  ["rule","규칙 기반","AI 학습이 아니라 사람이 정한 숫자 기준으로 판정","e","",""],
+ ]],
+ ["02", "시스템 구성", [
+  ["sdi","SDI","방송 표준 디지털 영상 신호","n","",""],
+  ["mv","멀티뷰어","여러 채널을 한 화면에 나눠 보여 주는 장비","n","",""],
+  ["capture","캡처보드","영상 신호를 PC로 받는 장치","n","",""],
+  ["embedded","임베디드 오디오","SDI 신호 안에 섞인 소리","n","",""],
+  ["deemb","디임베더","SDI에서 소리를 꺼내는 장비","n","",""],
+  ["roi","감지영역 (ROI)","화면에서 검사할 곳만 사각형으로 지정. V·A·EA","e","",""],
+  ["vcap","<code>cv2.VideoCapture</code>","OpenCV로 캡처 장치를 여는 명령","d","「캡처보드에서 화면을 받음」",""],
+  ["dshow","<code>CAP_DSHOW</code> (DirectShow)","윈도우의 장치 여는 방식","d","",""],
+  ["buf1","<code>BUFFERSIZE=1</code>","쌓아 두는 화면을 1장으로 → 늘 최신 화면","d","「늘 가장 최신 화면으로 검사」","지연 없는 1프레임 버퍼"],
+  ["sounddevice","sounddevice","파이썬 소리 입력 도구","d","",""],
+  ["pcm","int16 PCM","압축 안 한 소리 데이터, 16비트 정수","n","",""],
+  ["period","판정 주기 200 ms","0.2초마다 검사 = 1초에 5번","e","「1초에 5번 검사」",""],
+  ["stack","스택 (PySide6·NumPy·psutil·requests…)","사용한 소프트웨어 도구 목록","d","「무료 공개 도구로 만듦」",""],
+  ["tgapi","Telegram Bot API","텔레그램 봇 메시지 발송 창구","n","「텔레그램 알림」",""],
+ ]],
+ ["03", "처리 파이프라인", [
+  ["shm","공유 메모리","두 프로그램이 함께 보는 메모리 칸. 큰 화면을 복사 없이 넘김","e","","프레임 스토어를 두 장비가 같이 읽는 것"],
+  ["seqlock","seqlock","잠금 없이 번호(홀수=쓰는 중, 짝수=완료)로 온전한 화면만 읽는 방법","d","「쓰는 중인 화면은 건너뜀」",""],
+  ["torn","찢어진 프레임 (torn frame)","반은 새 그림, 반은 옛 그림인 화면","d","","프레임 경계 안 맞는 테어링"],
+  ["copy","<code>.copy()</code>","공유 메모리 내용을 내 쪽으로 복사","d","",""],
+  ["scale","<code>scale_factor</code> · <code>INTER_AREA</code>","계산을 줄이려 화면을 축소하는 비율·방식","d","",""],
+  ["fsm3","상태기계","「정상/경보」 상태를 기억하고 규칙대로 바꾸는 장치 (6장)","n","",""],
+  ["rq","result_queue","감시 → 화면 방향 메시지 우편함","d","",""],
+  ["jitter","지터","주기가 들쭉날쭉한 정도","n","",""],
+  ["diag","DIAG 로그","진단용 기록","d","",""],
+  ["state2","kbs_state_v2","소리 레벨 같은 잦은 값을 넘기는 작은 공유 메모리","d","",""],
+  ["ring","링버퍼","꽉 차면 오래된 것부터 덮어쓰는 저장소. 늘 최근 10초 보관","e","「사고 전 10초를 늘 들고 있음」","프리롤 버퍼 (리플레이 서버의 상시 녹화)"],
+ ]],
+ ["04", "영상 판정 — 블랙·스틸", [
+  ["luma","밝기 0~255","픽셀 밝기 숫자. 0 검정, 255 흰색","n","","8비트 레벨"],
+  ["gray","<code>gray = mean(B,G,R)</code>","세 색의 평균을 밝기로 씀","d","「밝기」",""],
+  ["diff","프레임 차분","지금 화면과 바로 앞 화면의 픽셀별 차이","e","「앞 화면과 비교」",""],
+  ["mask","변화 마스크","바뀐 픽셀만 칠한 지도","d","",""],
+  ["block","5×5 블록","감지영역을 25칸으로 나눠 칸마다 판정","e","",""],
+  ["fp","오탐 · 미탐","헛경보 · 놓침","n","",""],
+  ["mono","단조 억제","블록 검사는 경보를 취소만 하고 새로 만들지 않음","e","「취소만 하는 안전장치」",""],
+ ]],
+ ["05", "오디오 판정", [
+  ["meter","레벨미터","소리 크기 막대","n","",""],
+  ["hsv","HSV","색을 색상·채도·명도로 나타내는 방식","n","","벡터스코프의 색상각·채도"],
+  ["inrange","<code>cvtColor</code> · <code>inRange</code>","색 방식 바꾸기 · 범위 안 픽셀만 남기기","d","「초록 막대 색만 골라냄」",""],
+  ["ma","이동평균","최근 몇 개 값의 평균","n","",""],
+  ["rms","RMS","소리의 평균 크기","n","",""],
+  ["dbfs","dBFS","디지털 최대를 0으로 둔 데시벨","n","",""],
+  ["div","<code>÷ 32768</code> · <code>20·log10</code>","정수를 −1~1로 바꾸는 계산 · dB 변환식","d","",""],
+  ["clip","클립 (−60~0)","범위 밖 값을 끝값으로 고정","d","",""],
+  ["mic","윈도우 마이크 권한","캡처보드 소리도 「마이크」로 취급돼 꺼지면 막힘 (10-27 사고)","e","",""],
+ ]],
+ ["06", "시간축 · 정파 상태기계", [
+  ["signoff","정파","새벽 송출 중단","n","",""],
+  ["fsm","상태기계 (FSM)","정해진 상태 중 하나에 있고, 조건이 맞으면 다음 상태로","e","","신호등"],
+  ["hyst","히스테리시스","켜는 조건과 끄는 조건을 다르게 둬 깜빡임 방지","e","","절체기의 자동 복귀 지연(return delay)"],
+  ["flap","플래핑","경보가 켜졌다 꺼졌다 반복","n","",""],
+  ["states","IDLE · PREPARATION · SIGNOFF","평상시 · 정파 준비 · 정파 중","e","「평상시 · 준비 · 정파 중」",""],
+  ["tag","[시간] · [감지]","시각으로 넘어감 · 화면을 보고 넘어감","e","",""],
+  ["asym","오류 비대칭","두 실수의 대가가 달라 비싼 쪽을 피하게 설계","e","",""],
+  ["tick","틱 (1 s)","상태를 검사하는 한 번","d","「1초마다 검사」",""],
+ ]],
+ ["07", "프로세스 격리", [
+  ["mp","multiprocessing (spawn)","파이썬에서 프로그램을 여러 개 띄우는 기능","d","「프로그램을 셋으로 나눔」",""],
+  ["evloop","이벤트 루프","화면 프로그램이 클릭·그리기를 차례로 처리하는 반복","d","「화면 응답 없음」",""],
+  ["ack","ACK","경보 확인 버튼","n","",""],
+  ["kill","kill","강제 종료","d","「강제 종료」",""],
+  ["reinject","재주입","새로 뜬 감시 프로그램에 현재 상태를 다시 넣어 줌","e","「설정을 다시 알려 줌」",""],
+  ["backoff","지수 백오프","실패할 때마다 재시도 간격을 2배씩 늘림","e","「재시작 간격을 점점 늘림」",""],
+  ["pid","pid","프로세스 번호","d","",""],
+  ["dump","스택 덤프","멈춘 순간 코드 어디에 있었는지 기록","d","「멈춘 위치 기록」",""],
+  ["ipc","IPC","프로그램 사이 통신","d","",""],
+  ["queue","Queue · <code>put_nowait</code>","메시지 우편함 · 기다리지 않고 넣기 (차면 오래된 것 버림)","d","「감시가 절대 기다리지 않게」",""],
+  ["pyside","PySide6","화면을 만드는 도구","d","",""],
+ ]],
+ ["08", "운영에서 배운 장애 3건", [
+  ["ret","<code>ret=False</code>","캡처 읽기의 성공/실패 표시. 무신호인데도 「성공」이었음","e","「장치가 성공이라고 거짓말」",""],
+  ["wall","<code>time.time</code> (벽시계)","현재 날짜·시각. 시간 동기화 때 뛸 수 있음","e","「PC 시계」","NTP로 맞추는 하우스 시계"],
+  ["monot","<code>time.monotonic</code>","켜진 뒤 흐른 시간만 세는 시계. 절대 안 뜀","e","「스톱워치」","프리런 카운터"],
+  ["readto","ReadTimeout","보낸 뒤 답을 기다리다 시간 초과. 상대가 받았는지 모름","e","「답장 대기 시간 초과」",""],
+  ["writeto","write timeout","보내는 도중 끊김. 상대가 못 받음","e","「보내다 끊김」",""],
+  ["idem","멱등 · 비멱등","여러 번 해도 결과가 같은 요청 · 할 때마다 쌓이는 요청","e","「두 번 보내면 두 통 가는 요청」","택배 재발송"],
+ ]],
+ ["09", "UI 힙손상 추적", [
+  ["heap","힙 · 힙손상","객체를 만드는 메모리 공간 · 그 관리 장부가 망가짐","e","「메모리 손상」",""],
+  ["init","<code>__init__</code> · <code>TypeError</code>","객체 첫 준비 함수 · 형식 오류","d","「새 객체를 하나도 못 만듦」",""],
+  ["fault","faulthandler","죽을 때 위치를 남기는 기능","d","「고장 순간 기록 장치」",""],
+  ["rss","RSS · threads · handles","메모리 양 · 일꾼 수 · 열린 자원 수","d","「메모리·자원 상태」",""],
+  ["ablation","제거 실험","용의자를 하나씩 빼고 재발 여부를 봄","e","","장애 장비를 하나씩 바이패스해 보는 것"],
+  ["venv","venv · 폴백","프로젝트 전용 파이썬 폴더 · 없을 때 다른 걸로 대신 실행","d","「3.13 실행 환경」",""],
+  ["control","대조군","조건을 안 바꾼 비교 집단 (6차가 우연히 그 역할)","n","",""],
+  ["pyver","Python 3.13 / 3.14","파이썬 버전","n","",""],
+ ]],
+ ["10", "검증 — 90일", [
+  ["uptime","가동률 하한","애매한 구간을 전부 멈춤으로 친 최솟값","e","",""],
+  ["health","HEALTH 스냅샷","10분마다 남기는 상태 기록 줄","d","「10분마다 남는 상태 기록」",""],
+  ["rss2","RSS","실제 차지한 메모리 양","d","「메모리 사용량」",""],
+  ["leak","메모리 누수","쓴 메모리를 안 돌려줘 계속 늘어남","n","",""],
+  ["tests","자동 테스트 107개","고칠 때마다 기계가 돌리는 검사","n","",""],
+ ]],
+ ["부록", "자동 녹화", [
+  ["fps","실효 fps","설정값이 아니라 실제로 담긴 초당 프레임 수","e","",""],
+  ["av","A/V 동기","소리와 영상 시간 맞추기","n","",""],
+  ["itsscale","<code>-itsscale</code>","ffmpeg의 시간 눈금 조정 옵션","d","「재생 속도만 보정」",""],
+  ["reenc","재인코딩","풀었다 다시 압축하기","n","",""],
+  ["ffmpeg","ffmpeg","영상·소리 파일 도구","n","",""],
+ ]],
+];
+const LBL = {e:"explain", n:"name", d:"drop"};
+const KO = {explain:"설명", name:"이름만", drop:"뺌"};
+const TERMS = [];
+G.forEach(([no, title, items]) => items.forEach(t => TERMS.push({id:t[0], no, title, term:t[1], mean:t[2], rec:LBL[t[3]], alt:t[4], bc:t[5]})));
+const REC = Object.fromEntries(TERMS.map(t => [t.id, t.rec]));
+let choices = {...REC};
+let filter = "all";
+
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const plain = s => s.replace(/<[^>]+>/g, "");
+
+function render() {
+  const list = document.getElementById("list");
+  list.innerHTML = G.map(([no, title, items]) => `
+    <section class="grp" data-no="${no}">
+      <div class="grp-head"><span class="grp-no">${no}</span><h2>${title}</h2><span class="grp-sum" data-sum="${no}"></span></div>
+      ${items.map(t => {
+        const id = t[0], rec = LBL[t[3]];
+        return `<div class="row" data-id="${id}">
+          <div style="min-width:0">
+            <div class="term">${t[1]}<span class="rec ${rec}">추천 ${KO[rec]}</span></div>
+            <p class="mean">${t[2]}</p>
+            ${t[4] ? `<p class="sub"><span class="k">뺄 때 대신 쓸 말</span> ${esc(t[4])}</p>` : ""}
+            ${t[5] ? `<p class="sub"><span class="k">방송 쪽 비유</span> ${esc(t[5])}</p>` : ""}
+          </div>
+          <div class="seg" role="radiogroup" aria-label="${esc(plain(t[1]))} 다루는 방법">
+            ${["explain","name","drop"].map(v => `<input type="radio" name="c-${id}" id="c-${id}-${v}" value="${v}"><label for="c-${id}-${v}" class="${v}">${KO[v]}</label>`).join("")}
+          </div>
+        </div>`;
+      }).join("")}
+    </section>`).join("");
+  list.addEventListener("change", e => {
+    if (e.target.name && e.target.name.startsWith("c-")) {
+      choices[e.target.name.slice(2)] = e.target.value;
+      refresh(); queueSave();
+    }
+  });
+  refresh();
+}
+
+function refresh() {
+  const n = {explain:0, name:0, drop:0};
+  TERMS.forEach(t => {
+    const c = choices[t.id] || t.rec; n[c]++;
+    const row = document.querySelector(`.row[data-id="${t.id}"]`);
+    row.dataset.c = c;
+    const r = document.getElementById(`c-${t.id}-${c}`); if (r) r.checked = true;
+    const show = filter === "all" || filter === c || (filter === "changed" && c !== t.rec);
+    row.classList.toggle("hidden-by-filter", !show);
+  });
+  document.querySelectorAll(".grp").forEach(g => {
+    const rows = [...g.querySelectorAll(".row")];
+    g.classList.toggle("hidden-by-filter", rows.every(r => r.classList.contains("hidden-by-filter")));
+    const keep = rows.filter(r => r.dataset.c !== "drop").length;
+    g.querySelector(".grp-sum").textContent = `남김 ${keep} / ${rows.length}`;
+  });
+  const changed = TERMS.filter(t => choices[t.id] !== t.rec).length;
+  document.getElementById("counts").innerHTML =
+    `<span>설명 <b>${n.explain}</b></span><span>이름만 <b>${n.name}</b></span><span>뺌 <b>${n.drop}</b></span><span>추천과 다름 <b>${changed}</b></span>`;
+  document.getElementById("out").textContent = summary();
+}
+
+function summary() {
+  const lines = [];
+  G.forEach(([no, title]) => {
+    const ts = TERMS.filter(t => t.no === no);
+    const by = v => ts.filter(t => choices[t.id] === v).map(t => plain(t.term) + (choices[t.id] !== t.rec ? "*" : "")).join(", ") || "—";
+    lines.push(`[${no} ${title}]`, `  설명: ${by("explain")}`, `  이름만: ${by("name")}`, `  뺌: ${by("drop")}`);
+  });
+  lines.push("", "* = 추천과 다르게 고른 것");
+  return lines.join("\n");
+}
+
+document.getElementById("filters").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll("#filters button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  refresh();
+});
+document.getElementById("reset").addEventListener("click", () => { choices = {...REC}; refresh(); queueSave(); });
+document.getElementById("copy").addEventListener("click", () => {
+  const t = summary();
+  const sel = () => { const r = document.createRange(); r.selectNodeContents(document.getElementById("out")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+  try { navigator.clipboard.writeText(t).then(() => setSave("복사됨"), sel); } catch (_) { sel(); }
+});
+
+// 저장: db(Claude가 읽음) → 안 되면 이 브라우저에만
+const saveEl = document.getElementById("save");
+const setSave = s => { saveEl.textContent = s; };
+let db = null, timer = null;
+const LS = "kbs-term-picks";
+function lsGet() { try { return JSON.parse(localStorage.getItem(LS) || "null"); } catch (_) { return null; } }
+function lsSet(v) { try { localStorage.setItem(LS, JSON.stringify(v)); } catch (_) {} }
+function queueSave() {
+  setSave("저장 대기…");
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    const body = {choices, updated: new Date().toISOString()};
+    lsSet(body);
+    if (!db) { setSave("이 브라우저에만 저장됨"); return; }
+    try { await db.doc("picks/main").set(body); setSave("저장됨 ✓"); }
+    catch (e) { setSave("저장 실패 — 결과 복사 사용"); }
+  }, 600);
+}
+
+render();
+const local = lsGet();
+if (local && local.choices) { choices = {...REC, ...local.choices}; refresh(); }
+setSave(local ? "이 브라우저 기록 불러옴" : "추천값");
+(async () => {
+  try {
+    db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+    if (!db) { setSave("이 브라우저에만 저장됨"); return; }
+    const to = setTimeout(() => setSave("불러오기 지연"), 10000);
+    const snap = await db.doc("picks/main").get();
+    clearTimeout(to);
+    if (snap.exists && snap.data().choices) { choices = {...REC, ...snap.data().choices}; refresh(); setSave("저장된 선택 불러옴"); }
+    else setSave("추천값 (아직 저장 전)");
+  } catch (e) { setSave("이 브라우저에만 저장됨"); }
+})();
+</script>

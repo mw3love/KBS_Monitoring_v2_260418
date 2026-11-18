@@ -99,3 +99,12 @@ table.tb { font-size: 24px; color: var(--ink); }
 .bk-fig { flex: 1; display: flex; flex-direction: column; }
 .bk-img { width: 820px; height: 478px; object-fit: contain; border-radius: 8px; margin-bottom: 20px; }
 .body { font-size: 26px; line-height: 1.5; color: var(--body); }
+
+h2 { margin-bottom: 22px; }
+.gist { font-size: 32px; font-weight: 700; line-height: 1.45; color: var(--ink); border-left: 8px solid var(--accent); padding: 4px 0 4px 26px; margin-bottom: 34px; }
+.pt { font-size: 26px; line-height: 1.5; color: var(--body); margin-bottom: 16px; }
+.pt b { color: var(--ink); }
+.terms { display: flex; flex-wrap: wrap; gap: 12px; margin-top: auto; padding-top: 20px; }
+.term { font-size: 22px; background: var(--card); border: 2px solid var(--line); border-radius: 999px; padding: 6px 18px; color: var(--ink); }
+.term b { color: var(--accent); }
+.lesson { margin-top: auto; padding-top: 14px; border-top: 2px solid var(--line); font-size: 25px; font-weight: 700; color: var(--accent); line-height: 1.4; }

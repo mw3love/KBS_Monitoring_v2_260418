@@ -1,36 +1,34 @@
 <section id="pipeline">
-<p class="eyebrow">처리 파이프라인</p>
-<h2>200 ms 한 주기 — Detection 프로세스 안에서 일어나는 일</h2>
-<p class="lane-label">캡처 스레드 · VideoCaptureWorker</p>
-<div class="flow" style="margin-bottom:28px;">
-<div class="step"><p class="step-name">cap.read()</p><p class="s">DirectShow, 최신 1장</p></div>
+<p class="eyebrow">처리 흐름</p>
+<h2>0.2초 한 바퀴 — 감시 프로그램 안에서 일어나는 일</h2>
+<p class="gist">일꾼 여럿이 나눠 일한다. 인터넷 발송·영상 파일 만들기 같은 느린 일은 따로 빼서, 검사는 늘 1초에 5번 박자를 지킨다.</p>
+<p class="lane-label">캡처 일꾼</p>
+<div class="flow" style="margin-bottom:26px;">
+<div class="step"><p class="step-name">캡처보드에서 최신 화면</p><p class="s">쉬지 않고 계속 읽음</p></div>
 <div class="arrow">→</div>
-<div class="step key"><p class="step-name">SharedMemory 쓰기</p><p class="s"><span class="mono">kbs_frame_v2</span> 6.2 MB · seqlock<br>(seq 홀수 = 쓰는 중, 짝수 = 안정)</p></div>
+<div class="step key"><p class="step-name">공유 메모리에 쓰기</p><p class="s">화면 6.2 MB를 복사 없이 넘김</p></div>
 <div class="arrow">→</div>
-<div class="step"><p class="step-name">UI가 33 ms마다 읽음</p><p class="s">seq_no 바뀌면 <span class="mono">.copy()</span> 후 표시</p></div>
+<div class="step"><p class="step-name">화면 표시</p><p class="s">초당 30번 새 그림만 그림</p></div>
 </div>
-<p class="lane-label">메인 루프 · 200 ms</p>
-<div class="flow" style="margin-bottom:28px;">
-<div class="step"><p class="step-name">heartbeat.touch()</p><p class="s">살아 있음 표시</p></div>
+<p class="lane-label">검사 반복 · 0.2초마다</p>
+<div class="flow" style="margin-bottom:26px;">
+<div class="step key"><p class="step-name">① 살아 있음 표시</p><p class="s">heartbeat — 멈추면 감시자가 앎</p></div>
 <div class="arrow">→</div>
-<div class="step"><p class="step-name">read_frame()</p><p class="s">scale_factor &lt; 1이면 <span class="mono">INTER_AREA</span> 축소</p></div>
+<div class="step"><p class="step-name">② 화면 읽기</p><p class="s">공유 메모리에서 최신 한 장</p></div>
 <div class="arrow">→</div>
-<div class="step key"><p class="step-name">ROI별 판정</p><p class="s">블랙 · 스틸 (영상)<br>HSV 레벨미터</p></div>
+<div class="step"><p class="step-name">③ 판정</p><p class="s">블랙 · 스틸 · 레벨미터 + 지속 시간</p></div>
 <div class="arrow">→</div>
-<div class="step key"><p class="step-name">상태기계</p><p class="s">지속 시간 누적 · 복구 히스테리시스 · 정파 억제</p></div>
-<div class="arrow">→</div>
-<div class="step"><p class="step-name">이벤트</p><p class="s">AlarmTrigger / Resolve → <span class="mono">result_queue</span></p></div>
-<div class="arrow">→</div>
-<div class="step"><p class="step-name">sleep(남은 시간)</p><p class="s">주기 지터를 DIAG 로그로</p></div>
+<div class="step"><p class="step-name">④ 알리기</p><p class="s">경보 시작 · 해제를 화면으로</p></div>
 </div>
-<div class="row">
-<div class="box grow"><p class="tag">오디오 스레드 · AudioMonitorWorker</p><p class="s">sounddevice PCM → L/R RMS → dBFS → 임베디드 무음 판정 · 레벨을 <span class="mono">kbs_state_v2</span>로 UI에 전달</p></div>
-<div class="box grow"><p class="tag">AutoRecorder · TelegramWorker</p><p class="s">프레임·PCM을 링버퍼에 상시 적재 → 경보 시 MP4 / 별도 큐에서 사진+문구 발송 (판정 루프를 막지 않음)</p></div>
+<div class="row" style="gap:28px;">
+<div class="box grow"><p class="box-title">소리 일꾼</p><p class="s">임베디드 소리 크기를 재서 무음 판정 · L/R 레벨을 화면에</p></div>
+<div class="box grow"><p class="box-title">녹화 · 알림 일꾼</p><p class="s">링버퍼에 사고 전 10초를 늘 보관 → 경보 때 MP4 · 텔레그램. 인터넷이 느려도 검사는 기다리지 않음</p></div>
 </div>
+<div class="terms"><p class="term">공유 메모리 = <b>두 장비가 같이 읽는 프레임 스토어</b></p><p class="term">링버퍼 = <b>리플레이 서버의 프리롤</b></p></div>
 <aside>[약 1분]
-- Detection 프로세스 안에 스레드 셋 + 메인 루프.
-- 캡처 스레드는 계속 최신 프레임을 공유메모리에 씀. 락 대신 seqlock: 쓰기 전 seq를 홀수로, 다 쓰면 짝수로. 읽는 쪽은 읽기 전후 seq가 같고 짝수면 온전한 프레임. 1프레임 지연은 허용.
-- 메인 루프는 200 ms 주기: 맨 앞에서 heartbeat를 찍고(멈추면 감시자가 앎), 프레임을 읽어 ROI별 판정 → 상태기계 → 이벤트 → 남은 시간만큼 sleep. 목표 주기와 실제 경과 차이(지터)를 누적해 로그로 남김.
-- 느린 일(HTTP 발송, MP4 인코딩)은 전부 별도 스레드/큐로 빼서 판정 주기를 막지 않음.
-- 오디오는 별도 스레드가 PCM을 받아 RMS를 계산, 레벨 값은 고빈도라 큐가 아니라 공유메모리(kbs_state_v2)로 UI에 넘김.</aside>
+- 감시 프로그램 안에 일꾼 셋 + 검사 반복.
+- 캡처 일꾼은 최신 화면을 공유 메모리에 계속 쓴다. 공유 메모리는 두 프로그램이 같이 보는 칸이라 큰 화면을 복사 없이 넘긴다.
+- 검사 반복은 0.2초마다: 맨 앞에서 「살아 있음」을 찍고(멈추면 감시자가 앎), 화면을 읽어 판정하고, 경보를 알린 뒤 남은 시간만큼 쉰다. 박자가 흔들린 정도(지터)는 로그에 남김.
+- 느린 일은 전부 따로: 텔레그램 발송·MP4 만들기는 다른 일꾼이 해서 검사 박자를 막지 않는다.
+- 질문 대비: 공유 메모리는 잠금 없이 번호(seqlock)로 「쓰는 중」인 화면을 건너뛴다. 잠금을 쓰면 화면이 멈출 때 감시도 같이 멈출 수 있어서.</aside>
 </section>

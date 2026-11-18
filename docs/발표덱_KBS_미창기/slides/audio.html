@@ -1,35 +1,30 @@
 <section id="audio">
-<p class="eyebrow">오디오 판정</p>
-<h2>소리를 「보는」 레벨미터와 「듣는」 임베디드</h2>
+<p class="eyebrow">소리 판정</p>
+<h2>레벨미터는 「보고」, 임베디드는 「잰다」</h2>
+<p class="gist">소리는 두 길로 본다. 화면에 그려진 레벨미터의 초록 막대를 읽고(채널 여러 개), 캡처보드로 들어온 실제 소리 크기를 잰다(정확).</p>
 <div class="row grow">
 <div class="col" style="width:880px;">
-<p class="lane-label">레벨미터 (A) — 멀티뷰어가 그린 미터를 영상으로 읽기</p>
-<div class="row" style="gap:28px; margin-bottom:20px;">
-<img class="fig" style="width:268px; height:534px;" src="/_blob/ac629f02098e260b15457c5e0460edcf" alt="A1 레벨미터 감지영역 확대: 왼쪽 원본, 오른쪽 HSV 범위를 통과한 픽셀만 연두색으로 표시한 마스크">
+<p class="lane-label">레벨미터 (A) — 화면으로 읽기</p>
+<div class="row" style="gap:28px;">
+<img class="fig" style="width:240px; height:478px;" src="/_blob/ac629f02098e260b15457c5e0460edcf" alt="A1 레벨미터 감지영역 확대: 왼쪽 원본, 오른쪽 초록 범위를 통과한 픽셀만 연두색으로 표시">
 <div class="col grow">
-<p class="s" style="margin-bottom:10px;"><span class="mono">cvtColor(BGR → HSV)</span></p>
-<p class="s" style="margin-bottom:10px;"><span class="mono">inRange</span> H 40–95 · S 80–255 · V 60–255<br>(미터의 초록 막대만 통과)</p>
-<p class="s" style="margin-bottom:10px;">통과 픽셀 비율 → 최근 5프레임 이동평균</p>
-<p class="s" style="margin-bottom:20px;">≥ 5% = 소리 있음 · 미만이 60 s → 경보</p>
-<div class="box key"><p class="tag">A1 실측 (왼쪽 그림)</p><p class="t">통과 15.6% → 활성</p></div>
-<p class="cap">운영 화면 캡처에 같은 연산을 적용해 다시 계산</p>
+<p class="pt">초록 막대 색(HSV)만 골라 그 비율을 센다</p>
+<p class="pt">5% 이상 = 소리 있음<br>5% 미만이 60초 → 경보</p>
+<div class="box key"><p class="tag">A1 실측 (왼쪽 그림)</p><p class="t">초록 15.6% → 소리 있음</p></div>
 </div>
 </div>
 </div>
 <div class="col grow">
-<p class="lane-label">임베디드 (EA) — 실제 PCM 측정</p>
-<div class="flow" style="flex-direction:column; gap:10px; margin-bottom:24px;">
-<div class="step"><p class="step-name">int16 PCM</p><p class="s">sounddevice 입력 스트림, L/R 분리 후 ÷ 32768</p></div>
-<div class="step"><p class="step-name">RMS → dBFS</p><p class="s"><span class="mono">20·log10(RMS)</span>, −60 ~ 0 dB로 클립</p></div>
-<div class="step key"><p class="step-name">(L + R) / 2 ≤ −50 dBFS</p><p class="s">60 s 지속 → 경보 · 정상 신호 오면 즉시 복구</p></div>
-</div>
-<div class="insight"><p class="s">장치 열기가 실패하면 그 시간을 <b>무음으로 계산</b>하고, 60 s 이어지면 <span class="mono">[SYSTEM]</span> 통보 — 2026-10-27 윈도우 마이크 권한이 꺼져 8시간 소리 감시가 멈췄던 사고 이후</p></div>
+<p class="lane-label">임베디드 (EA) — 실제 소리 재기</p>
+<p class="pt">캡처보드 PCM → RMS → dBFS</p>
+<p class="pt">L/R 평균이 <b>−50 dBFS 이하로 60초</b> → 경보<br>정상 소리가 오면 바로 복구</p>
+<div class="insight" style="margin-top:8px;"><p class="s"><b>2026-10-27</b> 윈도우 마이크 권한이 꺼져 8시간 소리 감시가 멈췄다. 지금은 장치를 못 열면 그 시간을 무음으로 치고, 60초 뒤 시스템 알림을 보낸다.</p></div>
+<div class="terms"><p class="term">HSV = <b>벡터스코프의 색상각 · 채도</b></p></div>
 </div>
 </div>
 <aside>[약 1분]
-- 레벨미터 감지: 멀티뷰어가 화면에 그려 주는 레벨미터를 영상으로 읽는다. HSV로 바꾸고 초록 막대 색 범위만 통과시켜, 통과 픽셀이 5% 미만이면 무음으로 본다. 5프레임 이동평균으로 미터 깜빡임을 흡수.
-- 장점: 디임베더 없이 화면에 보이는 채널 수만큼 소리 유무를 확인. 한계: 미터 색·위치에 의존 → 멀티뷰어 설정이 바뀌면 HSV 범위·ROI 조정 필요.
-- 왼쪽 그림은 실제 운영 화면의 A1에 같은 연산을 한 결과. 15.6% 로 활성.
-- 임베디드: 캡처 입력 PCM을 직접 측정. RMS → dBFS, L/R 평균이 −50 dBFS 이하로 60초면 경보.
-- 10월 27일 윈도우 마이크 권한이 꺼져 장치를 못 열었는데, 그땐 '측정값 없음'이라 경보가 안 울렸다. 지금은 열기 실패 구간을 무음으로 쳐서 무음 경보가 울리고, 60초 지나면 시스템 알림도 보냄.</aside>
+- 레벨미터: 멀티뷰어가 그려 주는 미터를 영상으로 읽는다. 초록 막대 색 범위만 남겨 그 비율이 5% 미만이면 무음. 최근 5번 평균으로 깜빡임을 흡수.
+- 장점: 디임베더 없이 화면에 보이는 채널 수만큼 소리 유무 확인. 한계: 미터 색·위치가 바뀌면 다시 맞춰야 하고, 소리 품질은 모른다.
+- 임베디드: 캡처보드로 들어온 소리를 직접 측정. L/R 평균이 −50 dBFS 이하로 60초면 경보.
+- 10월 27일 사고: 윈도우가 캡처보드 소리도 「마이크」로 취급하는데 그 권한이 꺼져 장치를 못 열었다. 그땐 「측정값 없음」이라 경보가 안 울렸다. 지금은 못 연 시간을 무음으로 친다.</aside>
 </section>
