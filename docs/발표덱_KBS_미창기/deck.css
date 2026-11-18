@@ -108,3 +108,10 @@ h2 { margin-bottom: 22px; }
 .term { font-size: 22px; background: var(--card); border: 2px solid var(--line); border-radius: 999px; padding: 6px 18px; color: var(--ink); }
 .term b { color: var(--accent); }
 .lesson { margin-top: auto; padding-top: 14px; border-top: 2px solid var(--line); font-size: 25px; font-weight: 700; color: var(--accent); line-height: 1.4; }
+.qa { margin-top: 18px; background: var(--card); border: 2px solid var(--accent); border-radius: 12px; padding: 14px 24px; }
+.qa .q { font-size: 25px; font-weight: 700; color: var(--accent); line-height: 1.4; margin-bottom: 4px; }
+.qa .a { font-size: 24px; line-height: 1.45; color: var(--ink); }
+#results .gist { margin-bottom: 24px; }
+#results .kpis { margin-bottom: 22px; }
+#results .kpi { padding: 18px 26px; }
+#results .kpi-num { font-size: 66px; }
