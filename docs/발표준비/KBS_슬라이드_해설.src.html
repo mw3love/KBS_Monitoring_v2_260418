@@ -129,7 +129,7 @@ ol.steps li { margin-bottom: 6px; }
 <section class="slide" id="cover">
 <div class="head"><span class="no">01</span><h2>표지 — v1에서 v2로</h2><span class="chip d">어려움 ★★☆</span><span class="chip">약 50초</span></div>
 <figure><img src="{{IMG:cover}}" alt="표지 슬라이드: 제목, v1과 v2 비교표, 오른쪽에 운영 화면"></figure>
-<p class="gist">옛 버전(v1)은 프로그램 하나가 모든 일을 해서, 오래 켜 두면 감시가 멈췄다. 새 버전(v2)은 프로그램을 셋으로 나눠 서로 살아 있는지 확인하게 했다.</p>
+<p class="gist">옛 버전(v1)은 프로그램 하나가 모든 일을 해서, 오래 켜 두면 감시가 멈췄다. 새 버전(v2)은 프로그램을 셋으로 나누고, Watchdog이 나머지 둘이 살아 있는지 확인하게 했다.</p>
 
 <h3>이 장이 말하는 것</h3>
 <p>KBS Monitoring은 방송 16채널을 사람 대신 지켜보다가, 화면이 까맣게 되거나(블랙) 멈추거나(스틸) 소리가 끊기면 경보를 울리고 텔레그램으로 알려 주는 프로그램이다. 판정은 AI 학습이 아니라 사람이 정한 숫자 기준(예: 밝기 5 미만)으로 한다. 이것을 「규칙 기반」이라고 부른다.</p>
@@ -456,9 +456,9 @@ ol.steps li { margin-bottom: 6px; }
 
 <!-- ───────────── 7 arch ───────────── -->
 <section class="slide" id="arch">
-<div class="head"><span class="no">07</span><h2>프로세스 격리 — 셋이 서로 감시</h2><span class="chip d">어려움 ★★★</span><span class="chip">약 1분 10초</span></div>
+<div class="head"><span class="no">07</span><h2>프로세스 격리 — Watchdog이 둘을 지킨다</h2><span class="chip d">어려움 ★★★</span><span class="chip">약 1분 10초</span></div>
 <figure><img src="{{IMG:arch}}" alt="프로세스 격리 슬라이드: 왼쪽 세 프로세스와 IPC 상자, 오른쪽 장애별 감지·대응 표"></figure>
-<p class="gist">세 프로그램이 서로 살아 있는지 확인한다. 오른쪽 표는 「어떤 고장을, 누가, 무엇을 보고, 몇 초 안에 알아채서, 어떻게 하는지」를 한눈에 보여 준다.</p>
+<p class="gist">Watchdog이 나머지 두 프로그램이 살아 있는지 확인한다. 오른쪽 표는 「어떤 고장을, 누가, 무엇을 보고, 몇 초 안에 알아채서, 어떻게 하는지」를 한눈에 보여 준다.</p>
 
 <h3>이 장이 말하는 것 — 왼쪽 상자</h3>
 <ul>
