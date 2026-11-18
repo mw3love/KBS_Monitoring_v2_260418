@@ -327,6 +327,7 @@ class SettingsDialog(QDialog):
     show()로 열어 비모달로 사용. 저장 시 config_saved 시그널 발행.
     """
     config_saved = Signal(dict)
+    restart_requested = Signal()  # 불러오기 후 「지금 다시 켜기」
     _applying = False  # 재진입 방지 플래그 (클래스 수준)
 
     _TAB_LABELS = [
@@ -1882,7 +1883,7 @@ class SettingsDialog(QDialog):
         about_vl.setContentsMargins(16, 14, 16, 14)
         about_vl.setSpacing(4)
 
-        lbl_ver = QLabel("KBS On-Air Monitoring v2.8.23")
+        lbl_ver = QLabel("KBS On-Air Monitoring v2.8.24")
         lbl_ver.setObjectName("aboutCardVersion")
         about_vl.addWidget(lbl_ver)
 
@@ -2480,6 +2481,27 @@ class SettingsDialog(QDialog):
         except Exception as e:
             self._show_save_status(self._import_status_lbl, f"불러오기 실패: {e}", False)
             QMessageBox.critical(self, "오류", f"불러오기 실패:\n{e}")
+            return
+        self._ask_restart_after_import()
+
+    def _ask_restart_after_import(self):
+        """불러오기 성공 후 재시작 안내. Watchdog은 설정을 기동 때 1회만 읽어서,
+        다시 켜야 [SYSTEM] 텔레그램(기동·재spawn 알림)이 나가기 시작한다."""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Question)
+        box.setWindowTitle("설정 불러오기 완료")
+        box.setText("설정을 불러왔습니다.\n\n"
+                    "텔레그램 시스템 알림을 켜려면 프로그램을 다시 켜야 합니다.\n"
+                    "지금 다시 켤까요?")
+        box.setInformativeText("실행.bat으로 켠 경우 몇 초 뒤 자동으로 다시 켜집니다.\n"
+                               "(실행.bat 없이 직접 켰다면 꺼지기만 하니 실행.bat으로 다시 켜세요.)\n"
+                               "다시 켜는 동안(수 초) 감시가 잠깐 멈춥니다.")
+        restart_btn = box.addButton("지금 다시 켜기", QMessageBox.AcceptRole)
+        box.addButton("나중에", QMessageBox.RejectRole)
+        box.setDefaultButton(restart_btn)
+        box.exec()
+        if box.clickedButton() is restart_btn:
+            self.restart_requested.emit()
 
     def closeEvent(self, event):
         """다이얼로그 닫힐 때 텔레그램 테스트 워커 안전 정리."""

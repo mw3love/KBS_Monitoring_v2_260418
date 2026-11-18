@@ -28,6 +28,7 @@ data/
 # 개발 도구
 .claude/*
 !.claude/handoff/
+!.claude/commit-gate.json
 .agents/
 AGENTS.md
 

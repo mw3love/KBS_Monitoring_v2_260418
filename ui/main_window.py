@@ -13,7 +13,7 @@ import platform
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication,
 )
-from PySide6.QtCore import Qt, QTimer, QEvent
+from PySide6.QtCore import Qt, QTimer, QEvent, Signal
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 
 from core.roi_manager import ROI
@@ -28,11 +28,14 @@ from utils import format_duration as _fmt_dur
 
 _log = logging.getLogger(__name__)
 
-VERSION = "2.8.23"
+VERSION = "2.8.24"
 
 
 class MainWindow(QMainWindow):
     """KBS Monitoring v2 메인 윈도우"""
+
+    # 설정창의 「지금 다시 켜기」 중계 → main.py가 종료코드 42로 재가동
+    restart_requested = Signal()
 
     def __init__(self, result_queue, cmd_queue, shutdown_event,
                  shared_frame=None, shared_state=None):
@@ -626,6 +629,7 @@ class MainWindow(QMainWindow):
             parent=self,
         )
         self._settings_dlg.config_saved.connect(self._on_config_saved)
+        self._settings_dlg.restart_requested.connect(self.restart_requested)
         self._settings_dlg.finished.connect(
             lambda: self._logger.info("[settings] 설정창 닫힘"))
         self._settings_dlg.show()

@@ -17,7 +17,7 @@ import traceback
 
 
 # ── 필수 의존성 사전 점검 (PySide6/OpenCV 없으면 친절한 안내 후 종료) ──────
-# install.ps1을 건너뛰고 main.py를 바로 실행한 경우, 운용자가 알아볼 수 있는
+# 실행.bat(자동 설치)을 건너뛰고 main.py를 바로 실행한 경우, 운용자가 알아볼 수 있는
 # 한국어 메시지로 안내한다. (Python 기본 ImportError 추적은 비기술자에게 불친절.)
 def _check_critical_deps():
     missing = []
@@ -32,7 +32,7 @@ def _check_critical_deps():
     if missing:
         msg = (
             f"필수 패키지가 설치되어 있지 않습니다: {', '.join(missing)}\n\n"
-            f"install.bat 또는 install.ps1을 실행하여 의존성을 설치하세요.\n"
+            f"인터넷에 연결된 상태에서 실행.bat으로 켜면 자동으로 설치됩니다.\n"
             f"(상세 절차는 '★ KBS Monitoring v2 설치 안내.txt' 참조)"
         )
         try:
@@ -313,6 +313,15 @@ def main():
     RESTART_EXIT_CODE = 42  # 실행.bat 루프가 이 종료코드를 보면 재가동
     _startup_ts = time.time()  # 기동 시각 — 이 이전의 예정 재시각은 무시(기동·재가동 직후 즉시 재시작 방지)
 
+    # 설정 불러오기 직후 「지금 다시 켜기」 — 예약 재시작과 같은 길(종료코드 42 → 실행.bat 재가동).
+    # Watchdog은 설정을 기동 때 1회만 읽으므로 재기동해야 [SYSTEM] 텔레그램이 살아난다.
+    def _on_restart_requested():
+        print("[main] 설정 불러오기 후 다시 켜기 요청", flush=True)
+        _restart_requested[0] = True
+        window.close()
+
+    window.restart_requested.connect(_on_restart_requested)
+
     def _parse_exclude_ranges(exclude_str: str):
         """'HH:MM-HH:MM, HH:MM-HH:MM' 파싱 → [(start_min, end_min), ...] (자정 넘김 지원)"""
         ranges = []
@@ -478,7 +487,9 @@ def main():
             _append_ui_log(line + "\n")
 
             # onset 캡처: psutil 실패로 처음 전환되는 순간 1회 심층 덤프
-            degraded_now = (rss_mb == -1)
+            # 단, psutil 자체가 설치 안 된 경우(ModuleNotFoundError)는 손상이 아니라 설치 누락 —
+            # 기동 자가점검의 「부품 누락」이 알린다(2026-11-18 새 PC 오경보).
+            degraded_now = (rss_mb == -1) and not psutil_err.startswith("ModuleNotFoundError")
             if degraded_now and not _health_degraded[0]:
                 _health_degraded[0] = True
                 _append_ui_log(_capture_onset_dump(ts, psutil_err))

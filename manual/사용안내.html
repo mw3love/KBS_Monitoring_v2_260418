@@ -128,7 +128,7 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
 
 <nav class="toc" aria-label="목차">
   <div class="brand">KBS Monitoring 사용안내</div>
-  <div class="ver">v2.8.23 기준 · 2026-11</div>
+  <div class="ver">v2.8.24 기준 · 2026-11</div>
   <div class="part">A부 · 감시 근무자</div>
   <a href="#c0">0. 이 프로그램은</a>
   <a href="#c1">1. 화면 보는 법</a>
@@ -307,9 +307,10 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
   <h3>기동 점검 항목</h3>
   <div class="tbl-wrap"><table>
     <tr><th>항목</th><th>✗일 때</th></tr>
-    <tr><td>Python</td><td>⚠ 3.13이 아님 → <a href="#c7">7장</a> 1단계(<code>python313_전환.bat</code>) 다시 하기</td></tr>
-    <tr><td>설정 파일</td><td>✗ 없음 → 설정 백업 불러오기(<a href="#c7">7장</a> 4단계)</td></tr>
-    <tr><td>감지영역</td><td>✗ 영상 감지영역 0개 → 설정 백업 불러오기(<a href="#c7">7장</a> 4단계) 또는 <a href="#c8">8장</a></td></tr>
+    <tr><td>Python</td><td>⚠ 3.13이 아님 → 인터넷 확인 후 <code>실행.bat</code>으로 다시 켜기(자동 설치 재시도). 그래도 안 되면 <code>python313_전환.bat</code></td></tr>
+    <tr><td>부품</td><td>✗ 부품 누락 → 인터넷 확인 후 <code>실행.bat</code>으로 다시 켜기(자동 설치 재시도)</td></tr>
+    <tr><td>설정 파일</td><td>✗ 없음 → 설정 백업 불러오기(<a href="#c7">7장</a> 2단계)</td></tr>
+    <tr><td>감지영역</td><td>✗ 영상 감지영역 0개 → 설정 백업 불러오기(<a href="#c7">7장</a> 2단계) 또는 <a href="#c8">8장</a></td></tr>
     <tr><td>ffmpeg</td><td>없음 → 녹화에 소리가 빠짐. <code>install_ffmpeg.bat</code></td></tr>
     <tr><td>디스크 여유</td><td>10GB 미만 → 녹화 폴더 정리</td></tr>
   </table></div>
@@ -357,13 +358,11 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
   <span class="who">설치·관리 담당</span>
   <p>준비물: Windows 10/11 PC, 인터넷, 영상 캡처보드, 이 프로그램 폴더(GitHub에서 받은 것).</p>
   <ol class="steps">
-    <li><b><code>python313_전환.bat</code> 더블클릭</b> — Python 3.13이 없으면 설치하고, 이 프로그램 전용 환경(<code>.venv313</code> 폴더)을 만들어 필요한 부품을 넣습니다. 5~10분, 마지막에 "전환 완료!"가 보이면 성공.</li>
-    <li><b><code>install_ffmpeg.bat</code> 더블클릭</b> — 녹화 영상에 소리를 넣는 도구. 없어도 돌지만 녹화에 소리가 빠집니다.</li>
-    <li><b><code>실행.bat</code> 더블클릭</b> — 메인 창이 뜨면 성공. 로그에 <code>기동 점검: ✓ Python 3.13.x</code>가 보이는지 확인하세요.</li>
-    <li><b>설정 복원</b> — 새로 설치하면 감지영역 0개, 텔레그램 꺼짐으로 뜹니다(정상). 설정 &gt; <span class="btn">저장/불러오기</span> 탭에서 백업 파일을 불러오고, 알림설정 탭의 <b>시스템 이벤트 알림</b> 체크를 확인한 뒤 <b>프로그램을 다시 켭니다</b>. 다시 켜야 시스템 텔레그램이 나가기 시작합니다.</li>
+    <li><b><code>실행.bat</code> 더블클릭</b> — 처음 켤 때는 검은 창에 설치 과정이 나오며 5~10분 걸립니다(Python 3.13, 전용 환경 <code>.venv313</code> 폴더, 필요한 부품, 녹화 소리용 ffmpeg). 관리자 승인 창이 뜨면 "예". 설치가 끝나면 메인 창이 저절로 뜹니다. 로그에 <code>기동 점검: ✓ Python 3.13.x · ✓ 부품</code>이 보이는지 확인하세요.</li>
+    <li><b>설정 복원</b> — 새로 설치하면 감지영역 0개, 텔레그램 꺼짐으로 뜹니다(정상). 설정 &gt; <span class="btn">저장/불러오기</span> 탭에서 백업 파일을 불러오면 "지금 다시 켤까요?" 창이 뜹니다. <span class="btn">지금 다시 켜기</span>를 누르세요 — 다시 켜야 시스템 텔레그램이 나가기 시작합니다. 다시 켜진 뒤 알림설정 탭의 <b>시스템 이벤트 알림</b> 체크를 확인하세요.</li>
     <li><b>(선택) 자동 시작</b> — <code>자동시작 등록.bat</code>을 누르면 다음 로그인부터 자동으로 켜집니다. 해제는 <code>자동시작 해제.bat</code>. PC가 자동 로그인되게 설정돼 있어야 합니다.</li>
   </ol>
-  <div class="warn"><b>폴더를 새로 받을 때마다 1단계를 다시 하세요.</b> <code>.venv313</code>은 다운로드에 따라오지 않습니다. 빠뜨리면 Python 3.14로 돌게 되는데, 3.14에서는 며칠 뒤 화면 쪽이 고장 나 경보음·설정창이 먹통이 되는 사고가 6번 있었습니다. 3.13으로 고정한 뒤로는 재발하지 않았습니다.</div>
+  <div class="warn"><b>폴더는 짧은 경로(예: <code>C:\KBS_Monitoring</code>)에 두세요.</b> 경로가 길면 부품 설치가 "Long Path" 오류로 실패합니다. 설치가 실패해도 프로그램은 켜지지만 기동 점검에 <b>✗ 부품 누락</b>이나 3.13이 아닌 Python이 보입니다 — 그대로 두면 3.14에서 며칠 뒤 경보음·설정창이 먹통이 되는 사고(6번 있었음)가 날 수 있으니, 인터넷을 확인하고 <code>실행.bat</code>으로 다시 켜세요(켤 때마다 설치를 다시 시도합니다).</div>
   <div class="note"><b>항상 <code>실행.bat</code>으로 켜세요.</b> 전용 환경 사용과 예약 재시작 후 자동으로 다시 켜기가 이 파일을 통해서만 됩니다. 두 번 실행하면 "이미 실행 중" 안내 후 두 번째는 꺼집니다.</div>
   <div class="note"><b>텔레그램 연결 테스트 ≠ 시스템 알림 켜짐</b> 알림설정 탭의 <span class="btn">연결 테스트</span>는 시스템 알림 설정과 상관없이 메시지를 보냅니다. 테스트가 성공해도 <b>시스템 이벤트 알림</b> 체크를 따로 확인하세요.</div>
 </section>
@@ -424,7 +423,7 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
   <h3>영상이 안 나와요 (NO SIGNAL INPUT)</h3>
   <p>설정 &gt; 영상설정 탭에서 포트 번호를 0, 1, 2, 3으로 바꿔 보세요. 캡처보드 연결과 입력 신호도 확인하세요.</p>
   <h3>며칠 뒤 경보음·설정창이 먹통이 돼요</h3>
-  <p>로그의 <code>기동 점검</code> 줄이나 텔레그램 기동 알림에서 Python 버전을 보세요. 3.13이 아니면 <a href="#c7">7장</a> 1단계를 다시 하고 재시작하세요.</p>
+  <p>로그의 <code>기동 점검</code> 줄이나 텔레그램 기동 알림에서 Python 버전을 보세요. 3.13이 아니면 인터넷을 확인하고 <code>실행.bat</code>으로 다시 켜세요(자동 설치 재시도, <a href="#c7">7장</a>).</p>
   <h3>고쳤다는데 그대로예요</h3>
   <p>프로그램을 새 버전으로 바꿔도 <b>재시작하기 전에는</b> 옛 버전이 계속 돕니다. 텔레그램 기동 알림의 버전 번호로 확인하세요.</p>
   <h3>프로그램이 갑자기 다 꺼졌다 켜졌어요 (오류 기록 없음)</h3>
@@ -470,7 +469,7 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
 </section>
 
 <footer>
-  KBS Monitoring v2 사용안내 · v2.8.23 기준(2026-11) · 전주총국 기술국<br>
+  KBS Monitoring v2 사용안내 · v2.8.24 기준(2026-11) · 전주총국 기술국<br>
   인쇄하려면 <kbd>Ctrl</kbd>+<kbd>P</kbd> → "PDF로 저장". 개발 문서: 저장소의 <code>README.md</code>, <code>docs_기능_레퍼런스.md</code>
 </footer>
 </main>
