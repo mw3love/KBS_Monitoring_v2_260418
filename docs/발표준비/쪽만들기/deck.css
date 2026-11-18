@@ -1,0 +1,99 @@
+/* 1920×1080 고정 쪽. 창 크기에 맞춰 비율을 지킨 채 키우거나 줄인다(레터박스). 밝은 테마 고정 */
+:root {
+  --paper: #FBFAF7; --ink: #1F1B17; --body: #3F3832; --muted: #6E655C;
+  --accent: #A44E33; --accent-soft: #F5E8E2; --card: #FFFFFF; --line: #DDD5C9;
+  --note: #EEF3F8; --note-ink: #2F5F8F; --warn: #FFF6E0; --warn-ink: #8A5A00;
+  --letterbox: #2B2723;
+  --sans: "IBM Plex Sans KR", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --mono: "IBM Plex Mono", Consolas, monospace;
+  color-scheme: light;
+}
+html, body { margin: 0; height: 100%; }
+body { background: var(--letterbox); overflow: hidden; color: var(--body); font-family: var(--sans); word-break: keep-all; }
+#stage { position: fixed; left: 50%; top: 50%; width: 1920px; height: 1080px; margin: -540px 0 0 -960px; transform-origin: 50% 50%; }
+
+.page { position: absolute; inset: 0; display: none; flex-direction: column; box-sizing: border-box;
+  padding: 48px 96px 0; background: var(--paper); font-size: 28px; line-height: 1.55; overflow: hidden; }
+.page.on { display: flex; }
+
+/* 쪽 머리: 장 번호 · 장 제목 · 장 안 쪽 번호 */
+.ph { flex: none; display: flex; align-items: baseline; gap: 22px; padding-bottom: 14px; margin-bottom: 30px; border-bottom: 4px solid var(--accent); }
+.ph .no { font: 600 26px var(--mono); color: var(--accent); }
+.ph .ct { font-size: 34px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.ph .pp { margin-left: auto; font: 600 24px var(--mono); color: var(--muted); border: 2px solid var(--line); border-radius: 999px; padding: 0 16px; white-space: nowrap; }
+
+/* 쪽 몸통: 글(왼쪽) + 그림(오른쪽 또는 위) */
+.pb { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 56px; }
+.page.fig-side .pb { grid-template-columns: minmax(0, 1fr) var(--figw, 40%); }
+.page.fig-top .pb { grid-template-rows: auto minmax(0, 1fr); row-gap: 28px; }
+.content { min-height: 0; overflow: hidden; }
+.fig { min-height: 0; display: flex; flex-direction: column; gap: 24px; }
+.page.fig-side .fig { grid-column: 2; grid-row: 1; }
+.page.fig-side .content { grid-column: 1; grid-row: 1; }
+.page.fig-top .fig { grid-row: 1; align-items: center; }
+.page.fig-top .content { grid-row: 2; }
+.fig figure { margin: 0; }
+.fig img { display: block; box-sizing: border-box; max-width: 100%; height: auto; max-height: 760px; border: 1px solid var(--line); border-radius: 8px; margin-left: auto; }
+.fig figure + figure img, .fig figure:has(+ figure) img { max-height: 360px; }
+.page.fig-top .fig img { max-height: 300px; margin: 0 auto; }
+.page.fig-top.f-heap .fig img { width: 1500px; }
+.fig figcaption { font-size: 20px; line-height: 1.4; color: var(--muted); margin-top: 8px; text-align: right; }
+.page.fig-top .fig figcaption { text-align: center; }
+
+/* 쪽 발: 전체 쪽 번호 */
+.pf { flex: none; height: 64px; display: flex; align-items: center; justify-content: space-between; font: 500 22px var(--mono); color: var(--muted); }
+.pf .n { font-weight: 600; }
+
+/* 글 */
+.content > :first-child { margin-top: 0; }
+p { margin: 0 0 14px; }
+h1, h3 { color: var(--ink); line-height: 1.35; text-wrap: balance; }
+h1.ttl { font-size: 84px; margin: 0 0 22px; letter-spacing: -.01em; }
+.eyebrow { font-size: 24px; letter-spacing: .04em; color: var(--accent); font-weight: 600; margin: 0 0 6px; }
+h3 { font-size: 31px; margin: 30px 0 12px; }
+h3.cont .tag { font-size: 24px; font-weight: 500; color: var(--muted); }
+.gist { font-size: 36px; line-height: 1.45; font-weight: 600; color: var(--ink); border-left: 8px solid var(--accent); padding: 4px 0 4px 26px; margin: 0 0 30px; text-wrap: pretty; }
+b { color: var(--ink); }
+code, .m { font-family: var(--mono); font-size: .86em; background: var(--accent-soft); color: var(--ink); padding: 1px 6px; border-radius: 5px; }
+ul, ol.steps { margin: 0 0 14px; padding-left: 1.3em; }
+li { margin-bottom: 8px; }
+li::marker { color: var(--accent); font-weight: 600; }
+
+dl.terms { margin: 0 0 14px; display: grid; grid-template-columns: minmax(200px, 330px) minmax(0, 1fr); border-top: 2px solid var(--line); font-size: 27px; }
+dl.terms dt, dl.terms dd { margin: 0; padding: 10px 0; border-bottom: 2px solid var(--line); }
+dl.terms dt { font-weight: 600; color: var(--ink); padding-right: 22px; }
+
+.box { border-radius: 12px; padding: 18px 26px; margin: 18px 0; }
+.box p:last-child { margin-bottom: 0; }
+.analogy { background: var(--note); }
+.analogy > b:first-child { color: var(--note-ink); }
+.extra { background: var(--card); border: 2px dashed var(--line); }
+
+.qa .q { font-size: 30px; font-weight: 600; color: var(--ink); margin: 22px 0 8px; }
+.qa > .q:first-child { margin-top: 0; }
+.qa .a { margin: 0 0 8px; padding-left: 22px; border-left: 4px solid var(--line); }
+
+/* 보조 쪽: 화면엔 안 띄움. 인쇄할 때만 본 쪽 바로 뒤에 붙는다(길면 여러 장으로 이어짐) */
+.page.sup { display: none; }
+.sup .pp { color: var(--note-ink); border-color: var(--note-ink); }
+.order { background: var(--accent-soft); border-radius: 12px; padding: 18px 28px 8px; margin-bottom: 26px; }
+.order h3 { margin: 0 0 8px; color: var(--accent); }
+.order ol { margin: 0 0 10px; padding-left: 1.4em; font-size: 30px; font-weight: 600; color: var(--ink); }
+.sbody > :first-child { margin-top: 0; }
+
+/* 본쪽+보조쪽 파일: 화면에서도 보조 쪽을 넘겨 볼 수 있게(길면 그 쪽 안에서 스크롤) */
+.with-sup .page.sup.on { display: block; overflow-y: auto; padding-bottom: 48px; }
+
+/* 인쇄·PDF: 본 쪽은 1920×1080 한 장, 보조 쪽은 내용만큼 */
+@page { size: 1920px 1080px; margin: 0; }
+@media print {
+  html, body { height: auto; overflow: visible; background: var(--paper); }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #stage { position: static; margin: 0; width: 1920px; height: auto; transform: none !important; }
+  .page, .page.on { position: relative; display: flex; width: 1920px; height: 1080px; break-after: page; }
+  .page.sup { display: block; height: auto; min-height: 1080px; padding-bottom: 48px; }
+  .page:last-child { break-after: auto; }
+  .sup .box, .sup .qa .a, .sup dl.terms dd, .sup li { break-inside: avoid; }
+  .sup h3 { break-after: avoid; }
+  .pf .hint { visibility: hidden; }
+}
