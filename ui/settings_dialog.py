@@ -21,6 +21,10 @@ from core.roi_manager import ROI, ROIManager
 from ui.dual_slider import DualSlider
 from ui.roi_editor import FullScreenROIEditor
 from utils.config_manager import ConfigManager, DEFAULT_CONFIG
+from utils import autostart
+
+# 로그인 때 자동 실행 바로가기가 가리킬 파일(이 설치 폴더의 실행.bat)
+_RUN_BAT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "실행.bat")
 
 
 class _TelegramTestWorker(QThread):
@@ -1753,6 +1757,17 @@ class SettingsDialog(QDialog):
         # 자동 재시작
         box5, sl5 = _section("자동 재시작")
 
+        # 로그인 때 자동 실행 — 설정 파일이 아니라 실제 시작프로그램 바로가기로 상태를 정한다(백업에 안 들어감)
+        self._autostart_cb = QCheckBox("PC 로그인 때 자동 실행")
+        self._autostart_cb.setChecked(self._autostart_actual())
+        self._autostart_cb.toggled.connect(self._on_autostart_toggled)
+        sl5.addWidget(self._autostart_cb)
+        autostart_hint = QLabel("끄기: 여기서 체크 해제. 프로그램이 안 켜지면 작업 관리자 → 시작 앱에서 끕니다")
+        autostart_hint.setObjectName("settingsDesc")
+        autostart_hint.setWordWrap(True)
+        autostart_hint.setContentsMargins(20, 0, 0, 0)
+        sl5.addWidget(autostart_hint)
+
         self._restart_enabled_cb = QCheckBox("예약 재시작 활성화")
         self._restart_enabled_cb.setChecked(sys_cfg.get("scheduled_restart_enabled", False))
         sl5.addWidget(self._restart_enabled_cb)
@@ -2043,6 +2058,30 @@ class SettingsDialog(QDialog):
                 "다음 칸의 값이 허용 범위를 벗어나 저장하지 않았습니다.\n\n"
                 + "\n".join(f"• {b}" for b in bad))
         return bool(bad)
+
+    def _autostart_actual(self) -> bool:
+        """바로가기가 있고 이 폴더의 실행.bat을 가리키면 True. 읽기 실패는 꺼짐으로 본다."""
+        try:
+            return autostart.is_enabled(_RUN_BAT)
+        except Exception:
+            return False
+
+    def _on_autostart_toggled(self, checked: bool):
+        """체크하면 바로가기를 만들고, 해제하면 지운다. 실패하면 실제 상태로 되돌리고 알린다."""
+        try:
+            if checked:
+                autostart.enable(_RUN_BAT)
+            else:
+                autostart.disable()
+        except Exception as e:
+            actual = self._autostart_actual()
+            self._autostart_cb.blockSignals(True)
+            self._autostart_cb.setChecked(actual)
+            self._autostart_cb.blockSignals(False)
+            QMessageBox.warning(
+                self, "자동 실행 설정 실패",
+                f"PC 로그인 때 자동 실행을 {'켜지' if checked else '끄지'} 못했습니다.\n\n{e}",
+            )
 
     def _apply_now(self):
         """위젯 값 수집 → 저장 → Detection 전파. 재진입 방지."""

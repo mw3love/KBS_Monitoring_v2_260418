@@ -22,6 +22,7 @@ from ui.video_widget import VideoWidget, SharedFramePoller
 from ui.log_widget import LogWidget
 from ui.ui_bridge import UIBridge
 from ui.alarm import AlarmSystem
+from ui import window_state
 from utils.logger import AppLogger
 from utils.config_manager import ConfigManager
 from utils import format_duration as _fmt_dur
@@ -57,6 +58,13 @@ class MainWindow(QMainWindow):
 
         # 로거
         self._logger = AppLogger(suffix="_ui")
+
+        # 창 자리 기억(data/window_state.json) — 옮기거나 크기를 바꾼 2초 뒤와 닫을 때 저장
+        self._geom_save_timer = QTimer(self)
+        self._geom_save_timer.setSingleShot(True)
+        self._geom_save_timer.setInterval(2000)
+        self._geom_save_timer.timeout.connect(self._save_window_geometry)
+        self._restore_window_geometry()
 
         # 알람 시스템 (UI 프로세스 전용)
         self._alarm = AlarmSystem(parent=self)
@@ -839,10 +847,47 @@ class MainWindow(QMainWindow):
             if self._splitter.sizes() != sizes:
                 self._splitter.setSizes(sizes)
 
+    # ── 창 자리 기억 ──────────────────────────────────────────────
+
+    def _restore_window_geometry(self):
+        """저장된 창 자리를 되살린다. 없거나 깨졌으면 기본 크기 그대로(화면 밖이면 Qt가 화면 안으로 끌어옴)."""
+        geom = window_state.load()
+        if geom is None:
+            if os.path.exists(window_state.DEFAULT_PATH):
+                self._logger.warning("SYSTEM - 창 자리 파일을 읽지 못함 → 기본 크기")
+            return
+        if not self.restoreGeometry(geom):
+            self._logger.warning("SYSTEM - 창 자리 복원 실패 → 기본 크기")
+
+    def _save_window_geometry(self):
+        """전체화면이 아닐 때만 저장 — 전체화면 여부는 ui_state.fullscreen이 따로 되살린다."""
+        if self.isFullScreen():
+            return
+        try:
+            window_state.save(window_state.DEFAULT_PATH, bytes(self.saveGeometry()))
+        except OSError as e:
+            self._logger.warning(f"SYSTEM - 창 자리 저장 실패: {e}")
+
+    def _schedule_geometry_save(self):
+        # __init__에서 타이머를 만들기 전에 오는 이벤트는 건너뛴다
+        timer = getattr(self, "_geom_save_timer", None)
+        if timer is not None:
+            timer.start()
+
+    def moveEvent(self, event):
+        super().moveEvent(event)
+        self._schedule_geometry_save()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._schedule_geometry_save()
+
     # ── 종료 ──────────────────────────────────────────────────────
 
     def closeEvent(self, event: QCloseEvent):
         self._logger.info("SYSTEM - 창 닫기 → 종료 시작")
+        self._geom_save_timer.stop()
+        self._save_window_geometry()
 
         # 현재 UI 상태 저장
         ui_state = self._cfg.get("ui_state", {})

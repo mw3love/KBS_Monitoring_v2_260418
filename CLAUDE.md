@@ -97,6 +97,10 @@ requests       (텔레그램 HTTP 발송)
 ## 아키텍처 — 프로세스 구조
 
 ```
+실행.bat (준비: venv 설치 확인·PYEXE) → run_loop.ps1 (다시 켜기 반복)
+  종료코드 0=사람이 닫음 → 멈춤 · 42=예약 재시작 → 2초 뒤 · 그 밖=크래시 → 남은 자손 PID가 끝나길 기다린 뒤(30초 넘으면 PID로 끔)
+  15초부터 두 배씩 최대 300초 뒤 다시 켬(120초 넘게 돌았으면 15초로). 판단 기록 logs/YYYYMMDD_launcher.txt
+
 main.py (= UI 프로세스, Launcher 겸임)
   ├─ SharedMemory 생성 (frame_shm, state_shm) + 잔존 정리
   ├─ result_queue, cmd_queue, shutdown_event 생성
@@ -163,8 +167,11 @@ Detection Process (PySide6 임포트 금지 — 세부 규칙은 detection/CLAUD
 ## 파일 구조
 ```
 kbs_monitoring_v2/
+├── 실행.bat                # 사람이 누르는 문(ASCII 전용) — 준비 뒤 run_loop.ps1을 부름
+├── run_loop.ps1            # 다시 켜기 반복(UTF-8 BOM)
 ├── main.py
 ├── data/
+│   ├── window_state.json     # 창 자리(saveGeometry, PC 전용 — 설정 백업에 안 들어감)
 │   ├── heartbeat.dat
 │   ├── last_exit.json
 │   ├── ui_degraded.flag      # UI 자기손상 감지 시에만 생성 (Watchdog이 읽고 통보)
@@ -200,6 +207,7 @@ kbs_monitoring_v2/
 │   └── roi_manager.py
 ├── utils/
 │   ├── config_manager.py
+│   ├── autostart.py          # 로그인 때 자동 실행 바로가기(설정창 알림설정 체크박스)
 │   └── logger.py
 ├── config/
 │   └── default_config.json
@@ -289,6 +297,10 @@ if __name__ == '__main__':
   cmd.exe 자체를 통째로 껐다 새로 켤 것**(현재 그대로 두면 다음 배포 후에도 같은 어긋남이 누적될 수 있음).
   크래시류 원인(6차 힙손상 등)부터 의심하지 말고 **이 패턴(크래시 흔적 없는 전체 동시 재기동)이면 먼저
   이 항목부터 확인**할 것.
+  → **2026-11-25부터 반복은 `run_loop.ps1`이 맡는다**(PowerShell은 시작 때 파일을 통째로 읽음). `실행.bat`은 괄호 블록
+  하나에서 그 스크립트를 부르고 같은 블록에서 `exit /b`하므로 이 함정이 없어졌다. 옛 버전에서 이 버전으로 올리는 첫 배포만
+  콘솔 창까지 닫고 다시 켤 것. 이제 크래시(0·42가 아닌 종료 코드)는 일부러 다시 켜진다 — 「크래시 흔적 없는 동시 재기동」을
+  볼 땐 `logs/YYYYMMDD_launcher.txt`의 「크래시(코드 N…)」 줄부터 본다.
 
 - ⚠ **코드를 커밋해도 운영 프로세스를 재시작하기 전엔 반영 안 된다.** 2026-10-07 텔레그램 중복 발송 수정이
   10/4 기동 프로세스에 12일간 미적용 → 10/19 같은 3중 발송 재발. "고쳤는데 재발"이면 먼저 프로세스 기동 시각

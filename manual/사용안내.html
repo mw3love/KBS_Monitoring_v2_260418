@@ -297,7 +297,7 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
     <tr><td><code>Detection 안정화</code></td><td>위 상황이 풀려 60초 이상 정상</td><td>없음</td></tr>
     <tr><td><code>⚠ UI 응답 없음 (N초)</code></td><td>화면이 30초 넘게 멈춤. 감지·텔레그램은 계속 동작하지만 경보음·조작이 안 될 수 있음</td><td><b>화면 확인</b>. 곧 <code>UI 응답 회복</code>이 안 오면 프로그램 재시작</td></tr>
     <tr><td><code>⚠ UI 프로세스 손상 감지</code></td><td>화면 쪽이 내부 고장. 감시·텔레그램은 되지만 <b>현장 경보음이 안 울림</b></td><td><b>즉시 프로그램 재시작</b>. 관리 담당에게 알림(<a href="#c10">10장</a> Python 버전 확인)</td></tr>
-    <tr><td><code>UI 비정상 종료 감지</code></td><td>프로그램 창이 꺼짐</td><td><b>다시 켜기</b>(<code>실행.bat</code>)</td></tr>
+    <tr><td><code>UI 비정상 종료 감지</code></td><td>프로그램 창이 꺼짐</td><td>보통 1분 안에 <b>저절로 다시 켜짐</b>(기동 알림이 옵니다). 안 켜지면 <code>실행.bat</code></td></tr>
     <tr><td><code>Watchdog 비정상 종료 감지</code></td><td>자동 복구를 맡는 부분이 꺼짐</td><td><b>프로그램 재시작</b></td></tr>
     <tr><td><code>캡처 입력 신호 상실 감지 → 캡처 자동 재오픈</code></td><td>캡처보드 신호가 끊겨 화면 전체가 8초 넘게 까맣게 굳음. 장치를 다시 연결 중</td><td>없음. 곧 <code>자동 복구 완료</code>가 옵니다</td></tr>
     <tr><td><code>캡처 입력 자동 복구 실패 … 입력 케이블/캡처보드 점검 필요</code></td><td>3번 다시 연결해도 신호가 안 들어옴</td><td><b>케이블·캡처보드·송출 신호 점검</b></td></tr>
@@ -360,10 +360,10 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
   <ol class="steps">
     <li><b><code>실행.bat</code> 더블클릭</b> — 처음 켤 때는 검은 창에 설치 과정이 나오며 5~10분 걸립니다(Python 3.13, 전용 환경 <code>.venv313</code> 폴더, 필요한 부품, 녹화 소리용 ffmpeg). 관리자 승인 창이 뜨면 "예". 설치가 끝나면 메인 창이 저절로 뜹니다. 로그에 <code>기동 점검: ✓ Python 3.13.x · ✓ 부품</code>이 보이는지 확인하세요.</li>
     <li><b>설정 복원</b> — 새로 설치하면 감지영역 0개, 텔레그램 꺼짐으로 뜹니다(정상). 설정 &gt; <span class="btn">저장/불러오기</span> 탭에서 백업 파일을 불러오면 "지금 다시 켤까요?" 창이 뜹니다. <span class="btn">지금 다시 켜기</span>를 누르세요 — 다시 켜야 시스템 텔레그램이 나가기 시작합니다. 다시 켜진 뒤 알림설정 탭의 <b>시스템 이벤트 알림</b> 체크를 확인하세요.</li>
-    <li><b>(선택) 자동 시작</b> — <code>자동시작 등록.bat</code>을 누르면 다음 로그인부터 자동으로 켜집니다. 해제는 <code>자동시작 해제.bat</code>. PC가 자동 로그인되게 설정돼 있어야 합니다.</li>
+    <li><b>(선택) 자동 시작</b> — 설정 &gt; <span class="btn">알림설정</span> 탭 &gt; 자동 재시작의 <b>PC 로그인 때 자동 실행</b>을 체크하면 다음 로그인부터 자동으로 켜집니다. 끄려면 체크 해제(프로그램이 아예 안 켜질 때는 작업 관리자 &gt; 시작 앱에서 「KBS Monitoring v2」를 끕니다). PC가 자동 로그인되게 설정돼 있어야 합니다.</li>
   </ol>
   <div class="warn"><b>폴더는 짧은 경로(예: <code>C:\KBS_Monitoring</code>)에 두세요.</b> 경로가 길면 부품 설치가 "Long Path" 오류로 실패합니다. 설치가 실패해도 프로그램은 켜지지만 기동 점검에 <b>✗ 부품 누락</b>이나 3.13이 아닌 Python이 보입니다 — 그대로 두면 3.14에서 며칠 뒤 경보음·설정창이 먹통이 되는 사고(6번 있었음)가 날 수 있으니, 인터넷을 확인하고 <code>실행.bat</code>으로 다시 켜세요(켤 때마다 설치를 다시 시도합니다).</div>
-  <div class="note"><b>항상 <code>실행.bat</code>으로 켜세요.</b> 전용 환경 사용과 예약 재시작 후 자동으로 다시 켜기가 이 파일을 통해서만 됩니다. 두 번 실행하면 "이미 실행 중" 안내 후 두 번째는 꺼집니다.</div>
+  <div class="note"><b>항상 <code>실행.bat</code>으로 켜세요.</b> 전용 환경 사용, 예약 재시작 후 다시 켜기, 크래시 뒤 다시 켜기가 이 파일을 통해서만 됩니다. 창의 X로 닫으면 다시 켜지지 않습니다. 창 위치·크기는 기억했다가 다음에 그 자리로 뜹니다. 두 번 실행하면 "이미 실행 중" 안내 후 두 번째는 꺼집니다.</div>
   <div class="note"><b>텔레그램 연결 테스트 ≠ 시스템 알림 켜짐</b> 알림설정 탭의 <span class="btn">연결 테스트</span>는 시스템 알림 설정과 상관없이 메시지를 보냅니다. 테스트가 성공해도 <b>시스템 이벤트 알림</b> 체크를 따로 확인하세요.</div>
 </section>
 
@@ -429,7 +429,7 @@ footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); colo
   <h3>프로그램이 갑자기 다 꺼졌다 켜졌어요 (오류 기록 없음)</h3>
   <p>같은 PC에서 다른 작업이 <code>python.exe</code>를 이름으로 한꺼번에 종료했을 수 있습니다. 감시 PC에서는 Python 프로그램을 이름으로 일괄 종료하지 마세요.</p>
   <h3>실행.bat을 고친 뒤 이상하게 동작해요</h3>
-  <p>켜져 있는 동안 <code>실행.bat</code>을 고치면 그 창이 엉뚱한 줄을 읽을 수 있습니다. <code>실행.bat</code>을 바꿨다면 그 검은 창까지 완전히 닫고 다시 켜세요.</p>
+  <p>옛 버전의 <code>실행.bat</code>은 켜져 있는 동안 파일을 고치면 엉뚱한 줄을 읽을 수 있었습니다(닫았는데 다시 켜지는 등). 2026-11 버전부터는 다시 켜기를 <code>run_loop.ps1</code>이 맡아 괜찮습니다. 옛 버전에서 이 버전으로 올릴 때만 한 번, 검은 창까지 완전히 닫고 다시 켜세요.</p>
   <h3>관리 담당에게 보낼 자료</h3>
   <p><code>logs</code> 폴더의 그날 파일 3개(<code>_ui</code>, <code>_detection</code>, <code>_watchdog</code>)와 <code>fault*.log</code>, <code>stderr_debug.txt</code>. 재부팅하기 전에 먼저 복사해 두세요.</p>
 </section>

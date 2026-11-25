@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 REM KBS Monitoring v2 launcher - prefer py launcher, fallback to python.
-REM On scheduled restart (exit code 42) auto-relaunch; otherwise exit loop.
+REM Relaunch policy (crash -> relaunch, 42 -> relaunch, 0 -> stop) lives in run_loop.ps1.
 
 REM [TEMP - heap corruption trace] identify UI interpreter corruption culprit.
 REM   PYTHONMALLOC=debug: guard bytes around every alloc -> detect wild write
@@ -75,11 +75,18 @@ if exist "%~dp0.venv313\Scripts\python.exe" (
     echo [launcher] NOTICE: .venv313 not found - falling back to default interpreter: %PYEXE% >> "%~dp0logs\stderr_debug.txt"
 )
 
-:loop
-"%PYEXE%" "%~dp0main.py" 2>> "%~dp0logs\stderr_debug.txt"
-if %errorlevel%==42 (
-    echo.
-    echo [launcher] scheduled restart - relaunching in 2 seconds...
-    timeout /t 2 /nobreak >nul
-    goto loop
+REM Restart loop lives in run_loop.ps1: exit 0 = closed by a person (stop),
+REM 42 = scheduled restart, anything else = crash (wait for leftover child
+REM processes, then relaunch with growing delay). cmd parses this whole
+REM parenthesized block before running it, so editing this file while it
+REM runs cannot make this console read a misplaced line afterwards
+REM (the 2026-08-31 / 2026-11-18 batch bookmark incidents).
+REM If PowerShell or run_loop.ps1 fails, fall back to one direct launch.
+(
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run_loop.ps1" -Python "%PYEXE%" || (
+        echo [launcher] NOTICE: run_loop.ps1 failed - launching main.py once without auto-restart
+        echo [launcher] NOTICE: run_loop.ps1 failed - launching main.py once without auto-restart >> "%~dp0logs\stderr_debug.txt"
+        "%PYEXE%" "%~dp0main.py" 2>> "%~dp0logs\stderr_debug.txt"
+    )
+    exit /b
 )
