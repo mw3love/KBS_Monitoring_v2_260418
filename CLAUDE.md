@@ -364,7 +364,7 @@ if __name__ == '__main__':
   - 기동 후 60초 안에 반복해서 죽으면 재spawn 간격을 5→10→20…초(최대 5분)로 늘리고, 4회째에 요약 1통 후
     개별 알림 생략, 60초 정상 가동 시 "안정화" 1통(`watchdog_process.py` `_STABLE_SEC`·`_TG_QUIET_AFTER`).
     → 반복 크래시 중 텔레그램이 조용해져도 고장이 아니다.
-- **UI(main) 크래시**: Watchdog이 10초 주기로 `psutil.pid_exists(parent)` 감시 → 사라지면 Detection 정리 + 자신 종료 + 텔레그램 "전체 비정상 종료" 알림 (W3: 고아 시간 단축 위해 30→10초)
+- **UI(main) 크래시**: Watchdog이 10초 주기로 `psutil.pid_exists(parent)` 감시 → 사라지면 Detection 정리 + 자신 종료 + 텔레그램 "전체 비정상 종료" 알림 (W3: 고아 시간 단축 위해 30→10초). 이 알림은 발송 스레드를 최대 21초 기다린 뒤 끝난다 — 바로 끝내면 데몬 스레드가 같이 죽어 안 나갔다(2026-11-25)
   - 그 뒤 `run_loop.ps1`이 남은 자손(Watchdog·Detection)이 끝나길 기다렸다가 main.py를 다시 켠다(2026-11-25부터 — 위 아키텍처 첫 줄). 창 X로 닫은 것(종료코드 0)은 다시 켜지 않는다.
 - **Watchdog 자체 크래시**: main은 Watchdog join 실패 시 Detection 정리 + 로그 + 텔레그램 (main 프로세스에서 직접 HTTP 발송)
 

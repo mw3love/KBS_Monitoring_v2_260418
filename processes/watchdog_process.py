@@ -279,13 +279,15 @@ def run(
     def tg(msg: str):
         """daemon 스레드로 비동기 발송 — 블로킹 시 heartbeat 감시·shutdown 체크 지연 방지."""
         import threading
-        threading.Thread(
+        t = threading.Thread(
             target=_send_system_telegram,
             args=(msg,),
             kwargs={"logger": logger},
             daemon=True,
             name="WatchdogTelegram",
-        ).start()
+        )
+        t.start()
+        return t
 
     log(f"Watchdog 시작 (PID={os.getpid()}, parent={parent_pid})")
     # 원격(텔레그램)에서 재기동 여부·실행 중인 파이썬 버전을 확인할 수 있도록
@@ -499,8 +501,12 @@ def run(
             last_parent_check = now
             if PSUTIL_AVAILABLE and not psutil.pid_exists(parent_pid):
                 log_err(f"UI 프로세스(PID={parent_pid}) 사라짐 → Watchdog 종료")
-                tg(f"KBS On-Air Monitoring v{version} UI 비정상 종료 감지 (PID={parent_pid}) → Detection 정리 후 Watchdog 종료")
+                _tg_t = tg(f"KBS On-Air Monitoring v{version} UI 비정상 종료 감지 (PID={parent_pid}) → Detection 정리 후 Watchdog 종료")
                 _kill_detection(detection_proc)
+                # 데몬 스레드는 프로세스가 끝나면 같이 죽는다 — 바로 break하면 발송이 끊겨
+                # 이 알림만 안 왔다(2026-11-25 크래시 시험). UI가 이미 없어 기다릴 사람이
+                # 없으니 발송 시한(연결 5+응답 15초)만큼 기다린다. run_loop.ps1의 자손 대기(30초)보다 짧다.
+                _tg_t.join(timeout=21.0)
                 break
 
         # ── Detection 프로세스 생존 확인 ──────────────────────────
