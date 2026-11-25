@@ -121,7 +121,7 @@ def _startup_self_check() -> tuple:
     if ver.startswith("3.13."):
         items.append(f"✓ Python {ver}")
     else:
-        items.append(f"⚠ Python {ver} (운영 기준 3.13 — 3.14는 UI 힙손상 원인, python313_전환.bat 확인)")
+        items.append(f"⚠ Python {ver} (운영 기준 3.13 — 3.14는 UI 힙손상 원인, 설치도구\\python313_전환.bat 확인)")
         bad = True
 
     # 부품(패키지) 누락 — 새 PC에서 설치가 덜 되면 psutil 실패가 「UI 손상」으로
@@ -262,7 +262,7 @@ def run(
         logger.error(msg)
 
     def _nodrop_put(msg, max_retry: int = 3):
-        """drop 금지 메시지 최대 3회 재시도 (docs_ipc_spec.md §2.3)."""
+        """drop 금지 메시지 최대 3회 재시도 (docs/docs_ipc_spec.md §2.3)."""
         for _ in range(max_retry):
             try:
                 result_queue.put_nowait(msg)

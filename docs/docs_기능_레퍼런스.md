@@ -81,7 +81,7 @@ KBS Monitoring v2는 16개 채널의 방송 영상과 오디오를 실시간으�
 5. **그룹1/2 정파 버튼**: 시간대 인지 수동 순환 (소리 없음). IDLE→PREPARATION, PREPARATION→(정파 시간대면 SIGNOFF·밖이면 IDLE), SIGNOFF→IDLE
    - 버튼 하단에 현재 상태까지 남은 시간 카운트다운 표시: `정파준비까지 1D [6H:6M:26S]` 형식
    - IDLE 상태: "정파준비까지 Xd [HH:MM:SS]" / PREPARATION: "정파까지 [HH:MM:SS]" / SIGNOFF: "정파해제준비까지 [HH:MM:SS]"
-   - "자동 정파준비"(auto_preparation) OFF 시: 버튼은 **활성 유지**되며 카운트다운 대신 "대기/정파준비/정파중 · 수동" 표기. 완전 수동 모드(자동 전환·자동 해제 없음, 수동 클릭만) — `docs_signoff_운영.md §5`
+   - "자동 정파준비"(auto_preparation) OFF 시: 버튼은 **활성 유지**되며 카운트다운 대신 "대기/정파준비/정파중 · 수동" 표기. 완전 수동 모드(자동 전환·자동 해제 없음, 수동 클릭만) — `docs/docs_signoff_운영.md §5`
 6. **설정**: 설정 다이얼로그 열기 (비모달)
 7. **주간/야간 모드**: 다크/라이트 테마 전환
 8. **전체화면**: F11 단축키 또는 버튼 클릭
@@ -167,7 +167,7 @@ KBS Monitoring v2는 16개 채널의 방송 영상과 오디오를 실시간으�
   - **"정파 감지영역" 버튼** → 팝업 다이얼로그:
     - **진입 트리거**: 단일 드롭다운 — 선택한 비디오 ROI가 스틸 상태 지속 시 SIGNOFF 조기 진입 (enter_roi)
     - **알림 억제 대상**: 비디오/오디오 ROI 다중 체크박스 — SIGNOFF 중 해당 ROI 알림 억제 (suppressed_labels)
-- **정파 알림음** (3종, 각 파일 선택+테스트): 정파 상태 전환 시 1회 재생 (감지 알람음을 끊지 않는 별도 재생). 플래핑 묶음 모드 중에는 억제 (docs_signoff_운영.md §8)
+- **정파 알림음** (3종, 각 파일 선택+테스트): 정파 상태 전환 시 1회 재생 (감지 알람음을 끊지 않는 별도 재생). 플래핑 묶음 모드 중에는 억제 (docs/docs_signoff_운영.md §8)
   - 정파준비 시작 (prep_alarm_sound) — IDLE→정파준비, 조기복귀(SIGNOFF→정파준비) 포함
   - 정파모드 진입 (enter_alarm_sound) — →SIGNOFF
   - 정파 해제 (release_alarm_sound) — SIGNOFF→IDLE
@@ -352,9 +352,9 @@ KBS Monitoring v2는 16개 채널의 방송 영상과 오디오를 실시간으�
 | PREPARATION | 정파 준비 구간 | enter_roi 스틸 지속 감지 (→ SIGNOFF) |
 | SIGNOFF | 정파 중 | end_time 도달 또는 해제준비 구간에서 비-스틸 감지 (→ IDLE) |
 
-> **진입=감지 단독, 해제=시간 기반** (스키마·근거는 `docs_signoff_운영.md §6`). 시간만으로 SIGNOFF 강제 진입하는 경로는 제거됨.
+> **진입=감지 단독, 해제=시간 기반** (스키마·근거는 `docs/docs_signoff_운영.md §6`). 시간만으로 SIGNOFF 강제 진입하는 경로는 제거됨.
 
-수동 전환: 상단바 버튼 클릭 → 윈도우 인지 순환 (소리 없음). PREPARATION에서 클릭 시 정파준비 윈도우 안이면 SIGNOFF, 밖이면 IDLE. auto_preparation OFF면 완전 수동 모드(자동 전환 억제, `docs_signoff_운영.md §5`)
+수동 전환: 상단바 버튼 클릭 → 윈도우 인지 순환 (소리 없음). PREPARATION에서 클릭 시 정파준비 윈도우 안이면 SIGNOFF, 밖이면 IDLE. auto_preparation OFF면 완전 수동 모드(자동 전환 억제, `docs/docs_signoff_운영.md §5`)
 
 **진입 사유(source) 구분:**
 - `auto-time` — 시간 기반 전환 (정파준비 윈도우 진입 IDLE→PREP, end_time 이탈 해제)
@@ -515,7 +515,7 @@ CPU/RAM 10초 주기 갱신 (TopBar). GPU는 v2.8.0부터 기본 OFF — §2.2 �
 
 - Detection은 기동 시 `config/kbs_config.json` 자체 로드 → 재spawn 후 사용자 조작 없이 즉시 감지 재개
 - UI는 `DetectionReady` 수신 후 런타임 상태(detection_enabled / mute / volume / signoff_state / ROIs)만 cmd_queue로 재주입
-- 상세 시퀀스: `docs_ipc_spec.md §3.3` 참조
+- 상세 시퀀스: `docs/docs_ipc_spec.md §3.3` 참조
 
 ### 10.4 UI 프로세스 생존 감시 (v2 신규)
 
@@ -676,11 +676,11 @@ CPU/RAM 10초 주기 갱신 (TopBar). GPU는 v2.8.0부터 기본 OFF — §2.2 �
 - **Watchdog의 UI 생존 감시** (신규, parent PID 소멸 감지 시 정리+알림)
 - **Detection 재spawn 상태 복원** (신규, config 자체 로드 + UI 런타임 상태 재주입)
 - **DIAG-IPC 섹션** (신규, queue drop/크기, frame drop, loop jitter 관찰)
-- **IPC 스펙 문서화** (`docs_ipc_spec.md` — 메시지/SharedMemory/생명주기 단일 진실 원천)
+- **IPC 스펙 문서화** (`docs/docs_ipc_spec.md` — 메시지/SharedMemory/생명주기 단일 진실 원천)
 - **config 스키마 버전 필드** (신규, `config_version: 2` — 향후 마이그레이션 대비)
 - **스냅샷 로컬 저장** (신규, 텔레그램 실패 시에도 `logs/snapshots/` 보존)
 - **캡처 입력 상실 자동복구** (신규, §3.1-b — 화면 전체 검은 정지 시 캡처 장치만 재연결)
-- **UI 손상 통보** (신규 — 손상된 UI는 텔레그램을 못 보내므로 `data/ui_degraded.flag`만 쓰고 Watchdog이 대신 발송. 상세 `CLAUDE.md` "UI 손상 통보", `docs_ipc_spec.md` §3.5)
+- **UI 손상 통보** (신규 — 손상된 UI는 텔레그램을 못 보내므로 `data/ui_degraded.flag`만 쓰고 Watchdog이 대신 발송. 상세 `CLAUDE.md` "UI 손상 통보", `docs/docs_ipc_spec.md` §3.5)
 - **UI 정지 감시** (신규, §10.4 — `ui_heartbeat.dat` 30초 무갱신 시 "UI 응답 없음")
 - **기동 자가점검** (신규, §10.5 — Python 3.13·부품·감지영역·ffmpeg·디스크)
 - **오디오 장치 열기 실패 알림** (신규, §3.4 — 60초 실패 시 `[SYSTEM]` 1회 + 무음 경보)

@@ -25,7 +25,9 @@ Write-Host "  새로 만들고, 실행.bat 이 자동으로 그걸 쓰도록 전
 Write-Host "  기존 시스템 Python·다른 프로젝트는 건드리지 않습니다." -ForegroundColor Gray
 Write-Host ""
 
-$venvPath = Join-Path $PSScriptRoot ".venv313"
+# 이 스크립트는 설치도구\ 안에 있다 — .venv313·requirements.txt·resources\는 한 단계 위(프로그램 폴더)
+$appRoot = Split-Path -Parent $PSScriptRoot
+$venvPath = Join-Path $appRoot ".venv313"
 $venvPy = Join-Path $venvPath "Scripts\python.exe"
 # 자동 모드이고 venv가 이미 있으면 시스템 Python 3.13은 필요 없다(부품만 다시 맞춘다)
 $keepVenv = $Auto -and (Test-Path $venvPy)
@@ -73,7 +75,7 @@ Write-Host ""
 
 # ── 3단계: 패키지 설치 (requirements.txt 고정 버전 그대로) ──
 Write-Host "[3/4] 패키지 설치 중 (requirements.txt 고정 버전)..." -ForegroundColor Yellow
-$reqPath = Join-Path $PSScriptRoot "requirements.txt"
+$reqPath = Join-Path $appRoot "requirements.txt"
 & $venvPy -m pip install -r $reqPath
 if ($LASTEXITCODE -ne 0) {
     Stop-Fail "패키지 설치 중 문제가 발생했습니다." "위 오류 메시지를 확인한 후 담당자에게 문의하세요."
@@ -91,13 +93,13 @@ if ($Auto) {
     $ffLinks = Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Links\ffmpeg.exe"
     $hasFf = (Get-Command ffmpeg -ErrorAction SilentlyContinue) -or
              (Test-Path "C:\KBS_Tools\ffmpeg.exe") -or
-             (Test-Path (Join-Path $PSScriptRoot "resources\bin\ffmpeg.exe")) -or
+             (Test-Path (Join-Path $appRoot "resources\bin\ffmpeg.exe")) -or
              (Test-Path $ffLinks)
     if ($hasFf) {
         Write-Host "  ffmpeg 있음" -ForegroundColor Green
     } elseif (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Write-Host "  [주의] winget이 없어 ffmpeg를 설치하지 못했습니다(녹화에 소리 미포함)." -ForegroundColor DarkYellow
-        Write-Host "  나중에 install_ffmpeg.bat 으로 설치할 수 있습니다." -ForegroundColor Gray
+        Write-Host "  나중에 설치도구 폴더의 install_ffmpeg.bat 으로 설치할 수 있습니다." -ForegroundColor Gray
     } else {
         # 기다리지 않는다: 2026-11-18 실측 다운로드가 초당 ~13KB(257MB에 수 시간)라, 기다리면 첫 실행의
         # 감시 시작이 그만큼 늦어진다. 따로 작은 창에서 받게 두고 프로그램은 먼저 켠다. 실행.bat이 PATH에

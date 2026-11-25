@@ -257,5 +257,5 @@
 ## 부록 — 관련 참조
 
 - 코드 규칙: `detection/CLAUDE.md` "히스테리시스 원칙", "정파 억제 규칙"
-- IPC 사양: `docs_ipc_spec.md` (SignoffStateChange 메시지)
+- IPC 사양: `docs/docs_ipc_spec.md` (SignoffStateChange 메시지)
 - 5/18 케이스 로그: `fix/20260518_ui.txt`

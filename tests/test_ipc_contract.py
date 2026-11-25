@@ -1,6 +1,6 @@
 """
 IPC 스펙 정합성 테스트
-docs_ipc_spec.md §2 표와 ipc/messages.py 의 dataclass·필드명 1:1 일치 자동 검증.
+docs/docs_ipc_spec.md §2 표와 ipc/messages.py 의 dataclass·필드명 1:1 일치 자동 검증.
 
 실행: python -m pytest tests/test_ipc_contract.py -v
       또는: python tests/test_ipc_contract.py
@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import ipc.messages as M
 
 # ──────────────────────────────────────────────────────────────────────────────
-# docs_ipc_spec.md §2.1 / §2.2 에 정의된 메시지 ↔ 필드 계약
+# docs/docs_ipc_spec.md §2.1 / §2.2 에 정의된 메시지 ↔ 필드 계약
 # 이 표가 단일 진실 원천. 구현이 추가되면 이 표도 함께 갱신.
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -70,7 +70,7 @@ def test_no_extra_messages():
         if name not in ALL_CONTRACT:
             extra.append(name)
     assert not extra, (
-        f"docs_ipc_spec.md 에 없는 메시지가 ipc/messages.py 에 있음: {extra}\n"
+        f"docs/docs_ipc_spec.md 에 없는 메시지가 ipc/messages.py 에 있음: {extra}\n"
         "추가 시 스펙 문서를 먼저 갱신하세요."
     )
 

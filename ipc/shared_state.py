@@ -1,6 +1,6 @@
 """
 SharedMemory 상태 버퍼 래퍼
-docs_ipc_spec.md §1.2 레이아웃 구현 (64 bytes)
+docs/docs_ipc_spec.md §1.2 레이아웃 구현 (64 bytes)
 
 offset  size  type        field             direction
   0      4    uint32 LE   magic             고정 0x4B425332 ('KBS2')
@@ -40,7 +40,7 @@ class SharedStateBuffer:
     """상태 SharedMemory 래퍼. 동시 쓰기는 쓰는 프로세스(Detection) 안의 threading.Lock 으로 보호.
 
     ⚠ multiprocessing.Lock 금지: 잠금을 쥔 채 강제 종료되면 재spawn된 Detection이 영원히 멈춘다
-    (docs_ipc_spec.md §1.2)."""
+    (docs/docs_ipc_spec.md §1.2)."""
 
     def __init__(self, create: bool = False, name: str = SHM_NAME,
                  lock: "Lock | None" = None):

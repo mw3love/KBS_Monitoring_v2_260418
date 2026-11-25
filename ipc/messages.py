@@ -1,6 +1,6 @@
 """
 프로세스 간 Queue 메시지 dataclass 정의
-docs_ipc_spec.md §2 와 1:1 대응. 이 파일 단독 변경 금지 — 스펙 문서 먼저 갱신.
+docs/docs_ipc_spec.md §2 와 1:1 대응. 이 파일 단독 변경 금지 — 스펙 문서 먼저 갱신.
 """
 import time
 from dataclasses import dataclass, field

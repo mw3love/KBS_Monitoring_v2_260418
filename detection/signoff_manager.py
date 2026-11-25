@@ -545,7 +545,7 @@ class SignoffManager:
         PREPARATION으로 조기복귀(재무장)한다.
 
         오감지로 진입한 SIGNOFF가 해제준비 시각까지 갇혀 알람을 묵살하는
-        문제(docs_signoff_운영.md §4) 해소. 진짜 정파는 계속 스틸이라 복귀가
+        문제(docs/docs_signoff_운영.md §4) 해소. 진짜 정파는 계속 스틸이라 복귀가
         걸리지 않고, 가짜 정파는 화면이 다시 움직이면 PREPARATION으로 돌아가
         스틸 재감지(still_trigger_sec)를 다시 수행한다.
 

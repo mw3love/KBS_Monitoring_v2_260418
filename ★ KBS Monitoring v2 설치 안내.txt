@@ -75,11 +75,11 @@
      (첫 화면 [v] Add Python to PATH 체크) 한 뒤 실행.bat 다시 실행.
 
   Q. 실행 환경을 처음부터 다시 만들고 싶음 (부품이 꼬였을 때)
-   → 프로그램을 끄고  python313_전환.bat  더블클릭(.venv313 을 지우고
+   → 프로그램을 끄고  설치도구\python313_전환.bat  더블클릭(.venv313 을 지우고
      새로 만듭니다). 그다음 실행.bat 으로 켜기.
 
   Q. 녹화 영상에 소리가 없음 (기동 점검 "✗ ffmpeg 없음")
-   → install_ffmpeg.bat 더블클릭으로 따로 설치할 수 있습니다.
+   → 설치도구\install_ffmpeg.bat 더블클릭으로 따로 설치할 수 있습니다.
 
   Q. 스크립트 실행이 "스크립트를 실행할 수 없습니다" 로 막힘
    → 윈도우 키 → powershell 입력 → "Windows PowerShell" 오른쪽 클릭

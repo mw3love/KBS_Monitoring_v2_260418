@@ -3,16 +3,6 @@ chcp 65001 >nul
 REM KBS Monitoring v2 launcher - prefer py launcher, fallback to python.
 REM Relaunch policy (crash -> relaunch, 42 -> relaunch, 0 -> stop) lives in run_loop.ps1.
 
-REM [TEMP - heap corruption trace] identify UI interpreter corruption culprit.
-REM   PYTHONMALLOC=debug: guard bytes around every alloc -> detect wild write
-REM   immediately as fatal (faulthandler writes python stack to fault.log).
-REM   The debug allocator's C-violation message goes to stderr -> captured in
-REM   logs\stderr_debug.txt. Revert this block and the stderr redirect after
-REM   the culprit is identified.
-REM   (ASCII-only comments: non-ASCII REM lines break batch parsing on some
-REM    PCs under chcp 65001 -> misparsed as commands.)
-set "PYTHONMALLOC=debug"
-
 REM Create logs\ first: without it the stderr redirect below (and the venv
 REM fallback notice) fail before python even starts. logs\ is .gitignore'd
 REM so a fresh GitHub clone lacks it.
@@ -45,7 +35,9 @@ if errorlevel 1 set "NEED_SETUP=requirements.txt changed"
 if not defined NEED_SETUP goto setup_done
 :find_setup
 set "SETUP_PS1="
-for %%F in ("%~dp0python313_*.ps1") do set "SETUP_PS1=%%~fF"
+REM The setup script lives in a subfolder (Korean name, so this file stays
+REM ASCII by scanning every subfolder instead of naming it).
+for /d %%D in ("%~dp0*") do for %%F in ("%%~fD\python313_*.ps1") do set "SETUP_PS1=%%~fF"
 if defined SETUP_PS1 goto run_setup
 echo [launcher] NOTICE: setup needed - %NEED_SETUP% - but setup script not found, skipping
 echo [launcher] NOTICE: setup needed - %NEED_SETUP% - but setup script not found, skipping >> "%~dp0logs\stderr_debug.txt"

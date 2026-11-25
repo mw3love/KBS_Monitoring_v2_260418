@@ -1,6 +1,6 @@
 """
 SharedMemory 프레임 버퍼 래퍼
-docs_ipc_spec.md §1.1 레이아웃 구현
+docs/docs_ipc_spec.md §1.1 레이아웃 구현
 
 헤더 (32 bytes):
   0  uint64 LE  seq_no      홀수=쓰기 중, 짝수=안정

@@ -35,7 +35,7 @@
 
 ### 소통 규칙
 - 사용자 명령이 불명확하거나 해석이 여러 가지일 경우, 명확하게 이해될 때까지 무한정 질문할 것 (추측으로 진행 금지)
-- 작업 완료 후 결과가 초기 계획(PROGRESS.md, CLAUDE.md, docs_기능_레퍼런스.md)과 달라진 부분이 있으면, 관련 문서를 업데이트할지 반드시 사용자에게 확인할 것
+- 작업 완료 후 결과가 초기 계획(PROGRESS.md, CLAUDE.md, docs/docs_기능_레퍼런스.md)과 달라진 부분이 있으면, 관련 문서를 업데이트할지 반드시 사용자에게 확인할 것
 - 파일 수정 전, 영향받는 다른 파일 목록을 먼저 알려줄 것
 
 ### 진행 관리 규칙
@@ -72,7 +72,7 @@
 - 감지합계 표기: V(영상) A(오디오레벨미터) EA(임베디드오디오)
 
 ## 정파 시스템 운영 특성
-- KBS 정파 시각 불규칙성, 테스트영상 송출 예외, `still_trigger_sec` 결정 근거 등 운영 도메인 지식은 **`docs_signoff_운영.md`** 참조.
+- KBS 정파 시각 불규칙성, 테스트영상 송출 예외, `still_trigger_sec` 결정 근거 등 운영 도메인 지식은 **`docs/docs_signoff_운영.md`** 참조.
 - SignoffManager 관련 코드 변경 시 운영 의도와의 충돌 여부를 해당 문서로 확인할 것.
 
 ## 설치된 외부 패키지 (v1과 동일)
@@ -141,7 +141,7 @@ Detection Process (PySide6 임포트 금지 — 세부 규칙은 detection/CLAUD
 
 ## 프로세스 간 통신 규칙
 
-> **세부 스펙은 `docs_ipc_spec.md`에 고정됨** (메시지 dataclass 전체 목록, SharedMemory 바이트 레이아웃, 생명주기 시퀀스). 아래는 원칙 요약. 메시지·필드 추가/변경 시 반드시 `docs_ipc_spec.md`를 먼저 갱신.
+> **세부 스펙은 `docs/docs_ipc_spec.md`에 고정됨** (메시지 dataclass 전체 목록, SharedMemory 바이트 레이아웃, 생명주기 시퀀스). 아래는 원칙 요약. 메시지·필드 추가/변경 시 반드시 `docs/docs_ipc_spec.md`를 먼저 갱신.
 
 ### SharedMemory
 | 이름 | 용도 | 방향 |
@@ -169,6 +169,8 @@ Detection Process (PySide6 임포트 금지 — 세부 규칙은 detection/CLAUD
 kbs_monitoring_v2/
 ├── 실행.bat                # 사람이 누르는 문(ASCII 전용) — 준비 뒤 run_loop.ps1을 부름
 ├── run_loop.ps1            # 다시 켜기 반복(UTF-8 BOM)
+├── 설치도구/               # python313_전환.bat·.ps1(실행.bat이 하위 폴더를 훑어 찾음)·install_ffmpeg.bat
+├── docs/                   # docs_ipc_spec.md·docs_signoff_운영.md·docs_기능_레퍼런스.md 등
 ├── main.py
 ├── data/
 │   ├── window_state.json     # 창 자리(saveGeometry, PC 전용 — 설정 백업에 안 들어감)
@@ -268,7 +270,7 @@ if __name__ == '__main__':
   `실행.bat`은 이게 없으면 시스템 기본 Python(3.14)으로 폴백한다 — 이 폴백이 조용했던 게 2026-08-07 재배포 →
   2026-08-11 UI 힙손상 **6차 재발**의 직접 원인이었다(`fix/260526_설정다이얼로그_TypeError_재현불가.md` §14).
   2026-11-18부터 `실행.bat`이 `.venv313`이 없거나 `requirements.txt`가 설치 도장(`.venv313/requirements.installed.txt`)과
-  다르면 `python313_전환.ps1 -Auto`를 먼저 돌려 자동 재생성한다(인터넷 필요 · 실패해도 폴백 실행 + 기동 점검
+  다르면 `설치도구\python313_전환.ps1 -Auto`를 먼저 돌려 자동 재생성한다(인터넷 필요 · 실패해도 폴백 실행 + 기동 점검
   `✗ 부품 누락`). 설치가 실패하면 폴백 시 `실행.bat`이 콘솔과 `logs/stderr_debug.txt`에 NOTICE를 남기니, 재배포 후엔 그날 UI 로그의
   `EXPERIMENT: ... python=` 배너가 `3.13.x`인지 눈으로 확인할 것 — 이게 최종 안전장치다.
 - ⚠ **이 PC는 다른 프로젝트 작업(Claude Code 등)과 python.exe 프로세스 공간을 공유한다.** 다른 세션이
@@ -341,7 +343,7 @@ if __name__ == '__main__':
 
 ## 재spawn · 종료 · 크래시 시퀀스 (요약)
 
-> 상세 단계는 `docs_ipc_spec.md §3`. 여기서는 원칙만.
+> 상세 단계는 `docs/docs_ipc_spec.md §3`. 여기서는 원칙만.
 
 ### Detection 재spawn 시 상태 복원 (하이브리드)
 - Detection은 기동 시 **`config/kbs_config.json` 자체 로드** (Fast start, UI 대기 불필요)

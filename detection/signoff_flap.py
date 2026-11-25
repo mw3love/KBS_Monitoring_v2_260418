@@ -2,7 +2,7 @@
 정파 플래핑(짧은 시간에 SIGNOFF⇄정파준비 반복) 감지·묶음 처리 추적기.
 
 본사 테스트영상 송출 등으로 V영상이 정지↔움직임을 반복하면 상태기계가
-SIGNOFF ⇄ PREPARATION을 왕복하며 텔레그램/현장 알림음이 폭주한다(docs_signoff_운영.md §7).
+SIGNOFF ⇄ PREPARATION을 왕복하며 텔레그램/현장 알림음이 폭주한다(docs/docs_signoff_운영.md §7).
 이 추적기는 "묶음 모드"를 판정만 하고, 실제 텔레그램 발송/큐 I/O·현장음 억제는
 detection_process / UI가 이 판정을 공유해 수행한다.
 
